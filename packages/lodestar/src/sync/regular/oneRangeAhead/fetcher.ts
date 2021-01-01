@@ -1,7 +1,7 @@
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {SignedBeaconBlock, Slot} from "@chainsafe/lodestar-types";
 import {SlotRoot} from "@chainsafe/lodestar-types";
-import {ErrorAborted, ILogger, sleep} from "@chainsafe/lodestar-utils";
+import {ErrorAborted, ILogger, sleep, withTimeout} from "@chainsafe/lodestar-utils";
 import deepmerge from "deepmerge";
 import PeerId from "peer-id";
 import {IRegularSyncModules} from "..";
@@ -58,6 +58,7 @@ export class BlockRangeFetcher implements IBlockRangeFetcher {
     let result: SignedBeaconBlock[] | null = null;
     let peer: PeerId | null = null;
     const badPeers = new Set<string>();
+
     // expect at least 2 blocks since we check linear chain
     while (!result || result!.length <= 1) {
       let slotRange: ISlotRange | null = null;
@@ -74,16 +75,13 @@ export class BlockRangeFetcher implements IBlockRangeFetcher {
         slotRange = {start: this.rangeStart, end: this.rangeEnd};
         // result = await getBlockRange(this.logger, this.network.reqResp, peers, slotRange);
         // Work around of https://github.com/ChainSafe/lodestar/issues/1690
-        let timer: NodeJS.Timeout | null = null;
-        result = (await Promise.race([
-          getBlockRange(this.logger, this.network.reqResp, [peer], slotRange),
-          new Promise((_, reject) => {
-            timer = setTimeout(() => {
-              reject(new Error("beacon_blocks_by_range timeout"));
-            }, 3 * 60 * 1000); // 3 minutes
-          }),
-        ])) as SignedBeaconBlock[] | null;
-        if (timer) clearTimeout(timer);
+
+        result = await withTimeout(
+          async () => getBlockRange(this.logger, this.network.reqResp, [peer], slotRange),
+          3 * 60 * 1000, // 3 minutes
+          this.signal
+        );
+
         if (result) {
           // we queried from last fetched block
           result = result.filter(
@@ -103,6 +101,7 @@ export class BlockRangeFetcher implements IBlockRangeFetcher {
         result = null;
       }
     }
+
     // success, ignore last block (there should be >= 2 blocks) since we can't validate parent-child
     result.splice(result.length - 1, 1);
     const lastBlock = result[result.length - 1].message;
