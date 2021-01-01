@@ -10,10 +10,9 @@ import {IRegularSync, IRegularSyncOptions, RegularSyncEventEmitter} from "..";
 import {ChainEvent, IBeaconChain} from "../../../chain";
 import {INetwork} from "../../../network";
 import {GossipEvent} from "../../../network/gossip/constants";
-import {checkBestPeer, getBestPeer, getBestPeerCandidates} from "../../utils";
+import {checkBestPeer, getBestPeer, getBestPeerCandidates, sortBlocks} from "../../utils";
 import {BlockRangeFetcher} from "./fetcher";
-import {BlockRangeProcessor} from "./processor";
-import {IBlockRangeFetcher, IBlockRangeProcessor, ORARegularSyncModules} from "./interface";
+import {IBlockRangeFetcher, ORARegularSyncModules} from "./interface";
 
 /**
  * One Range Ahead regular sync: fetch one range in advance and buffer blocks.
@@ -28,7 +27,6 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
   private readonly logger: ILogger;
   private bestPeer: PeerId | undefined;
   private fetcher: IBlockRangeFetcher;
-  private processor: IBlockRangeProcessor;
   private controller!: AbortController;
   private blockBuffer: SignedBeaconBlock[];
 
@@ -39,7 +37,6 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
     this.chain = modules.chain;
     this.logger = modules.logger;
     this.fetcher = modules.fetcher || new BlockRangeFetcher(options, modules, this.getSyncPeers.bind(this));
-    this.processor = modules.processor || new BlockRangeProcessor(modules);
     this.blockBuffer = [];
   }
 
@@ -49,7 +46,6 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
     this.logger.info("Started regular syncing", {currentSlot, headSlot});
     this.logger.verbose("Regular Sync: Current slot at start", {currentSlot});
     this.controller = new AbortController();
-    await this.processor.start();
     this.network.gossip.subscribeToBlock(await this.chain.getForkDigest(), this.onGossipBlock);
     this.chain.emitter.on(ChainEvent.block, this.onProcessedBlock);
     const head = this.chain.forkChoice.getHead();
@@ -63,7 +59,6 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
     if (this.controller && !this.controller.signal.aborted) {
       this.controller.abort();
     }
-    await this.processor.stop();
     this.network.gossip.unsubscribe(await this.chain.getForkDigest(), GossipEvent.BLOCK, this.onGossipBlock);
     this.chain.emitter.off(ChainEvent.block, this.onProcessedBlock);
   }
@@ -99,20 +94,38 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
     while (!this.controller.signal.aborted) {
       // blockBuffer is always not empty
       const lastSlot = this.blockBuffer[this.blockBuffer.length - 1].message.slot;
-      const result = await Promise.all([
+      const [nextBlockRange] = await Promise.all([
         this.fetcher.getNextBlockRange(),
-        this.processor.processUntilComplete([...this.blockBuffer], this.controller.signal),
+        this.processBlocksUntilComplete([...this.blockBuffer]),
       ]);
-      if (!result[0] || !result[0].length) {
+      if (!nextBlockRange || nextBlockRange.length === 0) {
         // node is stopped
         this.logger.info("Regular Sync: fetcher returns empty array, finish sync now");
         return;
       }
-      this.blockBuffer = result[0];
+      this.blockBuffer = nextBlockRange;
       this.logger.info("Regular Sync: Synced up to slot", {
         lastProcessedSlot: lastSlot,
         currentSlot: this.chain.clock.currentSlot,
       });
+    }
+  }
+
+  /**
+   * TODO: From BlockRangeProcessor class
+   * TODO: Cancel promise if signal is aborted
+   */
+  private async processBlocksUntilComplete(blocks: SignedBeaconBlock[]): Promise<void> {
+    if (!blocks || !blocks.length) return;
+
+    const sortedBlocks = sortBlocks(blocks);
+    const chain = this.chain;
+
+    this.logger.info("Imported blocks for slots", {blocks: sortedBlocks.map((block) => block.message.slot)});
+    for (const block of sortedBlocks) {
+      // TODO: Do error handling on each error type
+      //       BlockErrorCode.BLOCK_IS_ALREADY_KNOWN > OK
+      await chain.processBlockJob(block);
     }
   }
 
