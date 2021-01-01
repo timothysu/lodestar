@@ -63,17 +63,17 @@ export class DiversifyPeersBySubnetTask {
       );
     }
 
-    const toDiscPeers: PeerId[] = this.isSynced
+    const peersToDisconnect: PeerId[] = this.isSynced
       ? gossipPeersToDisconnect(connectedPeers, this.network, missingSubnets.length, this.network.getMaxPeer()) || []
       : syncPeersToDisconnect(connectedPeers, this.network) || [];
 
-    if (toDiscPeers.length > 0) {
+    if (peersToDisconnect.length > 0) {
       this.logger.verbose("Disconnecting peers to find new peers", {
-        peersToDisconnect: toDiscPeers.length,
+        peersToDisconnect: peersToDisconnect.length,
         peersToConnect: missingSubnets.length,
       });
       try {
-        await Promise.all(toDiscPeers.map((peer) => this.network.disconnect(peer)));
+        await Promise.all(peersToDisconnect.map((peer) => this.network.disconnect(peer)));
       } catch (e) {
         this.logger.warn("Cannot disconnect peers", {error: e.message});
       }
