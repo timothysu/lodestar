@@ -6,7 +6,7 @@ import {BeaconChain, IBeaconChain} from "../../../../../src/chain";
 import {INetwork, Libp2pNetwork} from "../../../../../src/network";
 import {WinstonLogger} from "@chainsafe/lodestar-utils";
 import PeerId from "peer-id";
-import * as blockUtils from "../../../../../src/sync/utils/blocks";
+import * as blockUtils from "../../../../../src/sync/utils";
 import * as slotUtils from "@chainsafe/lodestar-beacon-state-transition/lib/util/slot";
 import {ZERO_HASH} from "../../../../../src/constants";
 import {IBeaconClock, LocalClock} from "../../../../../src/chain/clock";

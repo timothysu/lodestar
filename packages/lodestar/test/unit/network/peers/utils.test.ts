@@ -9,7 +9,7 @@ import {
   gossipPeersToDisconnect,
   syncPeersToDisconnect,
 } from "../../../../src/network/peers/utils";
-import * as peersUtil from "../../../../src/sync/utils/peers";
+import * as peersUtil from "../../../../src/sync/utils";
 import {IPeerMetadataStore} from "../../../../src/network/peers/interface";
 import {silentLogger} from "../../../utils/logger";
 import {Libp2pPeerMetadataStore} from "../../../../src/network/peers/metastore";

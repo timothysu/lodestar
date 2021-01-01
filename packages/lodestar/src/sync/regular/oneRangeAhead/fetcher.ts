@@ -8,11 +8,10 @@ import {IRegularSyncModules} from "..";
 import {defaultOptions, IRegularSyncOptions} from "../options";
 import {IBeaconChain} from "../../../chain";
 import {INetwork} from "../../../network";
-import {getBlockRange} from "../../utils/blocks";
 import {ISlotRange} from "../../interface";
 import {ZERO_HASH} from "../../../constants";
+import {assertLinearChainSegment, getBlockRange} from "../../utils";
 import {IBlockRangeFetcher} from "./interface";
-import {checkLinearChainSegment} from "../../utils/sync";
 
 /**
  * Get next range by issuing beacon_blocks_by_range requests.
@@ -92,7 +91,7 @@ export class BlockRangeFetcher implements IBlockRangeFetcher {
               )
           );
           // 0-1 block result should go through and we'll handle it in next round
-          if (result.length > 1) checkLinearChainSegment(this.config, result);
+          if (result.length > 1) assertLinearChainSegment(this.config, result);
         }
       } catch (e) {
         this.logger.verbose("Regular Sync: Failed to get block range ", {...(slotRange ?? {}), error: e.message});

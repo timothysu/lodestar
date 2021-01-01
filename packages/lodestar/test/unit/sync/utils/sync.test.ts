@@ -12,16 +12,15 @@ import {ForkChoice} from "@chainsafe/lodestar-fork-choice";
 
 import {
   checkBestPeer,
-  checkLinearChainSegment,
+  assertLinearChainSegment,
   fetchBlockChunks,
   getBestHead,
   getBestPeer,
   getCommonFinalizedCheckpoint,
-  getHighestCommonSlot,
   getStatusFinalizedCheckpoint,
   processSyncBlocks,
 } from "../../../../src/sync/utils";
-import * as blockUtils from "../../../../src/sync/utils/blocks";
+import * as blockUtils from "../../../../src/sync/utils";
 import {BeaconChain, IBeaconChain} from "../../../../src/chain";
 import {ReqResp} from "../../../../src/network/reqresp/reqResp";
 import {generateBlockSummary, generateEmptySignedBlock} from "../../../utils/block";
@@ -43,36 +42,6 @@ describe("sync utils", function () {
 
   after(function () {
     sandbox.restore();
-  });
-
-  describe("get highest common slot", function () {
-    it("no pears", function () {
-      const result = getHighestCommonSlot([]);
-      expect(result).to.be.equal(0);
-    });
-
-    it("no statuses", function () {
-      const result = getHighestCommonSlot([null]);
-      expect(result).to.be.equal(0);
-    });
-
-    it("single rep", function () {
-      const result = getHighestCommonSlot([generateStatus({headSlot: 10})]);
-      expect(result).to.be.equal(10);
-    });
-
-    it("majority", function () {
-      const reps = [generateStatus({headSlot: 10}), generateStatus({headSlot: 10}), generateStatus({headSlot: 12})];
-      const result = getHighestCommonSlot(reps);
-      expect(result).to.be.equal(10);
-    });
-
-    //It should be 10 as it's highest common slot, we need better algo for that to consider
-    it.skip("disagreement", function () {
-      const reps = [generateStatus({headSlot: 12}), generateStatus({headSlot: 10}), generateStatus({headSlot: 11})];
-      const result = getHighestCommonSlot(reps);
-      expect(result).to.be.equal(10);
-    });
   });
 
   it("status to finalized checkpoint", function () {
@@ -406,18 +375,18 @@ describe("sync utils", function () {
     });
   });
 
-  describe("checkLinearChainSegment", function () {
+  describe("assertLinearChainSegment", function () {
     it("should throw error if not enough block", () => {
-      expect(() => checkLinearChainSegment(config, null)).to.throw("Not enough blocks to validate");
-      expect(() => checkLinearChainSegment(config, [])).to.throw("Not enough blocks to validate");
-      expect(() => checkLinearChainSegment(config, [generateEmptySignedBlock()])).to.throw(
+      expect(() => assertLinearChainSegment(config, null)).to.throw("Not enough blocks to validate");
+      expect(() => assertLinearChainSegment(config, [])).to.throw("Not enough blocks to validate");
+      expect(() => assertLinearChainSegment(config, [generateEmptySignedBlock()])).to.throw(
         "Not enough blocks to validate"
       );
     });
 
     it("should throw error if first block not link to ancestor root", () => {
       const block = generateEmptySignedBlock();
-      expect(() => checkLinearChainSegment(config, [block, block])).to.throw(
+      expect(() => assertLinearChainSegment(config, [block, block])).to.throw(
         "Block 0 does not link to parent 0xeade62f0457b2fdf48e7d3fc4b60736688286be7c7a3ac4c9a16a5e0600bd9e4"
       );
     });
@@ -428,7 +397,7 @@ describe("sync utils", function () {
       const secondBlock = generateEmptySignedBlock();
       secondBlock.message.slot = 1;
       // secondBlock.message.parentRoot = config.types.BeaconBlock.hashTreeRoot(firstBlock.message);
-      expect(() => checkLinearChainSegment(config, [firstBlock, secondBlock], ancestorRoot)).to.throw(
+      expect(() => assertLinearChainSegment(config, [firstBlock, secondBlock], ancestorRoot)).to.throw(
         "Block 1 does not link to parent 0xeade62f0457b2fdf48e7d3fc4b60736688286be7c7a3ac4c9a16a5e0600bd9e4"
       );
     });
@@ -439,7 +408,7 @@ describe("sync utils", function () {
       const secondBlock = generateEmptySignedBlock();
       secondBlock.message.slot = 1;
       secondBlock.message.parentRoot = config.types.BeaconBlock.hashTreeRoot(firstBlock.message);
-      checkLinearChainSegment(config, [firstBlock, secondBlock], ancestorRoot);
+      assertLinearChainSegment(config, [firstBlock, secondBlock], ancestorRoot);
       // no error thrown means success
     });
   });

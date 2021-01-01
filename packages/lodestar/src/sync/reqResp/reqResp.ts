@@ -26,7 +26,7 @@ import {RpcError} from "../../network/error";
 import {handlePeerMetadataSequence} from "../../network/peers/utils";
 import {ReqRespRequest} from "../../network/reqresp";
 import {sendResponse, sendResponseStream} from "../../network/reqresp/respUtils";
-import {createStatus, syncPeersStatus} from "../utils/sync";
+import {createStatus, sendStatusToAllPeers} from "../utils";
 import {IReqRespHandler} from "./interface";
 
 export interface IReqRespHandlerModules {
@@ -82,7 +82,7 @@ export class BeaconReqRespHandler implements IReqRespHandler {
     this.network.reqResp.on("request", this.onRequest);
     this.network.on("peer:connect", this.handshake);
     const myStatus = await createStatus(this.chain);
-    await syncPeersStatus(this.network, myStatus);
+    await sendStatusToAllPeers(this.network, myStatus);
   }
 
   public async stop(): Promise<void> {

@@ -1,7 +1,7 @@
 import {SinonStubbedInstance} from "sinon";
 import {INetwork, Libp2pNetwork} from "../../../../src/network";
 import sinon from "sinon";
-import {getSyncPeers} from "../../../../src/sync/utils/peers";
+import {getSyncPeers} from "../../../../src/sync/utils";
 import {expect} from "chai";
 import {generatePeer} from "../../../utils/peer";
 import PeerId from "peer-id";

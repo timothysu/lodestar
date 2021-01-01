@@ -20,7 +20,7 @@ import {GENESIS_EPOCH} from "../../../constants";
 import {ISyncStats, SyncStats} from "../../stats";
 import {IBeaconDb} from "../../../db";
 import {notNullish} from "../../../util/notNullish";
-import {getSyncPeers} from "../../utils/peers";
+import {getSyncPeers} from "../../utils";
 
 export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}) implements InitialSync {
   private readonly opts: ISyncOptions;

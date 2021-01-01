@@ -1,45 +1,10 @@
 import PeerId from "peer-id";
-import {BeaconBlockHeader, SignedBeaconBlock, Slot} from "@chainsafe/lodestar-types";
-import {RoundRobinArray} from "./robin";
+import {SignedBeaconBlock, Slot} from "@chainsafe/lodestar-types";
+import {RoundRobinArray} from "./roundRobinArray";
 import {IReqResp} from "../../network";
 import {ISlotRange} from "../interface";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {notNullish} from "../../util/notNullish";
-
-/**
- * Creates slot chunks returned chunks represents (inclusive) start and (inclusive) end slot
- * which should be fetched along all slotS(blocks) in between
- * @param blocksPerChunk
- * @param currentSlot
- * @param targetSlot
- */
-export function chunkify(blocksPerChunk: number, currentSlot: Slot, targetSlot: Slot): ISlotRange[] {
-  if (blocksPerChunk < 5) {
-    blocksPerChunk = 5;
-  }
-  const chunks: ISlotRange[] = [];
-  // currentSlot is our state slot so we need block from next slot
-  for (let i = currentSlot; i <= targetSlot; i = i + blocksPerChunk + 1) {
-    chunks.push({
-      start: i,
-      end: Math.min(i + blocksPerChunk, targetSlot),
-    });
-  }
-  return chunks;
-}
-
-export async function getBlockRangeFromPeer(
-  rpc: IReqResp,
-  peer: PeerId,
-  chunk: ISlotRange
-): Promise<SignedBeaconBlock[] | null> {
-  return await rpc.beaconBlocksByRange(peer, {
-    startSlot: chunk.start,
-    step: 1,
-    count: chunk.end - chunk.start + 1,
-  });
-}
 
 export async function getBlockRange(
   logger: ILogger,
@@ -91,21 +56,40 @@ export async function getBlockRange(
   return sortBlocks(blocks);
 }
 
-export function sortBlocks(blocks: SignedBeaconBlock[]): SignedBeaconBlock[] {
-  return blocks.sort((b1, b2) => b1.message.slot - b2.message.slot);
+/**
+ * Creates slot chunks returned chunks represents (inclusive) start and (inclusive) end slot
+ * which should be fetched along all slotS(blocks) in between
+ * @param blocksPerChunk
+ * @param currentSlot
+ * @param targetSlot
+ */
+export function chunkify(blocksPerChunk: number, currentSlot: Slot, targetSlot: Slot): ISlotRange[] {
+  if (blocksPerChunk < 5) {
+    blocksPerChunk = 5;
+  }
+  const chunks: ISlotRange[] = [];
+  // currentSlot is our state slot so we need block from next slot
+  for (let i = currentSlot; i <= targetSlot; i = i + blocksPerChunk + 1) {
+    chunks.push({
+      start: i,
+      end: Math.min(i + blocksPerChunk, targetSlot),
+    });
+  }
+  return chunks;
 }
 
-export function isValidChainOfBlocks(
-  config: IBeaconConfig,
-  start: BeaconBlockHeader,
-  signedBlocks: SignedBeaconBlock[]
-): boolean {
-  let parentRoot = config.types.BeaconBlockHeader.hashTreeRoot(start);
-  for (const signedBlock of signedBlocks) {
-    if (!config.types.Root.equals(parentRoot, signedBlock.message.parentRoot)) {
-      return false;
-    }
-    parentRoot = config.types.BeaconBlock.hashTreeRoot(signedBlock.message);
-  }
-  return true;
+export async function getBlockRangeFromPeer(
+  rpc: IReqResp,
+  peer: PeerId,
+  chunk: ISlotRange
+): Promise<SignedBeaconBlock[] | null> {
+  return await rpc.beaconBlocksByRange(peer, {
+    startSlot: chunk.start,
+    step: 1,
+    count: chunk.end - chunk.start + 1,
+  });
+}
+
+export function sortBlocks(blocks: SignedBeaconBlock[]): SignedBeaconBlock[] {
+  return blocks.sort((b1, b2) => b1.message.slot - b2.message.slot);
 }

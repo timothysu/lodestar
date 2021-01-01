@@ -9,7 +9,7 @@ import {FastSync, InitialSync} from "./initial";
 import {IRegularSync} from "./regular";
 import {BeaconReqRespHandler, IReqRespHandler} from "./reqResp";
 import {BeaconGossipHandler, IGossipHandler} from "./gossip";
-import {AttestationCollector, createStatus, RoundRobinArray, syncPeersStatus} from "./utils";
+import {AttestationCollector, createStatus, RoundRobinArray, sendStatusToAllPeers} from "./utils";
 import {ChainEvent, IBeaconChain} from "../chain";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {List, toHexString} from "@chainsafe/ssz";
@@ -162,9 +162,9 @@ export class BeaconSync implements IBeaconSync {
     this.stopSyncTimer();
     this.statusSyncTimer = setInterval(async () => {
       try {
-        await syncPeersStatus(this.network, await createStatus(this.chain));
+        await sendStatusToAllPeers(this.network, await createStatus(this.chain));
       } catch (e) {
-        this.logger.error("Error on syncPeersStatus", e);
+        this.logger.error("Error on sendStatusToAllPeers", e);
       }
     }, interval);
   }

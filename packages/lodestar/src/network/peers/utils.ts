@@ -5,7 +5,7 @@ import {INetwork} from "../interface";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {getSyncProtocols} from "../util";
 import {notNullish} from "../../util/notNullish";
-import {getSyncPeers} from "../../sync/utils/peers";
+import {getSyncPeers} from "../../sync/utils";
 
 /**
  * Return number of peers by subnet.
