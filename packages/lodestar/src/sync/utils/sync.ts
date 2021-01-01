@@ -127,34 +127,6 @@ export function fetchBlockChunks(
   };
 }
 
-export function validateBlocks(
-  config: IBeaconConfig,
-  chain: IBeaconChain,
-  logger: ILogger,
-  onBlockVerificationFail: () => void
-): (source: AsyncIterable<SignedBeaconBlock[]>) => AsyncGenerator<SignedBeaconBlock[]> {
-  return async function* (source) {
-    for await (const blockChunk of source) {
-      if (blockChunk.length === 0) {
-        continue;
-      }
-      const head = blockToHeader(config, (await chain.getHeadBlock())!.message);
-      if (isValidChainOfBlocks(config, head, blockChunk)) {
-        yield blockChunk;
-      } else {
-        logger.warn("Hash chain doesnt match!", {
-          headSlot: head.slot,
-          headHash: toHexString(config.types.BeaconBlockHeader.hashTreeRoot(head)),
-          fromSlot: blockChunk[0].message.slot,
-          toSlot: blockChunk[blockChunk.length - 1].message.slot,
-        });
-        // discard blocks and trigger resync so we try to fetch blocks again
-        onBlockVerificationFail();
-      }
-    }
-  };
-}
-
 /**
  * Bufferes and orders block and passes them to chain.
  * Returns last processed slot if it was successful,
