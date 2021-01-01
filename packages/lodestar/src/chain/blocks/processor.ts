@@ -42,7 +42,7 @@ export class BlockProcessor {
   }
 
   public async processBlockJob(job: IBlockJob): Promise<void> {
-    return this.jobQueue.enqueueJob(async () => await processBlockJob(this.modules, job));
+    return await this.jobQueue.enqueueJob(async () => await processBlockJob(this.modules, job));
   }
 }
 
@@ -69,5 +69,6 @@ export async function processBlockJob(modules: BlockProcessorModules, job: IBloc
   } catch (e) {
     // above functions only throw BlockError
     modules.emitter.emit(ChainEvent.errorBlock, e);
+    throw e;
   }
 }
