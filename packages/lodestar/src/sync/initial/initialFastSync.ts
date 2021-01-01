@@ -4,23 +4,25 @@
 import PeerId from "peer-id";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {SlotRoot} from "@chainsafe/lodestar-types";
-import {ChainEvent, IBeaconChain} from "../../../chain";
-import {getSyncProtocols, INetwork} from "../../../network";
+import {ChainEvent, IBeaconChain} from "../../chain";
+import {getSyncProtocols, INetwork} from "../../network";
 import {ILogger} from "@chainsafe/lodestar-utils";
-import {defaultSyncOptions, ISyncOptions} from "../../options";
-import {IInitialSyncModules, InitialSync, InitialSyncEventEmitter} from "../interface";
+import {defaultSyncOptions, ISyncOptions} from "../options";
+import {IInitialSyncModules, InitialSync, InitialSyncEventEmitter} from "./interface";
 import {EventEmitter} from "events";
 import {Checkpoint, SignedBeaconBlock, Slot, Status} from "@chainsafe/lodestar-types";
 import pushable, {Pushable} from "it-pushable";
 import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import pipe from "it-pipe";
-import {ISlotRange} from "../../interface";
-import {fetchBlockChunks, getCommonFinalizedCheckpoint, processSyncBlocks} from "../../utils";
-import {GENESIS_EPOCH} from "../../../constants";
-import {ISyncStats, SyncStats} from "../../stats";
-import {IBeaconDb} from "../../../db";
-import {notNullish} from "../../../util/notNullish";
-import {getSyncPeers} from "../../utils";
+import {ISlotRange} from "../interface";
+import {getCommonFinalizedCheckpoint} from "../utils";
+import {GENESIS_EPOCH} from "../../constants";
+import {ISyncStats, SyncStats} from "../stats";
+import {IBeaconDb} from "../../db";
+import {notNullish} from "../../util/notNullish";
+import {getSyncPeers} from "../utils";
+import {fetchBlockChunks} from "./fetchBlockChunks";
+import {processSyncBlocks} from "./processSyncBlocks";
 
 export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}) implements InitialSync {
   private readonly opts: ISyncOptions;
@@ -137,13 +139,21 @@ export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}
       } = this;
 
       for await (const slotRange of source) {
-        const lastSlot = await pipe(
-          [slotRange],
-          fetchBlockChunks(logger, network.reqResp, getInitialSyncPeers),
-          processSyncBlocks(config, chain, logger, true, getLastProcessedBlock(), true)
-        );
+        const blocks = await fetchBlockChunks(slotRange, logger, network.reqResp, getInitialSyncPeers);
+
+        const lastProcessedBlock = getLastProcessedBlock();
+        let lastSlot: number | null;
+        if (!blocks) {
+          // failed to fetch range, trigger sync to retry
+          logger.warn("Failed to get blocks for range", {headSlot: lastProcessedBlock.slot});
+          lastSlot = lastProcessedBlock.slot;
+        } else {
+          logger.info("Imported blocks for slots", {blocks: blocks.map((block) => block.message.slot).join(",")});
+          lastSlot = await processSyncBlocks(blocks, config, chain, logger, true, lastProcessedBlock, true);
+        }
+
         logger.verbose("last processed slot range", {lastSlot, ...slotRange});
-        if (typeof lastSlot === "number") {
+        if (lastSlot !== null) {
           if (lastSlot === getLastProcessedBlock().slot) {
             // failed at start of range
 

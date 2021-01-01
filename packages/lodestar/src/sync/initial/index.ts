@@ -1,2 +1,2 @@
 export * from "./interface";
-export * from "./fast";
+export * from "./initialFastSync";
