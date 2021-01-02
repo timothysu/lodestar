@@ -15,7 +15,7 @@ import pushable, {Pushable} from "it-pushable";
 import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import pipe from "it-pipe";
 import {ISlotRange} from "../interface";
-import {getCommonFinalizedCheckpoint} from "../utils";
+import {getCommonFinalizedCheckpoint, getPeersInitialSync} from "../utils";
 import {GENESIS_EPOCH} from "../../constants";
 import {ISyncStats, SyncStats} from "../stats";
 import {IBeaconDb} from "../../db";
@@ -31,7 +31,6 @@ export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}
   private readonly network: INetwork;
   private readonly logger: ILogger;
   private readonly stats: ISyncStats;
-  private readonly db: IBeaconDb;
 
   /**
    * Targeted finalized checkpoint. Initial sync should only sync up to that point.
@@ -42,10 +41,6 @@ export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}
    */
   private blockImportTarget: Slot = 0;
 
-  /**
-   * Trigger for block import
-   */
-  private syncTriggerSource: Pushable<ISlotRange>;
   /**
    * The last processed block
    */
@@ -60,15 +55,20 @@ export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}
     this.logger = logger;
     this.db = db;
     this.stats = stats || new SyncStats(this.chain.emitter);
-    this.syncTriggerSource = pushable<ISlotRange>();
   }
 
   public async start(): Promise<void> {
     this.logger.info("Starting initial syncing");
     this.chain.emitter.on(ChainEvent.checkpoint, this.checkSyncCompleted);
     this.chain.emitter.on(ChainEvent.block, this.checkSyncProgress);
-    this.syncTriggerSource = pushable<ISlotRange>();
-    this.targetCheckpoint = getCommonFinalizedCheckpoint(this.config, this.getPeerStatuses());
+
+    try {
+      const {checkpoint, peers} = getPeersInitialSync(this.network);
+      this.targetCheckpoint = checkpoint;
+    } catch (e) {
+      this.logger.verbose("No suitable peers found", e);
+    }
+
     // head may not be on finalized chain so we start from finalized block
     // there are unfinalized blocks in db so we reprocess all of them
     const finalizedBlock = this.chain.forkChoice.getFinalizedBlock();
@@ -84,7 +84,7 @@ export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}
       return;
     }
     this.logger.info("Start initial sync", {finalizedSlot: this.blockImportTarget});
-    this.setBlockImportTarget();
+    // TODO: make SyncStats not require a timer, just record entries
     await this.stats.start();
     await this.sync();
   }
@@ -92,9 +92,8 @@ export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}
   public async stop(): Promise<void> {
     this.logger.info("initial sync stop");
     await this.stats.stop();
-    this.syncTriggerSource.end();
-    this.chain.emitter.removeListener(ChainEvent.block, this.checkSyncProgress);
-    this.chain.emitter.removeListener(ChainEvent.checkpoint, this.checkSyncCompleted);
+    this.chain.emitter.removeListener(ChainEvent.block, this.onBlock);
+    this.chain.emitter.removeListener(ChainEvent.checkpoint, this.onCheckpoint);
   }
 
   public getHighestBlock(): Slot {
@@ -112,80 +111,63 @@ export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}
     }
   }
 
-  private updateBlockImportTarget = (target: Slot): void => {
-    this.logger.verbose("updating block target", {target});
-    this.blockImportTarget = target;
-  };
-
-  private setBlockImportTarget = (fromSlot?: Slot): void => {
-    const lastTarget = fromSlot ?? this.blockImportTarget;
-    const newTarget = this.getNewBlockImportTarget(lastTarget);
-    this.logger.info("Fetching blocks range", {fromSlot: lastTarget + 1, toSlot: newTarget});
-    this.syncTriggerSource.push({start: lastTarget + 1, end: newTarget});
-    this.updateBlockImportTarget(newTarget);
-  };
-
   private async sync(): Promise<void> {
-    await pipe(this.syncTriggerSource, async (source) => {
-      const {
-        config,
-        chain,
-        network,
-        logger,
-        getLastProcessedBlock,
-        setBlockImportTarget,
-        updateBlockImportTarget,
-        getInitialSyncPeers,
-      } = this;
+    let fromSlot: number | undefined;
 
-      for await (const slotRange of source) {
-        const blocks = await fetchBlockChunks(slotRange, logger, network.reqResp, getInitialSyncPeers);
+    while (true) {
+      const {config, chain, network, logger, getInitialSyncPeers} = this;
 
-        const lastProcessedBlock = getLastProcessedBlock();
-        let lastSlot: number | null;
-        if (!blocks) {
-          // failed to fetch range, trigger sync to retry
-          logger.warn("Failed to get blocks for range", {headSlot: lastProcessedBlock.slot});
-          lastSlot = lastProcessedBlock.slot;
-        } else {
-          logger.info("Imported blocks for slots", {blocks: blocks.map((block) => block.message.slot).join(",")});
-          lastSlot = await processSyncBlocks(blocks, config, chain, logger, true, lastProcessedBlock, true);
-        }
+      const lastTarget = fromSlot ?? this.blockImportTarget;
+      const newTarget = this.getNewBlockImportTarget(lastTarget);
+      this.logger.info("Fetching blocks range", {fromSlot: lastTarget + 1, toSlot: newTarget});
+      const slotRange = {start: lastTarget + 1, end: newTarget};
+      this.blockImportTarget = newTarget;
 
-        logger.verbose("last processed slot range", {lastSlot, ...slotRange});
-        if (lastSlot !== null) {
-          if (lastSlot === getLastProcessedBlock().slot) {
-            // failed at start of range
+      const blocks = await fetchBlockChunks(slotRange, logger, network.reqResp, getInitialSyncPeers);
 
-            logger.warn("Failed to process block range, retrying", {lastSlot, ...slotRange});
-            setBlockImportTarget(lastSlot);
-          } else {
-            // success
-            // set new target from last block we've processed
-            // it will trigger new sync once last block is processed
-            updateBlockImportTarget(lastSlot);
-          }
-        } else {
-          // no blocks in range
-          logger.warn("Didn't receive any valid block in block range", {...slotRange});
-          // we didn't receive any block, set target from last requested slot
-          setBlockImportTarget(slotRange.end);
-        }
+      let lastSlot: number | null;
+      if (!blocks) {
+        // failed to fetch range, trigger sync to retry
+        logger.warn("Failed to get blocks for range", {headSlot: this.lastProcessedBlock.slot});
+        lastSlot = this.lastProcessedBlock.slot;
+      } else {
+        logger.info("Imported blocks for slots", {blocks: blocks.map((block) => block.message.slot).join(",")});
+        lastSlot = await processSyncBlocks(blocks, config, chain, logger, true, this.lastProcessedBlock, true);
       }
-    });
+
+      logger.verbose("last processed slot range", {lastSlot, ...slotRange});
+      if (lastSlot !== null) {
+        if (lastSlot === this.lastProcessedBlock.slot) {
+          // failed at start of range
+
+          logger.warn("Failed to process block range, retrying", {lastSlot, ...slotRange});
+          fromSlot = lastSlot;
+        } else {
+          // success
+          // set new target from last block we've processed
+          // it will trigger new sync once last block is processed
+          this.logger.verbose("updating block target", {target: lastSlot});
+          this.blockImportTarget = lastSlot;
+        }
+      } else {
+        // no blocks in range
+        logger.warn("Didn't receive any valid block in block range", {...slotRange});
+        // we didn't receive any block, set target from last requested slot
+        fromSlot = slotRange.end;
+      }
+    }
   }
 
-  private checkSyncProgress = async (processedBlock: SignedBeaconBlock): Promise<void> => {
+  private onBlock = async (processedBlock: SignedBeaconBlock): Promise<void> => {
     if (processedBlock.message.slot === this.blockImportTarget) {
       this.lastProcessedBlock = {
         slot: processedBlock.message.slot,
         root: this.config.types.BeaconBlock.hashTreeRoot(processedBlock.message),
       };
-      this.setBlockImportTarget();
     }
   };
 
-  private checkSyncCompleted = async (processedCheckpoint: Checkpoint): Promise<void> => {
+  private onCheckpoint = async (processedCheckpoint: Checkpoint): Promise<void> => {
     const estimate = this.stats.getEstimate(
       computeStartSlotAtEpoch(this.config, processedCheckpoint.epoch),
       this.getHighestBlock()
@@ -204,42 +186,30 @@ export class FastSync extends (EventEmitter as {new (): InitialSyncEventEmitter}
       //   + `expected ${toHexString(this.targetCheckpoint.root)}, actual ${toHexString(processedCheckpoint.root)}`);
       //   throw new Error("Should delete chain and start again. Invalid blocks synced");
       // }
-      const newTarget = getCommonFinalizedCheckpoint(this.config, this.getPeerStatuses())!;
-      if (newTarget.epoch > this.targetCheckpoint!.epoch) {
+
+      let newTarget: Checkpoint | null = null;
+      try {
+        newTarget = getPeersInitialSync(this.network).checkpoint;
+      } catch (e) {
+        this.logger.verbose("No suitable peers found", e);
+      }
+
+      if (newTarget.epoch <= this.targetCheckpoint!.epoch) {
+        this.logger.important(`Reach common finalized checkpoint at epoch ${this.targetCheckpoint!.epoch}`);
+        // finished initial sync
+        await this.stop();
+      } else {
         this.targetCheckpoint = newTarget;
         this.logger.verbose("Set new target checkpoint", {epoch: newTarget.epoch});
         return;
       }
-      this.logger.important(`Reach common finalized checkpoint at epoch ${this.targetCheckpoint!.epoch}`);
-      // finished initial sync
-      await this.stop();
     }
   };
-
-  private getPeerStatuses(): Status[] {
-    return this.network
-      .getPeers({
-        connected: true,
-        supportsProtocols: getSyncProtocols(),
-      })
-      .map((peer) => this.network.peerMetadata.getStatus(peer.id))
-      .filter(notNullish);
-  }
 
   /**
    * Make sure we get up-to-date lastProcessedBlock from sync().
    */
   private getLastProcessedBlock = (): SlotRoot => {
     return this.lastProcessedBlock;
-  };
-
-  /**
-   * Returns peers which has same finalized Checkpoint
-   */
-  private getInitialSyncPeers = async (): Promise<PeerId[]> => {
-    return getSyncPeers(this.network, (peer) => {
-      const status = this.network.peerMetadata.getStatus(peer);
-      return !!status && status.finalizedEpoch >= (this.targetCheckpoint?.epoch ?? 0);
-    });
   };
 }

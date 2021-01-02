@@ -2,41 +2,28 @@ import {Checkpoint, Status} from "@chainsafe/lodestar-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {toHexString} from "@chainsafe/ssz";
 
-export function getStatusFinalizedCheckpoint(status: Status): Checkpoint {
-  return {epoch: status.finalizedEpoch, root: status.finalizedRoot};
-}
+export function getMostCommonFinalizedCheckpoint(config: IBeaconConfig, peerStatuses: Status[]): Checkpoint | null {
+  const checkpointVotes = new Map<string, {checkpoint: Checkpoint; votes: number}>();
 
-export function getCommonFinalizedCheckpoint(
-  config: IBeaconConfig,
-  peerStatuses: (Status | null)[]
-): Checkpoint | null {
-  const checkpointVotes = peerStatuses.reduce<Map<string, {checkpoint: Checkpoint; votes: number}>>(
-    (current, status) => {
-      if (!status) {
-        return current;
-      }
-      const peerCheckpoint = getStatusFinalizedCheckpoint(status);
-      const root = toHexString(config.types.Checkpoint.hashTreeRoot(peerCheckpoint));
-      if (current.has(root)) {
-        current.get(root)!.votes++;
-      } else {
-        current.set(root, {checkpoint: peerCheckpoint, votes: 1});
-      }
-      return current;
-    },
-    new Map()
-  );
-  if (checkpointVotes.size > 0) {
-    return Array.from(checkpointVotes.values())
-      .sort((voteA, voteB) => {
-        if (voteA.votes > voteB.votes) return -1;
-        if (voteA.votes < voteB.votes) return 1;
-        if (voteA.checkpoint.epoch > voteB.checkpoint.epoch) return -1;
-        if (voteA.checkpoint.epoch < voteB.checkpoint.epoch) return 1;
-        return 0;
-      })
-      .shift()!.checkpoint;
-  } else {
-    return null;
+  for (const status of peerStatuses) {
+    const peerCheckpoint = {epoch: status.finalizedEpoch, root: status.finalizedRoot};
+    const root = toHexString(config.types.Checkpoint.hashTreeRoot(peerCheckpoint));
+    let rootVotes = checkpointVotes.get(root);
+    if (rootVotes) {
+      rootVotes.votes++;
+    } else {
+      rootVotes = {checkpoint: peerCheckpoint, votes: 1};
+    }
+    checkpointVotes.set(root, rootVotes);
   }
+
+  const sortedCheckpoints = Array.from(checkpointVotes.values()).sort((voteA, voteB) => {
+    if (voteA.votes > voteB.votes) return -1;
+    if (voteA.votes < voteB.votes) return 1;
+    if (voteA.checkpoint.epoch > voteB.checkpoint.epoch) return -1;
+    if (voteA.checkpoint.epoch < voteB.checkpoint.epoch) return 1;
+    return 0;
+  });
+
+  return sortedCheckpoints.shift()?.checkpoint ?? null;
 }

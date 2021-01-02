@@ -1,7 +1,7 @@
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {SignedBeaconBlock, Slot} from "@chainsafe/lodestar-types";
 import {SlotRoot} from "@chainsafe/lodestar-types";
-import {AbortController, AbortSignal} from "abort-controller";
+import {AbortController} from "abort-controller";
 import {ILogger, sleep} from "@chainsafe/lodestar-utils";
 import {toHexString} from "@chainsafe/ssz";
 import {EventEmitter} from "events";
@@ -10,7 +10,7 @@ import {IRegularSync, IRegularSyncOptions, RegularSyncEventEmitter} from "..";
 import {ChainEvent, IBeaconChain} from "../../../chain";
 import {INetwork} from "../../../network";
 import {GossipEvent} from "../../../network/gossip/constants";
-import {checkBestPeer, getBestPeer, getBestPeerCandidates, sortBlocks} from "../../utils";
+import {getPeersRegularSync, sortBlocks, isGoodPeerRegularSync} from "../../utils";
 import {BlockRangeFetcher} from "./fetcher";
 import {IBlockRangeFetcher, ORARegularSyncModules} from "./interface";
 
@@ -27,7 +27,7 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
   private readonly logger: ILogger;
   private bestPeer: PeerId | undefined;
   private fetcher: IBlockRangeFetcher;
-  private controller!: AbortController;
+  private controller: AbortController;
   private blockBuffer: SignedBeaconBlock[];
 
   constructor(options: Partial<IRegularSyncOptions>, modules: ORARegularSyncModules) {
@@ -38,6 +38,7 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
     this.logger = modules.logger;
     this.fetcher = modules.fetcher || new BlockRangeFetcher(options, modules, this.getSyncPeers.bind(this));
     this.blockBuffer = [];
+    this.controller = new AbortController();
   }
 
   public async start(): Promise<void> {
@@ -47,7 +48,6 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
     this.logger.verbose("Regular Sync: Current slot at start", {currentSlot});
     this.controller = new AbortController();
     this.network.gossip.subscribeToBlock(await this.chain.getForkDigest(), this.onGossipBlock);
-    this.chain.emitter.on(ChainEvent.block, this.onProcessedBlock);
     const head = this.chain.forkChoice.getHead();
     this.setLastProcessedBlock({slot: head.slot, root: head.blockRoot});
     this.sync().catch((e) => {
@@ -60,7 +60,6 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
       this.controller.abort();
     }
     this.network.gossip.unsubscribe(await this.chain.getForkDigest(), GossipEvent.BLOCK, this.onGossipBlock);
-    this.chain.emitter.off(ChainEvent.block, this.onProcessedBlock);
   }
 
   public setLastProcessedBlock(lastProcessedBlock: SlotRoot): void {
@@ -72,18 +71,14 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
     return lastBlock ?? this.chain.forkChoice.getHead().slot;
   }
 
+  /**
+   * TODO: Why is this a condition to stop the sync?
+   * Could a random peer send us an old block by gossip to stop our sync?
+   */
   private onGossipBlock = async (block: SignedBeaconBlock): Promise<void> => {
     const gossipParentBlockRoot = block.message.parentRoot;
     if (this.chain.forkChoice.hasBlock(gossipParentBlockRoot as Uint8Array)) {
       this.logger.important("Regular Sync: caught up to gossip block parent " + toHexString(gossipParentBlockRoot));
-      this.emit("syncCompleted");
-      await this.stop();
-    }
-  };
-
-  private onProcessedBlock = async (signedBlock: SignedBeaconBlock): Promise<void> => {
-    if (signedBlock.message.slot >= this.chain.clock.currentSlot) {
-      this.logger.info("Regular Sync: processed up to current slot", {slot: signedBlock.message.slot});
       this.emit("syncCompleted");
       await this.stop();
     }
@@ -108,6 +103,14 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
         lastProcessedSlot: lastSlot,
         currentSlot: this.chain.clock.currentSlot,
       });
+
+      // TODO: From `this.chain.emitter.on(ChainEvent.block, this.onProcessedBlock);`
+      // Check sync progress and stop
+      if (signedBlock.message.slot >= this.chain.clock.currentSlot) {
+        this.logger.info("Regular Sync: processed up to current slot", {slot: signedBlock.message.slot});
+        this.emit("syncCompleted");
+        await this.stop();
+      }
     }
   }
 
@@ -119,13 +122,12 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
     if (!blocks || !blocks.length) return;
 
     const sortedBlocks = sortBlocks(blocks);
-    const chain = this.chain;
 
     this.logger.info("Imported blocks for slots", {blocks: sortedBlocks.map((block) => block.message.slot)});
     for (const block of sortedBlocks) {
       // TODO: Do error handling on each error type
       //       BlockErrorCode.BLOCK_IS_ALREADY_KNOWN > OK
-      await chain.processBlockJob(block);
+      await this.chain.processBlockJob(block);
     }
   }
 
@@ -133,41 +135,40 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
    * Make sure the best peer is not disconnected and it's better than us.
    * @param excludedPeers don't want to return peers in this list
    */
-  private getSyncPeers = async (excludedPeers: string[] = []): Promise<PeerId[]> => {
+  private getSyncPeers = async (excludedPeers: Set<string>): Promise<PeerId[]> => {
+    const ourHeadSlot = this.chain.forkChoice.getHead().slot;
+
     if (
-      excludedPeers.includes(this.bestPeer?.toB58String() ?? "") ||
-      !checkBestPeer(this.bestPeer!, this.chain.forkChoice, this.network)
+      !this.bestPeer ||
+      excludedPeers.has(this.bestPeer.toB58String()) ||
+      !isGoodPeerRegularSync(this.bestPeer, this.network, ourHeadSlot)
     ) {
       this.logger.info("Regular Sync: wait for best peer");
-      this.bestPeer = await this.waitForBestPeer(this.controller.signal, excludedPeers);
+
+      // statusSyncTimer is per slot
+      const waitingTime = this.config.params.SECONDS_PER_SLOT * 1000;
+
+      while (!this.bestPeer) {
+        const {checkpoint, peers} = getPeersRegularSync(this.network, ourHeadSlot);
+        // TODO: Store multiple best peers with same checkpoint, not only one
+        const bestPeer = peers[0];
+        if (bestPeer) {
+          this.bestPeer = bestPeer.peerId;
+          this.logger.info("Regular Sync: Found best peer", {
+            peerId: bestPeer.peerId.toB58String(),
+            peerHeadSlot: checkpoint.slot,
+            currentSlot: this.chain.clock.currentSlot,
+          });
+          break;
+        }
+
+        // continue to find best peer
+        await sleep(waitingTime, this.controller.signal);
+      }
+
       if (this.controller.signal.aborted) return [];
     }
-    return [this.bestPeer!];
-  };
 
-  private waitForBestPeer = async (signal: AbortSignal, excludedPeers: string[] = []): Promise<PeerId> => {
-    // statusSyncTimer is per slot
-    const waitingTime = this.config.params.SECONDS_PER_SLOT * 1000;
-    let bestPeer: PeerId | undefined;
-
-    while (!bestPeer) {
-      const peers = getBestPeerCandidates(this.chain.forkChoice, this.network).filter(
-        (peer) => !excludedPeers.includes(peer.toB58String())
-      );
-      if (peers && peers.length > 0) {
-        bestPeer = getBestPeer(this.config, peers, this.network.peerMetadata);
-        const peerHeadSlot = this.network.peerMetadata.getStatus(bestPeer)!.headSlot;
-        this.logger.info("Regular Sync: Found best peer", {
-          peerId: bestPeer.toB58String(),
-          peerHeadSlot,
-          currentSlot: this.chain.clock.currentSlot,
-        });
-      } else {
-        // continue to find best peer
-        bestPeer = undefined;
-        await sleep(waitingTime, signal);
-      }
-    }
-    return bestPeer;
+    return [this.bestPeer];
   };
 }
