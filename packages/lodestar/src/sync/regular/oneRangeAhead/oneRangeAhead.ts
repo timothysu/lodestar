@@ -11,7 +11,7 @@ import {ChainEvent, IBeaconChain} from "../../../chain";
 import {INetwork} from "../../../network";
 import {GossipEvent} from "../../../network/gossip/constants";
 import {getPeersRegularSync, sortBlocks, isGoodPeerRegularSync} from "../../utils";
-import {BlockRangeFetcher} from "./fetcher";
+import {BlockRangeFetcher, getNextBlockRangeGeneric} from "./fetcher";
 import {IBlockRangeFetcher, ORARegularSyncModules} from "./interface";
 
 /**
@@ -86,9 +86,11 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
 
   private async sync(): Promise<void> {
     this.blockBuffer = await this.fetcher.getNextBlockRange();
+
     while (!this.controller.signal.aborted) {
       // blockBuffer is always not empty
       const lastSlot = this.blockBuffer[this.blockBuffer.length - 1].message.slot;
+
       const [nextBlockRange] = await Promise.all([
         this.fetcher.getNextBlockRange(),
         this.processBlocksUntilComplete([...this.blockBuffer]),
@@ -112,6 +114,22 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
         await this.stop();
       }
     }
+  }
+
+  private async getNextBlockRange() {
+    const maxSlot = this.chain.clock.currentSlot + 1;
+    const lastFetchCheckpoint = {root: ZERO_HASH, slot: 0};
+
+    const peers = await this.getSyncPeers();
+
+    const blocks = await getNextBlockRangeGeneric(
+      {config: this.config, network: this.network, logger: this.logger},
+      peers,
+      lastFetchCheckpoint,
+      maxSlot,
+      this.controller.signal,
+      options
+    );
   }
 
   /**
@@ -143,8 +161,6 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
       excludedPeers.has(this.bestPeer.toB58String()) ||
       !isGoodPeerRegularSync(this.bestPeer, this.network, ourHeadSlot)
     ) {
-      this.logger.info("Regular Sync: wait for best peer");
-
       // statusSyncTimer is per slot
       const waitingTime = this.config.params.SECONDS_PER_SLOT * 1000;
 
@@ -154,13 +170,15 @@ export class ORARegularSync extends (EventEmitter as {new (): RegularSyncEventEm
         const bestPeer = peers[0];
         if (bestPeer) {
           this.bestPeer = bestPeer.peerId;
-          this.logger.info("Regular Sync: Found best peer", {
+          this.logger.info("Regular Sync: Found peers", {
             peerId: bestPeer.peerId.toB58String(),
             peerHeadSlot: checkpoint.slot,
             currentSlot: this.chain.clock.currentSlot,
           });
           break;
         }
+
+        this.logger.info("Regular Sync: waiting for peers");
 
         // continue to find best peer
         await sleep(waitingTime, this.controller.signal);

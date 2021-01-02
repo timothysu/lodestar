@@ -1,5 +1,5 @@
 import {AbortSignal} from "abort-controller";
-import {SignedBeaconBlock} from "@chainsafe/lodestar-types";
+import {SignedBeaconBlock, Slot} from "@chainsafe/lodestar-types";
 import {SlotRoot} from "@chainsafe/lodestar-types";
 import {ErrorAborted, sleep, withTimeout} from "@chainsafe/lodestar-utils";
 import PeerId from "peer-id";
@@ -7,7 +7,8 @@ import {IRegularSyncModules} from "..";
 import {IRegularSyncOptions} from "../options";
 import {ISlotRange} from "../../interface";
 import {ZERO_HASH} from "../../../constants";
-import {assertLinearChainSegment, getBlockRange} from "../../utils";
+import {assertLinearChainSegment} from "../../utils";
+import {defaultSyncOptions, ISyncOptions} from "../../options";
 
 // timeout for getBlockRange is 3 minutes
 const GET_BLOCK_RANGE_TIMEOUT = 3 * 60 * 1000;
@@ -48,9 +49,9 @@ async function getNextBlockRange(
       const blocks = await withTimeout(
         async () =>
           await network.reqResp.beaconBlocksByRange(peer, {
-            startSlot: slotRange!.start,
+            startSlot: slotRange.start,
             step: 1,
-            count: slotRange!.end - slotRange!.start + 1,
+            count: slotRange.end - slotRange.start + 1,
           }),
         GET_BLOCK_RANGE_TIMEOUT,
         signal
@@ -93,9 +94,11 @@ async function getNextBlockRange(
         continue;
       }
 
+      // TODO: Will this conflict with `blocks.splice(blocks.length - 1, 1)`?
       // we queried from last fetched block
       const blocksWithoutFirst = blocks.filter(
         (signedBlock) =>
+          signedBlock.message.slot !== lastFetchCheckpoint.slot &&
           !config.types.Root.equals(
             lastFetchCheckpoint.root,
             config.types.BeaconBlock.hashTreeRoot(signedBlock.message)
@@ -123,4 +126,114 @@ async function getNextBlockRange(
       }
     }
   }
+
+  throw new ErrorAborted("sync fetcher");
+}
+
+/**
+ * GOAL:
+ * - Given peers, a target and a from fetches a range of blocks ensuring that it contains at least 1 block
+ *   so guarantees to never return on a range of only skipped slots
+ * - Returns the blocks for a given range + the target? (Maybe not necessary)
+ * - Takes care of retrying given a pool of peers. Once the pool is exhausted it will throw
+ * - Fetches from multiple peers if available and if over the maxSlotsPer peer
+ */
+export async function getNextBlockRangeGeneric(
+  modules: Omit<IRegularSyncModules, "chain">,
+  peers: PeerId[],
+  lastFetchCheckpoint: SlotRoot,
+  maxSlot: Slot,
+  signal: AbortSignal,
+  options: ISyncOptions
+): Promise<SignedBeaconBlock[]> {
+  const {config, network, logger} = modules;
+
+  // always set range based on last fetch block bc sometimes the previous fetch may not return all blocks
+  // this.lastFetchCheckpoint.slot + 1 maybe an orphaned block and peers will return empty range
+  const rangeStart = lastFetchCheckpoint.slot;
+  // due to exclusive endSlot in chunkify, we want `currentSlot + 1`
+  // since we want to check linear chain, query 1 additional slot
+  const maxSlotsPerRequest = options.maxSlotImport ?? defaultSyncOptions.maxSlotImport;
+  let rangeEnd = Math.min(rangeStart + maxSlotsPerRequest + 1, maxSlot);
+
+  // expect at least 2 blocks since we check linear chain
+  while (!signal.aborted) {
+    const slotRange: ISlotRange = {start: rangeStart, end: rangeEnd};
+
+    try {
+      const peer = peers.shift();
+      if (!peer) throw Error("No more peers");
+
+      // result = await getBlockRange(logger, this.network.reqResp, peers, slotRange);
+      // Work around of https://github.com/ChainSafe/lodestar/issues/1690
+
+      const blocks = await withTimeout(
+        async () =>
+          await network.reqResp.beaconBlocksByRange(peer, {
+            startSlot: slotRange.start,
+            step: 1,
+            count: slotRange.end - slotRange.start + 1,
+          }),
+        GET_BLOCK_RANGE_TIMEOUT,
+        signal
+      );
+
+      // Handle empty range, or range too empty
+      if (!blocks || blocks.length < 2) {
+        const peerHeadSlot = network.peerMetadata.getStatus(peer)?.headSlot ?? 0;
+        const numBlocks = blocks ? blocks.length : 0;
+        logger.verbose("Not enough blocks for range", {...slotRange, numBlocks});
+
+        // range contains skipped slots, query for next range
+        logger.verbose("Regular Sync: queried range is behind peer head, fetch next range", {
+          ...slotRange,
+          peerHead: peerHeadSlot,
+        });
+
+        // don't trust empty range as it's rarely happen, peer may return it incorrectly most of the time
+        // same range start, expand range end
+        // slowly increase rangeEnd, using getNewTarget() may cause giant range very quickly
+        rangeEnd += 1;
+
+        // peers may return incorrect empty range, or 1 block, or 2 blocks or unlinear chain segment
+        // if we try the same peer it'll just return same result so switching peer here
+        // TODO: We should downscore here, instead of adding another bad peer tracking system
+        PeerScore.downscore(peer);
+
+        // Try again
+        continue;
+      }
+
+      // TODO: Will this conflict with `blocks.splice(blocks.length - 1, 1)`?
+      // we queried from last fetched block
+      const blocksWithoutFirst = blocks.filter(
+        (signedBlock) =>
+          signedBlock.message.slot !== lastFetchCheckpoint.slot &&
+          !config.types.Root.equals(
+            lastFetchCheckpoint.root,
+            config.types.BeaconBlock.hashTreeRoot(signedBlock.message)
+          )
+      );
+
+      // 0-1 block result should go through and we'll handle it in next round
+      if (blocks.length > 1) {
+        assertLinearChainSegment(config, blocks);
+      }
+
+      // return blocksWithoutFirst;
+
+      // success, ignore last block (there should be >= 2 blocks) since we can't validate parent-child
+      blocks.splice(blocks.length - 1, 1);
+      return blocks;
+    } catch (e) {
+      logger.verbose("Regular Sync: Failed to get block range ", {...(slotRange ?? {}), error: e.message});
+
+      // Okay to abort sync
+      if (e instanceof ErrorAborted) {
+        return [];
+      }
+    }
+  }
+
+  throw new ErrorAborted("sync fetcher");
 }
