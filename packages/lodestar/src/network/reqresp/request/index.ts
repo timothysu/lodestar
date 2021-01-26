@@ -6,7 +6,7 @@ import {RequestBody, ResponseBody} from "@chainsafe/lodestar-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ErrorAborted, ILogger, Context, withTimeout, TimeoutError} from "@chainsafe/lodestar-utils";
 import {Method, ReqRespEncoding, timeoutOptions} from "../../../constants";
-import {createRpcProtocol, randomRequestId} from "../../util";
+import {createRpcProtocol} from "../../util";
 import {ResponseError} from "../response";
 import {requestEncode} from "../encoders/requestEncode";
 import {responseDecode} from "../encoders/responseDecode";
@@ -42,11 +42,12 @@ export async function sendRequest<T extends ResponseBody | ResponseBody[]>(
   requestBody: RequestBody,
   maxResponses?: number,
   signal?: AbortSignal,
-  options?: Partial<typeof timeoutOptions>
+  options?: Partial<typeof timeoutOptions>,
+  requestId = 0
 ): Promise<T | null> {
   const {REQUEST_TIMEOUT, DIAL_TIMEOUT} = {...timeoutOptions, ...options};
   const peer = peerId.toB58String();
-  const logCtx = {method, encoding, peer, requestId: randomRequestId()};
+  const logCtx = {method, encoding, peer, requestId};
   const protocol = createRpcProtocol(method, encoding);
 
   if (signal?.aborted) {

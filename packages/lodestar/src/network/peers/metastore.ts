@@ -2,7 +2,7 @@ import {IPeerMetadataStore} from "./interface";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ReqRespEncoding} from "../../constants";
 import PeerId from "peer-id";
-import {Metadata, Status} from "@chainsafe/lodestar-types";
+import {Metadata, Number64, Status} from "@chainsafe/lodestar-types";
 import {BasicType, ContainerType} from "@chainsafe/ssz";
 import {StringType} from "./sszTypes";
 import {notNullish} from "../../util/notNullish";
@@ -12,6 +12,7 @@ enum MetadataKey {
   METADATA = "metadata",
   SCORE = "score",
   STATUS = "status",
+  MIN_TTL = "min-ttl",
 }
 
 /**
@@ -64,6 +65,24 @@ export class Libp2pPeerMetadataStore implements IPeerMetadataStore {
 
   public setStatus(peer: PeerId, status: Status | null): void {
     return this.set(peer, MetadataKey.STATUS, this.config.types.Status, status);
+  }
+
+  public getMinTtl(peer: PeerId): number {
+    return this.get(peer, MetadataKey.MIN_TTL, this.config.types.Number64) || 0;
+  }
+
+  public setMinTtl(peer: PeerId, minTtl: Number64): void {
+    this.set(peer, MetadataKey.MIN_TTL, this.config.types.Number64, minTtl);
+  }
+
+  public hasFutureDuty(peer: PeerId): boolean {
+    return this.getMinTtl(peer) >= Date.now();
+  }
+
+  public onSubnet(peer: PeerId, subnetId: number): boolean {
+    const metadata = this.getMetadata(peer);
+    if (!metadata) return false;
+    return metadata.attnets[subnetId];
   }
 
   private set<T>(peer: PeerId, key: MetadataKey, type: BasicType<T> | ContainerType<T>, value: T | null): void {

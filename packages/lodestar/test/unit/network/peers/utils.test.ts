@@ -1,5 +1,5 @@
 import sinon, {SinonStub, SinonStubbedInstance} from "sinon";
-import {getSyncProtocols, INetwork, IReqResp, Libp2pNetwork} from "../../../../src/network";
+import {getRangeSyncProtocols, INetwork, IReqResp, Libp2pNetwork} from "../../../../src/network";
 import PeerId from "peer-id";
 import {expect} from "chai";
 import {
@@ -178,7 +178,7 @@ describe("network peer utils", function () {
       scoreTrackerStub.getScore.withArgs(peers[0]).returns(10);
       scoreTrackerStub.getScore.withArgs(peers[1]).returns(20);
       scoreTrackerStub.getScore.withArgs(peers[2]).returns(30);
-      const connectedPeers = peers.map((peerId) => ({id: peerId, protocols: getSyncProtocols()} as LibP2p.Peer));
+      const connectedPeers = peers.map((peerId) => ({id: peerId, protocols: getRangeSyncProtocols()} as LibP2p.Peer));
       expect(syncPeersToDisconnect(connectedPeers, networkStub)).to.be.deep.equal([peer1, peer2]);
     });
 
@@ -191,8 +191,8 @@ describe("network peer utils", function () {
       // peer1 is not sync peer, peer2 is half of bad score sync peers
       const connectedPeers = [
         {id: peers[0]} as LibP2p.Peer,
-        {id: peers[1], protocols: getSyncProtocols()} as LibP2p.Peer,
-        {id: peers[2], protocols: getSyncProtocols()} as LibP2p.Peer,
+        {id: peers[1], protocols: getRangeSyncProtocols()} as LibP2p.Peer,
+        {id: peers[2], protocols: getRangeSyncProtocols()} as LibP2p.Peer,
       ];
       expect(syncPeersToDisconnect(connectedPeers, networkStub)).to.be.deep.equal([peer1, peer2]);
     });
@@ -310,9 +310,9 @@ describe("network peer utils", function () {
       // peer1 and peer2 are all not important but peer1 is connected to more subnets
       // if we have to choose 1 peer to disconnect, it's peer2
       connectedPeers = [
-        {id: peers[0], protocols: getSyncProtocols()} as LibP2p.Peer,
-        {id: peers[1], protocols: getSyncProtocols()} as LibP2p.Peer,
-        {id: peers[2], protocols: getSyncProtocols()} as LibP2p.Peer,
+        {id: peers[0], protocols: getRangeSyncProtocols()} as LibP2p.Peer,
+        {id: peers[1], protocols: getRangeSyncProtocols()} as LibP2p.Peer,
+        {id: peers[2], protocols: getRangeSyncProtocols()} as LibP2p.Peer,
       ];
       expect(gossipPeersToDisconnect(connectedPeers, networkStub, 1, 3, 0)).to.be.deep.equal([peer2]);
     });

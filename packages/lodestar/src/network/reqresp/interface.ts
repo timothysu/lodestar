@@ -1,4 +1,3 @@
-import PeerId from "peer-id";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {RequestId, RequestBody, ResponseBody} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
@@ -10,7 +9,7 @@ export interface IReqRespModules {
   libp2p: LibP2p;
   logger: ILogger;
   peerMetadata: IPeerMetadataStore;
-  blockProviderScores: IRpcScoreTracker;
+  peerRpcScores: IRpcScoreTracker;
 }
 
 export type ReqRespRequest<Body extends RequestBody | null = null> = {
@@ -26,8 +25,6 @@ export type RequestOrResponseType = Exclude<
 >;
 
 export type RequestOrResponseBody = ResponseBody | RequestBody;
-
-export type ReqRespHandler = (method: Method, requestBody: RequestBody, peerId: PeerId) => AsyncIterable<ResponseBody>;
 
 /**
  * Stream types from libp2p.dialProtocol are too vage and cause compilation type issues

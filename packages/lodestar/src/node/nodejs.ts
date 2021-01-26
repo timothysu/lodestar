@@ -150,6 +150,7 @@ export class BeaconNode {
       metrics,
       validator: gossipMessageValidator,
       chain,
+      db,
     });
     const sync = new BeaconSync(opts.sync, {
       config,
@@ -227,7 +228,7 @@ export class BeaconNode {
     if (this.status === BeaconNodeStatus.started) {
       this.status = BeaconNodeStatus.closing;
       await this.chores.stop();
-      await (this.sync as BeaconSync).stop();
+      (this.sync as BeaconSync).close();
       await this.network.stop();
       if (this.metricsServer) await this.metricsServer.stop();
       if (this.restApi) await this.restApi.close();

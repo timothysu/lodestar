@@ -3,14 +3,20 @@ import pipe from "it-pipe";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Context, ILogger} from "@chainsafe/lodestar-utils";
 import {Method, ReqRespEncoding, RpcResponseStatus} from "../../../constants";
-import {randomRequestId} from "../../util";
 import {onChunk} from "../utils/onChunk";
-import {ILibP2pStream, ReqRespHandler} from "../interface";
+import {ILibP2pStream} from "../interface";
 import {requestDecode} from "../encoders/requestDecode";
 import {responseEncodeError, responseEncodeSuccess} from "../encoders/responseEncode";
 import {ResponseError} from "./errors";
+import {RequestBody, ResponseBody} from "@chainsafe/lodestar-types";
 
 export {ResponseError};
+
+export type PerformRequestHandler = (
+  method: Method,
+  requestBody: RequestBody,
+  peerId: PeerId
+) => AsyncIterable<ResponseBody>;
 
 /**
  * Handles a ReqResp request from a peer. Throws on error. Logs each step of the response lifecycle.
@@ -24,13 +30,14 @@ export {ResponseError};
  */
 export async function handleRequest(
   {config, logger}: {config: IBeaconConfig; logger: ILogger},
-  performRequestHandler: ReqRespHandler,
+  performRequestHandler: PerformRequestHandler,
   stream: ILibP2pStream,
   peerId: PeerId,
   method: Method,
-  encoding: ReqRespEncoding
+  encoding: ReqRespEncoding,
+  requestId = 0
 ): Promise<void> {
-  const logCtx = {method, encoding, peer: peerId.toB58String(), requestId: randomRequestId()};
+  const logCtx = {method, encoding, peer: peerId.toB58String(), requestId};
 
   let responseError: Error | null = null;
   await pipe(

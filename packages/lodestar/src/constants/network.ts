@@ -138,10 +138,11 @@ export enum GoodByeReasonCode {
   CLIENT_SHUTDOWN = 1,
   IRRELEVANT_NETWORK = 2,
   ERROR = 3,
+  TOO_MANY_PEERS = 129,
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export const goodbyeReasonCodeDescriptions: Record<string, string> = {
+export const GOODBYE_KNOWN_CODES: Record<string, string> = {
   0: "Unknown",
 
   // spec-defined codes

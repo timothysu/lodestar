@@ -4,7 +4,7 @@ import {config} from "@chainsafe/lodestar-config/minimal";
 import {LogLevel, WinstonLogger} from "@chainsafe/lodestar-utils";
 import {silentLogger} from "../../../utils/logger";
 import {Batch, BatchOpts} from "../../../../src/sync/range/batch";
-import {ChainPeersBalancer} from "../../../../src/sync/range/peerBalancer";
+import {ChainPeersBalancer} from "../../../../src/sync/range/utils/peerBalancer";
 
 const debugMode = process.env.DEBUG;
 

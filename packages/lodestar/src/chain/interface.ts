@@ -8,6 +8,7 @@ import {
   Root,
   SignedBeaconBlock,
   Slot,
+  Status,
 } from "@chainsafe/lodestar-types";
 import {TreeBacked} from "@chainsafe/ssz";
 import {EpochContext} from "@chainsafe/lodestar-beacon-state-transition";
@@ -126,4 +127,8 @@ export interface IBeaconChain {
    * Process a chain of blocks until complete.
    */
   processChainSegment(signedBlocks: SignedBeaconBlock[], trusted?: boolean): Promise<void>;
+  /**
+   * Create a local status message with the current chain state
+   */
+  getStatus(): Promise<Status>;
 }
