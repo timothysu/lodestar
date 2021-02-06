@@ -80,7 +80,7 @@ export class BeaconSync implements IBeaconSync {
     this.gossip.stop();
   }
 
-  public async getSyncStatus(): Promise<SyncingStatus> {
+  public getSyncStatus(): SyncingStatus {
     const currentSlot = this.chain.clock.currentSlot;
     const headSlot = this.chain.forkChoice.getHead().slot;
     switch (this.state) {
@@ -99,6 +99,10 @@ export class BeaconSync implements IBeaconSync {
       default:
         throw new Error("Node is stopped, cannot get sync status");
     }
+  }
+
+  public isSyncing(): boolean {
+    return this.state === SyncState.SyncingFinalized || this.state === SyncState.SyncingHead;
   }
 
   public isSynced(): boolean {

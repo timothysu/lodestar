@@ -8,8 +8,9 @@ import {IBeaconDb} from "../db/api";
 import {AttestationCollector} from "./utils";
 
 export interface IBeaconSync {
-  getSyncStatus(): Promise<SyncingStatus>;
+  getSyncStatus(): SyncingStatus;
   isSynced(): boolean;
+  isSyncing(): boolean;
   collectAttestations(slot: Slot, committeeIndex: CommitteeIndex): Promise<void>;
 }
 

@@ -97,7 +97,7 @@ export class InteropSubnetsJoiningTask {
    */
   private handleForkVersion = async (): Promise<void> => {
     const forkDigest = this.chain.getForkDigest();
-    this.logger.important(`InteropSubnetsJoiningTask: received new fork digest ${toHexString(forkDigest)}`);
+    this.logger.info(`InteropSubnetsJoiningTask: received new fork digest ${toHexString(forkDigest)}`);
     // at this time current fork digest and next fork digest subnets are subscribed in parallel
     // this cleans up current fork digest subnets subscription and keep subscribed to next fork digest subnets
     await this.cleanUpCurrentSubscriptions();

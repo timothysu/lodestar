@@ -1,15 +1,13 @@
 import PeerId from "peer-id";
 import {AbortSignal} from "abort-controller";
 import {BeaconBlocksByRangeRequest, Epoch, Root, SignedBeaconBlock, Slot} from "@chainsafe/lodestar-types";
-import {computeEpochAtSlot, computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
+import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ChainSegmentError} from "../../chain/errors";
 import {ItTrigger} from "../../util/itTrigger";
-import {prettyTimeDiff} from "../../util/time";
 import {byteArrayEquals} from "../../util/bytes";
 import {PeerAction} from "../../network/peers";
-import {TimeSeries} from "../stats/timeSeries";
 import {ChainPeersBalancer} from "./utils/peerBalancer";
 import {PeerSet} from "./utils/peerMap";
 import {Batch, BatchError, BatchErrorCode, BatchOpts, BatchStatus} from "./batch";
@@ -89,8 +87,6 @@ export class SyncChain {
   private batches = new Map<Epoch, Batch>();
   private peerset = new PeerSet();
 
-  /** Dynamic targetEpoch with associated peers. May be `null`ed if no suitable peer set exists */
-  private timeSeries = new TimeSeries({maxPoints: 1000});
   private logger: ILogger;
   private config: IBeaconConfig;
   private signal: AbortSignal;
@@ -422,20 +418,6 @@ export class SyncChain {
     }
 
     this.startEpoch = newStartEpoch;
-    this.logSyncProgress(this.startEpoch, computeEpochAtSlot(this.config, this.target.slot));
-  }
-
-  /**
-   * Register sync progress in TimeSeries instance and log current speed and time left
-   */
-  private logSyncProgress(epoch: Epoch, targetEpoch: Epoch): void {
-    this.timeSeries.addPoint(epoch);
-
-    const epochsPerSecond = this.timeSeries.computeLinearSpeed();
-    const secondsLeft = (targetEpoch - epoch) / epochsPerSecond;
-    const slotsPerSecond = (epochsPerSecond * this.config.params.SLOTS_PER_EPOCH).toPrecision(3);
-    const timeLeft = isFinite(secondsLeft) ? prettyTimeDiff(1000 * secondsLeft) : "unknown";
-    this.logger.info(`Sync progress ${epoch}/${targetEpoch} - ${timeLeft} left - ${slotsPerSecond} slots/s`);
   }
 
   /**

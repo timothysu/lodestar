@@ -45,7 +45,7 @@ export class BeaconGossipHandler implements IGossipHandler {
 
   private handleForkVersion = async (): Promise<void> => {
     const forkDigest = this.chain.getForkDigest();
-    this.logger.important(`Gossip handler: received new fork digest ${toHexString(forkDigest)}`);
+    this.logger.info(`Gossip handler: received new fork digest ${toHexString(forkDigest)}`);
     this.unsubscribe(this.currentForkDigest);
     this.currentForkDigest = forkDigest;
     this.subscribe(forkDigest);
