@@ -54,52 +54,41 @@ export async function runNodeNotifier({
       const headSlot = headInfo.slot;
       timeSeries.addPoint(headSlot, Date.now());
 
-      const syncState = sync.state;
-      switch (syncState) {
+      const peersRow = `peers: ${connectedPeerCount}`;
+      const finalizedCheckpointRow = `finalized: ${finalizedEpoch} ${prettyRoot(finalizedRoot)}`;
+      const headRow = `head: ${headInfo.slot} ${prettyRoot(headInfo.blockRoot)}`;
+      const currentSlotRow = `currentSlot: ${currentSlot}`;
+
+      let nodeState: string[];
+      switch (sync.state) {
         case SyncState.SyncingFinalized:
         case SyncState.SyncingHead: {
           const slotsPerSecond = timeSeries.computeLinearSpeed();
           const distance = Math.max(currentSlot - headSlot, 0);
           const secondsLeft = distance / slotsPerSecond;
           const timeLeft = isFinite(secondsLeft) ? prettyTimeDiff(1000 * secondsLeft) : "?";
-          logger.info(
-            [
-              "Syncing",
-              `${timeLeft} left`,
-              `${slotsPerSecond.toPrecision(3)} slots/s`,
-              `${headSlot}/${currentSlot}`,
-              `peers: ${connectedPeerCount}`,
-            ].join(" - ")
-          );
+          nodeState = [
+            "Syncing",
+            `${timeLeft} left`,
+            `${slotsPerSecond.toPrecision(3)} slots/s`,
+            finalizedCheckpointRow,
+            headRow,
+            currentSlotRow,
+            peersRow,
+          ];
           break;
         }
 
         case SyncState.Synced: {
-          logger.info(
-            [
-              "Synced",
-              `slot: ${headInfo.slot} ${prettyRoot(headInfo.blockRoot)}`,
-              `peers: ${connectedPeerCount}`,
-              `finalized checkpoint: ${finalizedEpoch} ${prettyRoot(finalizedRoot)}`,
-              `peers: ${connectedPeerCount}`,
-            ].join(" - ")
-          );
+          nodeState = ["Synced", finalizedCheckpointRow, headRow, peersRow];
           break;
         }
 
-        case SyncState.Stalled:
-        default: {
-          logger.info(
-            [
-              "Searching for peers",
-              `peers: ${connectedPeerCount}`,
-              `finalized checkpoint: ${finalizedEpoch} ${prettyRoot(finalizedRoot)}`,
-              `head: ${headInfo.slot} ${prettyRoot(headInfo.blockRoot)}`,
-              `currentSlot: ${currentSlot}`,
-            ].join(" - ")
-          );
+        case SyncState.Stalled: {
+          nodeState = ["Searching for peers", peersRow, finalizedCheckpointRow, headRow, currentSlotRow];
         }
       }
+      logger.info(nodeState.join(" - "));
 
       // Log halfway through each slot
       await sleep(timeToNextHalfSlot(config, chain), signal);
