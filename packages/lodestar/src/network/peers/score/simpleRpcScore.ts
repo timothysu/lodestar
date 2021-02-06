@@ -1,4 +1,4 @@
-import {RpcScoreEvent, IRpcScoreTracker} from "./interface";
+import {RpcScoreEvent, IRpcScoreTracker, PeerAction} from "./interface";
 import {IPeerMetadataStore} from "../interface";
 import PeerId from "peer-id";
 
@@ -16,6 +16,13 @@ export const DEFAULT_RPC_SCORE = 100;
 const MAX_SCORE = 200;
 const MIN_SCORE = 0;
 
+export const peerActionScore: Record<PeerAction, number> = {
+  [PeerAction.Fatal]: -MAX_SCORE,
+  [PeerAction.LowToleranceError]: -20,
+  [PeerAction.MidToleranceError]: -10,
+  [PeerAction.HighToleranceError]: -2,
+};
+
 export class SimpleRpcScoreTracker implements IRpcScoreTracker {
   private readonly store: IPeerMetadataStore;
 
@@ -32,9 +39,20 @@ export class SimpleRpcScoreTracker implements IRpcScoreTracker {
   }
 
   public update(peer: PeerId, event: RpcScoreEvent): void {
-    const currentScore = this.getScore(peer);
-    const delta = scoreConstants[event];
-    // ensure score is between min and max
-    this.store.setRpcScore(peer, Math.max(Math.min(MAX_SCORE, currentScore + delta), MIN_SCORE));
+    this.add(peer, scoreConstants[event]);
+  }
+
+  public applyAction(peer: PeerId, action: PeerAction, actionName?: string): void {
+    this.add(peer, peerActionScore[action]);
+
+    // TODO: Log action to debug
+    actionName;
+  }
+
+  private add(peer: PeerId, scoreDelta: number): void {
+    let score = this.getScore(peer) + scoreDelta;
+    if (score > MAX_SCORE) score = MAX_SCORE;
+    if (score < MIN_SCORE) score = MIN_SCORE;
+    this.store.setRpcScore(peer, score);
   }
 }

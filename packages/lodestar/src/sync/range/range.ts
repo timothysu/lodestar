@@ -11,7 +11,7 @@ import {Json, toHexString} from "@chainsafe/ssz";
 import {updateChains} from "./utils/updateChains";
 import {shouldRemoveChain} from "./utils/shouldRemoveChain";
 import {ItTrigger} from "../../util/itTrigger";
-import {INetwork} from "../../network";
+import {INetwork, PeerAction} from "../../network";
 import {assertSequentialBlocksInRange} from "../utils";
 
 //! This contains the logic for the long range (batch) sync strategy.
@@ -210,6 +210,10 @@ export class RangeSync {
     return blocks;
   };
 
+  private reportPeer = (peer: PeerId, action: PeerAction, actionName: string): void => {
+    this.network.peerRpcScores.applyAction(peer, action, actionName);
+  };
+
   private addPeerOrCreateChain(startEpoch: Epoch, target: ChainTarget, peer: PeerId, syncType: RangeSyncType): void {
     const id = getSyncChainId(target);
 
@@ -223,6 +227,7 @@ export class RangeSync {
         target,
         this.processChainSegment,
         this.downloadBeaconBlocksByRange,
+        this.reportPeer,
         this.config,
         this.logger,
         this.signal,
