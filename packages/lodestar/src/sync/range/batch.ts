@@ -103,7 +103,7 @@ export class Batch {
    */
   startDownloading(peer: PeerId): void {
     if (this.state.status !== BatchStatus.AwaitingDownload) {
-      throw this.WrongStatusError(BatchStatus.AwaitingDownload);
+      throw new BatchError(this.wrongStatusErrorType(BatchStatus.AwaitingDownload));
     }
 
     this.state = {status: BatchStatus.Downloading, peer};
@@ -114,7 +114,7 @@ export class Batch {
    */
   downloadingSuccess(blocks: SignedBeaconBlock[]): void {
     if (this.state.status !== BatchStatus.Downloading) {
-      throw this.WrongStatusError(BatchStatus.Downloading);
+      throw new BatchError(this.wrongStatusErrorType(BatchStatus.Downloading));
     }
 
     this.state = {status: BatchStatus.AwaitingProcessing, peer: this.state.peer, blocks};
@@ -125,12 +125,12 @@ export class Batch {
    */
   downloadingError(): void {
     if (this.state.status !== BatchStatus.Downloading) {
-      throw this.WrongStatusError(BatchStatus.Downloading);
+      throw new BatchError(this.wrongStatusErrorType(BatchStatus.Downloading));
     }
 
     this.failedDownloadAttempts.push(this.state.peer);
     if (this.failedDownloadAttempts.length > MAX_BATCH_DOWNLOAD_ATTEMPTS) {
-      throw this.BatchError({code: BatchErrorCode.MAX_DOWNLOAD_ATTEMPTS});
+      throw new BatchError(this.errorType({code: BatchErrorCode.MAX_DOWNLOAD_ATTEMPTS}));
     }
 
     this.state = {status: BatchStatus.AwaitingDownload};
@@ -141,7 +141,7 @@ export class Batch {
    */
   startProcessing(): SignedBeaconBlock[] {
     if (this.state.status !== BatchStatus.AwaitingProcessing) {
-      throw this.WrongStatusError(BatchStatus.AwaitingProcessing);
+      throw new BatchError(this.wrongStatusErrorType(BatchStatus.AwaitingProcessing));
     }
 
     const blocks = this.state.blocks;
@@ -155,7 +155,7 @@ export class Batch {
    */
   processingSuccess(): void {
     if (this.state.status !== BatchStatus.Processing) {
-      throw this.WrongStatusError(BatchStatus.Processing);
+      throw new BatchError(this.wrongStatusErrorType(BatchStatus.Processing));
     }
 
     this.state = {status: BatchStatus.AwaitingValidation, attempt: this.state.attempt};
@@ -166,7 +166,7 @@ export class Batch {
    */
   processingError(): void {
     if (this.state.status !== BatchStatus.Processing) {
-      throw this.WrongStatusError(BatchStatus.Processing);
+      throw new BatchError(this.wrongStatusErrorType(BatchStatus.Processing));
     }
 
     this.onProcessingError(this.state.attempt);
@@ -177,7 +177,7 @@ export class Batch {
    */
   validationError(): void {
     if (this.state.status !== BatchStatus.AwaitingValidation) {
-      throw this.WrongStatusError(BatchStatus.AwaitingValidation);
+      throw new BatchError(this.wrongStatusErrorType(BatchStatus.AwaitingValidation));
     }
 
     this.onProcessingError(this.state.attempt);
@@ -188,7 +188,7 @@ export class Batch {
    */
   validationSuccess(): Attempt {
     if (this.state.status !== BatchStatus.AwaitingValidation) {
-      throw this.WrongStatusError(BatchStatus.AwaitingValidation);
+      throw new BatchError(this.wrongStatusErrorType(BatchStatus.AwaitingValidation));
     }
     return this.state.attempt;
   }
@@ -196,20 +196,19 @@ export class Batch {
   private onProcessingError(attempt: Attempt): void {
     this.failedProcessingAttempts.push(attempt);
     if (this.failedProcessingAttempts.length > MAX_BATCH_PROCESSING_ATTEMPTS) {
-      throw this.BatchError({code: BatchErrorCode.MAX_PROCESSING_ATTEMPTS});
+      throw new BatchError(this.errorType({code: BatchErrorCode.MAX_PROCESSING_ATTEMPTS}));
     }
 
     this.state = {status: BatchStatus.AwaitingDownload};
   }
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  private BatchError(type: BatchErrorType): BatchError {
-    return new BatchError(type, this.getMetadata());
+  /** Helper to construct typed BatchError. Stack traces are correct as the error is thrown above */
+  private errorType(type: BatchErrorType): BatchErrorType & BatchErrorMetadata {
+    return {...type, ...this.getMetadata()};
   }
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  private WrongStatusError(expectedStatus: BatchStatus): BatchError {
-    return this.BatchError({code: BatchErrorCode.WRONG_STATUS, expectedStatus});
+  private wrongStatusErrorType(expectedStatus: BatchStatus): BatchErrorType & BatchErrorMetadata {
+    return this.errorType({code: BatchErrorCode.WRONG_STATUS, expectedStatus});
   }
 }
 
@@ -229,8 +228,4 @@ type BatchErrorMetadata = {
   status: BatchStatus;
 };
 
-export class BatchError extends LodestarError<BatchErrorType & BatchErrorMetadata> {
-  constructor(type: BatchErrorType, metadata: BatchErrorMetadata) {
-    super({...type, ...metadata});
-  }
-}
+export class BatchError extends LodestarError<BatchErrorType & BatchErrorMetadata> {}
