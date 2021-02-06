@@ -68,9 +68,9 @@ export function getPeerSyncType(local: Status, remote: Status, chain: IBeaconCha
 
 export enum RangeSyncType {
   /// A finalized chain sync should be started with this peer.
-  Finalized,
+  Finalized = "Finalized",
   /// A head chain sync should be started with this peer.
-  Head,
+  Head = "Head",
 }
 
 export function getRangeSyncType(chain: IBeaconChain, local: Status, remote: Status): RangeSyncType {

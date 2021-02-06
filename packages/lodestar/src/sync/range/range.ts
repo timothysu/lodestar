@@ -1,7 +1,7 @@
 import {computeEpochAtSlot, computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Epoch, Slot, Status} from "@chainsafe/lodestar-types";
-import {ILogger} from "@chainsafe/lodestar-utils";
+import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
 import PeerId from "peer-id";
 import {IBeaconChain} from "../../chain";
 import {RangeSyncType, getRangeSyncType} from "../utils/remoteSyncType";
@@ -10,7 +10,6 @@ import {AbortSignal} from "abort-controller";
 import {Json, toHexString} from "@chainsafe/ssz";
 import {updateChains} from "./utils/updateChains";
 import {shouldRemoveChain} from "./utils/shouldRemoveChain";
-import {ItTrigger} from "../../util/itTrigger";
 import {INetwork, PeerAction} from "../../network";
 import {assertSequentialBlocksInRange} from "../utils";
 
@@ -69,8 +68,8 @@ export enum RangeSyncStatus {
 type SyncChainId = string;
 
 type RangeSyncState =
-  | {status: RangeSyncStatus.Finalized; syncChainId: SyncChainId}
-  | {status: RangeSyncStatus.Head; syncChainIds: SyncChainId[]}
+  | {status: RangeSyncStatus.Finalized; target: ChainTarget}
+  | {status: RangeSyncStatus.Head; targets: ChainTarget[]}
   | {status: RangeSyncStatus.Idle};
 
 export type RangeSyncModules = {
@@ -87,11 +86,9 @@ export class RangeSync {
   network: INetwork;
   config: IBeaconConfig;
   logger: ILogger;
-  finalizedChains = new Map<SyncChainId, SyncChain>();
-  headChains = new Map<SyncChainId, SyncChain>();
+  chains = new Map<SyncChainId, SyncChain>();
   state: RangeSyncState = {status: RangeSyncStatus.Idle};
 
-  private chainProcessor = new ItTrigger();
   private signal: AbortSignal;
   private opts?: SyncChainOpts;
 
@@ -102,6 +99,13 @@ export class RangeSync {
     this.logger = logger;
     this.signal = signal;
     this.opts = opts;
+
+    // Throw / return all AsyncGenerators inside each SyncChain instance
+    signal.addEventListener("abort", () => {
+      for (const chain of this.chains.values()) {
+        chain.remove();
+      }
+    });
   }
 
   /// A useful peer has been added. The SyncManager has identified this peer as needing either
@@ -155,41 +159,27 @@ export class RangeSync {
   /// for this peer. If so we mark the batch as failed. The batch may then hit it's maximum
   /// retries. In this case, we need to remove the chain.
   removePeer(peerId: PeerId): void {
-    for (const chains of [this.finalizedChains, this.headChains]) {
-      for (const syncChain of chains.values()) {
-        syncChain.removePeer(peerId);
-      }
+    for (const syncChain of this.chains.values()) {
+      syncChain.removePeer(peerId);
     }
   }
 
   syncState(): RangeSyncState {
-    for (const [syncChainId, finalizedChain] of this.finalizedChains.entries()) {
-      if (finalizedChain.isSyncing) {
-        return {status: RangeSyncStatus.Finalized, syncChainId};
+    const syncingHeadTargets: ChainTarget[] = [];
+    for (const chain of this.chains.values()) {
+      if (chain.isSyncing) {
+        if (chain.syncType === RangeSyncType.Finalized) {
+          return {status: RangeSyncStatus.Finalized, target: chain.target};
+        } else {
+          syncingHeadTargets.push(chain.target);
+        }
       }
     }
 
-    const headSyncingChainIds: SyncChainId[] = [];
-    for (const [syncChainId, headChain] of this.headChains.entries()) {
-      if (headChain.isSyncing) {
-        headSyncingChainIds.push(syncChainId);
-      }
-    }
-
-    if (headSyncingChainIds.length > 0) {
-      return {status: RangeSyncStatus.Head, syncChainIds: headSyncingChainIds};
+    if (syncingHeadTargets.length > 0) {
+      return {status: RangeSyncStatus.Head, targets: syncingHeadTargets};
     } else {
       return {status: RangeSyncStatus.Idle};
-    }
-  }
-
-  /**
-   * Main loop driving the sync
-   */
-  private async sync(): Promise<void> {
-    for await (const _ of this.chainProcessor) {
-      const localStatus = await this.chain.getStatus();
-      this.update(localStatus.finalizedEpoch);
     }
   }
 
@@ -215,25 +205,23 @@ export class RangeSync {
   };
 
   private addPeerOrCreateChain(startEpoch: Epoch, target: ChainTarget, peer: PeerId, syncType: RangeSyncType): void {
-    const id = getSyncChainId(target);
+    const id = getSyncChainId(syncType, target);
 
-    const chains = syncType === RangeSyncType.Finalized ? this.finalizedChains : this.headChains;
-    let syncingChain = chains.get(id);
-
+    let syncingChain = this.chains.get(id);
     if (!syncingChain) {
       this.logger.debug("New syncingChain", {slot: target.slot, root: toHexString(target.root), startEpoch});
       syncingChain = new SyncChain(
         startEpoch,
         target,
+        syncType,
         this.processChainSegment,
         this.downloadBeaconBlocksByRange,
         this.reportPeer,
         this.config,
         this.logger,
-        this.signal,
         this.opts
       );
-      chains.set(id, syncingChain);
+      this.chains.set(id, syncingChain);
     }
 
     syncingChain.addPeer(peer);
@@ -245,41 +233,49 @@ export class RangeSync {
     /// finalized block slot. Peers that would create outdated chains are removed too.
     const localFinalizedSlot = computeStartSlotAtEpoch(this.config, localFinalizedEpoch);
 
-    // Remove chains that are out-dated
-    for (const chains of [this.finalizedChains, this.headChains]) {
-      for (const [id, syncChain] of chains.entries()) {
-        if (shouldRemoveChain(syncChain, localFinalizedSlot, this.chain)) {
-          syncChain.stopSyncing();
-          chains.delete(id);
-          this.logger.debug("Removed chain", {id});
+    // Remove chains that are out-dated, peer-empty, completed or failed
+    for (const [id, syncChain] of this.chains.entries()) {
+      if (shouldRemoveChain(syncChain, localFinalizedSlot, this.chain)) {
+        syncChain.remove();
+        this.chains.delete(id);
+        this.logger.debug("Removed chain", {id});
 
-          // Re-status peers
-          // TODO: Then what? On new status call the add handler and repeat?
-          // this.network.statusPeers(syncChain.peers);
-        }
+        // Re-status peers
+        // TODO: Then what? On new status call the add handler and repeat?
+        // this.network.statusPeers(syncChain.peers);
       }
     }
 
-    const {toStop, toStart} = updateChains(
-      Array.from(this.finalizedChains.values()),
-      Array.from(this.headChains.values())
-    );
+    const {toStop, toStart} = updateChains(Array.from(this.chains.values()));
 
     for (const syncChain of toStop) {
       syncChain.stopSyncing();
     }
 
     for (const syncChain of toStart) {
-      const syncChainMetdata = (syncChain.getMetadata() as unknown) as Json;
-      syncChain
-        .startSyncing(localFinalizedEpoch)
-        .then(() => this.logger.verbose("SyncChain done syncing", syncChainMetdata))
-        .catch((e) => this.logger.error("SyncChain error", syncChainMetdata, e))
-        .finally(() => this.chainProcessor.trigger());
+      void this.runChain(syncChain, localFinalizedEpoch);
     }
+  }
+
+  private async runChain(syncChain: SyncChain, localFinalizedEpoch: Epoch): Promise<void> {
+    const syncChainMetdata = (syncChain.getMetadata() as unknown) as Json;
+
+    try {
+      await syncChain.startSyncing(localFinalizedEpoch);
+      this.logger.verbose("SyncChain reached target", syncChainMetdata);
+    } catch (e) {
+      if (e instanceof ErrorAborted) {
+        return; // Ignore
+      } else {
+        this.logger.error("SyncChain error", syncChainMetdata, e);
+      }
+    }
+
+    const localStatus = await this.chain.getStatus();
+    this.update(localStatus.finalizedEpoch);
   }
 }
 
-function getSyncChainId(target: ChainTarget): SyncChainId {
-  return `${target.slot}-${toHexString(target.root)}`;
+function getSyncChainId(syncType: RangeSyncType, target: ChainTarget): SyncChainId {
+  return `${syncType}-${target.slot}-${toHexString(target.root)}`;
 }

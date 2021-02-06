@@ -1,11 +1,19 @@
 import {sortBy} from "../../../util/sortBy";
 import {MIN_FINALIZED_CHAIN_VALIDATED_EPOCHS, PARALLEL_HEAD_CHAINS} from "../../constants";
+import {RangeSyncType} from "../../utils/remoteSyncType";
 import {SyncChain} from "../chain";
 
-export function updateChains(
-  finalizedChains: SyncChain[],
-  headChains: SyncChain[]
-): {toStart: SyncChain[]; toStop: SyncChain[]} {
+export function updateChains(chains: SyncChain[]): {toStart: SyncChain[]; toStop: SyncChain[]} {
+  const finalizedChains: SyncChain[] = [];
+  const headChains: SyncChain[] = [];
+  for (const chain of chains) {
+    if (chain.syncType === RangeSyncType.Finalized) {
+      finalizedChains.push(chain);
+    } else {
+      headChains.push(chain);
+    }
+  }
+
   return (
     // Choose the best finalized chain if one needs to be selected.
     updateFinalizedChains(finalizedChains) ||

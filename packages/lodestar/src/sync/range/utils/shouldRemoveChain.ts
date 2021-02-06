@@ -4,6 +4,8 @@ import {SyncChain} from "../chain";
 
 export function shouldRemoveChain(syncChain: SyncChain, localFinalizedSlot: Slot, chain: IBeaconChain): boolean {
   return (
+    // Sync chain has completed syncing or encountered an error
+    syncChain.isRemovable ||
     // Sync chain has no more peers to download from
     syncChain.peers === 0 ||
     // Outdated: our chain has progressed beyond this sync chain
