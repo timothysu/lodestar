@@ -16,17 +16,7 @@ import {fetchUnknownBlockRoot} from "./utils/unknownRoot";
 import {PeerManagerEvent} from "../network/peers/peerManager";
 import {getPeerSyncType, PeerSyncType} from "./utils/remoteSyncType";
 import {SLOT_IMPORT_TOLERANCE} from "./constants";
-
-export enum SyncState {
-  /** The node is performing a long-range sync over a finalized chain */
-  SyncingFinalized = "SyncingFinalized",
-  /** The node is performing a long-range sync over head chains */
-  SyncingHead = "SyncingHead",
-  /** The node is up to date with all known peers */
-  Synced = "Synced",
-  /** No useful peers are connected */
-  Stalled = "Stalled",
-}
+import {SyncState} from "./interface";
 
 export class BeaconSync implements IBeaconSync {
   private readonly opts: ISyncOptions;
@@ -35,7 +25,7 @@ export class BeaconSync implements IBeaconSync {
   private readonly network: INetwork;
   private readonly chain: IBeaconChain;
 
-  private state: SyncState = SyncState.Stalled;
+  private prevState: SyncState = SyncState.Stalled;
   private rangeSync: RangeSync;
   private gossip: IGossipHandler;
   private attestationCollector: AttestationCollector;
@@ -102,11 +92,30 @@ export class BeaconSync implements IBeaconSync {
   }
 
   public isSyncing(): boolean {
-    return this.state === SyncState.SyncingFinalized || this.state === SyncState.SyncingHead;
+    const state = this.state; // Don't run the getter twice
+    return state === SyncState.SyncingFinalized || state === SyncState.SyncingHead;
   }
 
   public isSynced(): boolean {
     return this.state === SyncState.Synced;
+  }
+
+  get state(): SyncState {
+    const currentSlot = this.chain.clock.currentSlot;
+    const headSlot = this.chain.forkChoice.getHead().slot;
+    if (currentSlot >= headSlot && headSlot >= currentSlot - SLOT_IMPORT_TOLERANCE && headSlot > 0) {
+      return SyncState.Synced;
+    }
+
+    const rangeSyncState = this.rangeSync.state;
+    switch (rangeSyncState.status) {
+      case RangeSyncStatus.Finalized:
+        return SyncState.SyncingFinalized;
+      case RangeSyncStatus.Head:
+        return SyncState.SyncingHead;
+      case RangeSyncStatus.Idle:
+        return SyncState.Stalled;
+    }
   }
 
   public async collectAttestations(slot: Slot, committeeIndex: CommitteeIndex): Promise<void> {
@@ -149,12 +158,13 @@ export class BeaconSync implements IBeaconSync {
   };
 
   private updateSyncState(): void {
+    const prevState = this.prevState;
     const currentState = this.state;
-    const newState = this.syncState();
+    this.prevState = currentState;
 
     // TODO
     // If we have become synced - Subscribe to all the core subnet topics
-    if (currentState !== SyncState.Synced && newState === SyncState.Synced) {
+    if (prevState !== SyncState.Synced && currentState === SyncState.Synced) {
       this.network.subscribeCoreTopics();
 
       // ONLY after completing initial sync
@@ -163,24 +173,6 @@ export class BeaconSync implements IBeaconSync {
 
       // ONLY after completing regular sync
       this.gossip.handleSyncCompleted();
-    }
-  }
-
-  private syncState(): SyncState {
-    const currentSlot = this.chain.clock.currentSlot;
-    const headSlot = this.chain.forkChoice.getHead().slot;
-    if (currentSlot >= headSlot && headSlot >= currentSlot - SLOT_IMPORT_TOLERANCE && headSlot > 0) {
-      return SyncState.Synced;
-    }
-
-    const rangeSyncState = this.rangeSync.syncState();
-    switch (rangeSyncState.status) {
-      case RangeSyncStatus.Finalized:
-        return SyncState.SyncingFinalized;
-      case RangeSyncStatus.Head:
-        return SyncState.SyncingHead;
-      case RangeSyncStatus.Idle:
-        return SyncState.Stalled;
     }
   }
 

@@ -1,9 +1,11 @@
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {Root} from "@chainsafe/lodestar-types";
 import {ErrorAborted, ILogger, sleep} from "@chainsafe/lodestar-utils";
+import {toHexString} from "@chainsafe/ssz";
 import {AbortSignal} from "abort-controller";
 import {IBeaconChain} from "../chain";
 import {INetwork} from "../network";
-import {IBeaconSync} from "../sync";
+import {IBeaconSync, SyncState} from "../sync";
 import {prettyTimeDiff} from "../util/time";
 import {TimeSeries} from "../util/timeSeries";
 
@@ -46,23 +48,57 @@ export async function runNodeNotifier({
 
       const currentSlot = chain.clock.currentSlot;
       const headInfo = chain.forkChoice.getHead();
+      const headState = await chain.getHeadState();
+      const finalizedEpoch = headState.finalizedCheckpoint.epoch;
+      const finalizedRoot = headState.finalizedCheckpoint.root;
       const headSlot = headInfo.slot;
       timeSeries.addPoint(headSlot, Date.now());
 
-      if (sync.isSyncing()) {
-        const slotsPerSecond = timeSeries.computeLinearSpeed();
-        const distance = Math.max(currentSlot - headSlot, 0);
-        const secondsLeft = distance / slotsPerSecond;
-        const timeLeft = isFinite(secondsLeft) ? prettyTimeDiff(1000 * secondsLeft) : "-";
-        logger.info(
-          [
-            "Syncing",
-            `${timeLeft} left`,
-            `${slotsPerSecond.toPrecision(3)} slots/s`,
-            `${headSlot}/${currentSlot}`,
-            `peers: ${connectedPeerCount}`,
-          ].join(" - ")
-        );
+      const syncState = sync.state;
+      switch (syncState) {
+        case SyncState.SyncingFinalized:
+        case SyncState.SyncingHead: {
+          const slotsPerSecond = timeSeries.computeLinearSpeed();
+          const distance = Math.max(currentSlot - headSlot, 0);
+          const secondsLeft = distance / slotsPerSecond;
+          const timeLeft = isFinite(secondsLeft) ? prettyTimeDiff(1000 * secondsLeft) : "?";
+          logger.info(
+            [
+              "Syncing",
+              `${timeLeft} left`,
+              `${slotsPerSecond.toPrecision(3)} slots/s`,
+              `${headSlot}/${currentSlot}`,
+              `peers: ${connectedPeerCount}`,
+            ].join(" - ")
+          );
+          break;
+        }
+
+        case SyncState.Synced: {
+          logger.info(
+            [
+              "Synced",
+              `slot: ${headInfo.slot} ${prettyRoot(headInfo.blockRoot)}`,
+              `peers: ${connectedPeerCount}`,
+              `finalized checkpoint: ${finalizedEpoch} ${prettyRoot(finalizedRoot)}`,
+              `peers: ${connectedPeerCount}`,
+            ].join(" - ")
+          );
+          break;
+        }
+
+        case SyncState.Stalled:
+        default: {
+          logger.info(
+            [
+              "Searching for peers",
+              `peers: ${connectedPeerCount}`,
+              `finalized checkpoint: ${finalizedEpoch} ${prettyRoot(finalizedRoot)}`,
+              `head: ${headInfo.slot} ${prettyRoot(headInfo.blockRoot)}`,
+              `currentSlot: ${currentSlot}`,
+            ].join(" - ")
+          );
+        }
       }
 
       // Log halfway through each slot
@@ -82,4 +118,9 @@ function timeToNextHalfSlot(config: IBeaconConfig, chain: IBeaconChain): number 
   const msFromGenesis = Date.now() - chain.getGenesisTime() * 1000;
   const msToNextSlot = msPerSlot - (msFromGenesis % msPerSlot);
   return msToNextSlot > msPerSlot / 2 ? msToNextSlot - msPerSlot / 2 : msToNextSlot + msPerSlot / 2;
+}
+
+function prettyRoot(root: Root): string {
+  const str = toHexString(root);
+  return `${str.slice(0, 6)}…${str.slice(-4)}`;
 }

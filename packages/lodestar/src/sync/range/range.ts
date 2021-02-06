@@ -87,9 +87,7 @@ export class RangeSync {
   config: IBeaconConfig;
   logger: ILogger;
   chains = new Map<SyncChainId, SyncChain>();
-  state: RangeSyncState = {status: RangeSyncStatus.Idle};
 
-  private signal: AbortSignal;
   private opts?: SyncChainOpts;
 
   constructor({chain, network, config, logger}: RangeSyncModules, signal: AbortSignal, opts?: SyncChainOpts) {
@@ -97,7 +95,6 @@ export class RangeSync {
     this.network = network;
     this.config = config;
     this.logger = logger;
-    this.signal = signal;
     this.opts = opts;
 
     // Throw / return all AsyncGenerators inside each SyncChain instance
@@ -164,7 +161,7 @@ export class RangeSync {
     }
   }
 
-  syncState(): RangeSyncState {
+  get state(): RangeSyncState {
     const syncingHeadTargets: ChainTarget[] = [];
     for (const chain of this.chains.values()) {
       if (chain.isSyncing) {

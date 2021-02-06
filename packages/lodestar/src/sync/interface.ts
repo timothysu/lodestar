@@ -8,10 +8,22 @@ import {IBeaconDb} from "../db/api";
 import {AttestationCollector} from "./utils";
 
 export interface IBeaconSync {
+  state: SyncState;
   getSyncStatus(): SyncingStatus;
   isSynced(): boolean;
   isSyncing(): boolean;
   collectAttestations(slot: Slot, committeeIndex: CommitteeIndex): Promise<void>;
+}
+
+export enum SyncState {
+  /** The node is performing a long-range sync over a finalized chain */
+  SyncingFinalized = "SyncingFinalized",
+  /** The node is performing a long-range sync over head chains */
+  SyncingHead = "SyncingHead",
+  /** The node is up to date with all known peers */
+  Synced = "Synced",
+  /** No useful peers are connected */
+  Stalled = "Stalled",
 }
 
 export interface ISyncModule {
