@@ -10,6 +10,7 @@ import {PeerAction} from "../../network/peers";
 import {RangeSyncType} from "../utils/remoteSyncType";
 import {ChainPeersBalancer} from "./utils/peerBalancer";
 import {PeerSet} from "./utils/peerMap";
+import {wrapError} from "./utils/wrapError";
 import {Batch, BatchError, BatchErrorCode, BatchMetadata, BatchOpts, BatchStatus} from "./batch";
 import {
   validateBatchesStatus,
@@ -320,18 +321,19 @@ export class SyncChain {
       // Inform the batch about the new request
       batch.startDownloading(peer);
 
-      try {
-        const blocks = await this.downloadBeaconBlocksByRange(peer, batch.request);
-        batch.downloadingSuccess(blocks || []);
+      // wrapError ensures to never call both batch success() and batch error()
+      const res = await wrapError(this.downloadBeaconBlocksByRange(peer, batch.request));
 
+      if (!res.err) {
+        batch.downloadingSuccess(res.result);
         this.triggerBatchProcessor();
-      } catch (e) {
-        this.logger.debug("Batch download error", batch.getMetadata(), e);
+      } else {
+        this.logger.verbose("Batch download error", batch.getMetadata(), res.err);
         batch.downloadingError(); // Throws after MAX_DOWNLOAD_ATTEMPTS
-      } finally {
-        // Pre-emptively request more blocks from peers whilst we process current blocks
-        this.triggerBatchDownloader();
       }
+
+      // Pre-emptively request more blocks from peers whilst we process current blocks
+      this.triggerBatchDownloader();
     } catch (e) {
       // bubble the error up to the main async iterable loop
       void this.batchProcessor.throw(e);
@@ -342,9 +344,12 @@ export class SyncChain {
    * Sends `batch` to the processor. Note: batch may be empty
    */
   private async processBatch(batch: Batch): Promise<void> {
-    try {
-      const blocks = batch.startProcessing();
-      await this.processChainSegment(blocks);
+    const blocks = batch.startProcessing();
+
+    // wrapError ensures to never call both batch success() and batch error()
+    const res = await wrapError(this.processChainSegment(blocks));
+
+    if (!res.err) {
       batch.processingSuccess();
 
       // If the processed batch was not empty, we can validate previous unvalidated blocks.
@@ -354,13 +359,13 @@ export class SyncChain {
 
       // Potentially process next AwaitingProcessing batch
       this.triggerBatchProcessor();
-    } catch (e) {
-      this.logger.debug("Batch process error", batch.getMetadata(), e);
+    } else {
+      this.logger.verbose("Batch process error", batch.getMetadata(), res.err);
       batch.processingError(); // Throws after MAX_BATCH_PROCESSING_ATTEMPTS
 
       // At least one block was successfully verified and imported, so we can be sure all
       // previous batches are valid and we only need to download the current failed batch.
-      if (e instanceof ChainSegmentError && e.importedBlocks > 0) {
+      if (res.err instanceof ChainSegmentError && res.err.importedBlocks > 0) {
         this.advanceChain(batch.startEpoch);
       }
 
@@ -369,14 +374,14 @@ export class SyncChain {
       // Progress will be drop back to this.startEpoch
       for (const pendingBatch of this.batches.values()) {
         if (pendingBatch.startEpoch < batch.startEpoch) {
-          this.logger.debug("Batch validation error", pendingBatch.getMetadata());
+          this.logger.verbose("Batch validation error", pendingBatch.getMetadata());
           pendingBatch.validationError(); // Throws after MAX_BATCH_PROCESSING_ATTEMPTS
         }
       }
-    } finally {
-      // A batch is no longer in Processing status, queue has an empty spot to download next batch
-      this.triggerBatchDownloader();
     }
+
+    // A batch is no longer in Processing status, queue has an empty spot to download next batch
+    this.triggerBatchDownloader();
   }
 
   /**
