@@ -10,7 +10,7 @@ import {byteArrayEquals} from "../../util/bytes";
 import {PeerAction} from "../../network/peers";
 import {ChainPeersBalancer} from "./utils/peerBalancer";
 import {PeerSet} from "./utils/peerMap";
-import {Batch, BatchError, BatchErrorCode, BatchOpts, BatchStatus} from "./batch";
+import {Batch, BatchError, BatchErrorCode, BatchMetadata, BatchOpts, BatchStatus} from "./batch";
 import {
   validateBatchesStatus,
   getNextBatchToProcess,
@@ -19,7 +19,7 @@ import {
   toArr,
 } from "./utils/batches";
 
-export type SyncChainOpts = BatchOpts & {maybeStuckTimeoutMs: number};
+export type SyncChainOpts = BatchOpts;
 
 /**
  * Should return if ALL blocks are processed successfully
@@ -58,11 +58,6 @@ const EPOCHS_PER_BATCH = 2;
  */
 const BATCH_BUFFER_SIZE = 5;
 
-/**
- * If no batch is processed during this time, trigger the downloader and processor again
- */
-const MAYBE_STUCK_TIMEOUT = 10 * 1000;
-
 enum SyncState {
   Stopped = "Stopped",
   Syncing = "Syncing",
@@ -82,7 +77,6 @@ export class SyncChain {
   private reportPeer: ReportPeerFn;
   /** AsyncIterable that guarantees processChainSegment is run only at once at anytime */
   private batchProcessor = new ItTrigger();
-  private maybeStuckTimeout!: NodeJS.Timeout; // clearTimeout(undefined) is okay
   /** Sorted map of batches undergoing some kind of processing. */
   private batches = new Map<Epoch, Batch>();
   private peerset = new PeerSet();
@@ -111,13 +105,9 @@ export class SyncChain {
     this.config = config;
     this.logger = logger;
     this.signal = signal;
-    this.opts = {
-      epochsPerBatch: opts?.epochsPerBatch ?? EPOCHS_PER_BATCH,
-      maybeStuckTimeoutMs: opts?.maybeStuckTimeoutMs ?? MAYBE_STUCK_TIMEOUT,
-    };
+    this.opts = {epochsPerBatch: opts?.epochsPerBatch ?? EPOCHS_PER_BATCH};
 
     this.signal.addEventListener("abort", () => {
-      clearTimeout(this.maybeStuckTimeout);
       this.batchProcessor.end(new ErrorAborted("SyncChain"));
     });
   }
@@ -163,6 +153,13 @@ export class SyncChain {
     return this.target;
   }
 
+  /**
+   * Helper to print internal state for debugging when chain gets stuck
+   */
+  getBatchesState(): BatchMetadata[] {
+    return toArr(this.batches).map((batch) => batch.getMetadata());
+  }
+
   get isSyncing(): boolean {
     return this.state === SyncState.Syncing;
   }
@@ -182,8 +179,6 @@ export class SyncChain {
     try {
       // Start processing batches on demand in strict sequence
       for await (const _ of this.batchProcessor) {
-        clearTimeout(this.maybeStuckTimeout);
-
         if (this.state !== SyncState.Syncing) {
           continue;
         }
@@ -200,8 +195,6 @@ export class SyncChain {
         // Processes the next batch if ready
         const batch = getNextBatchToProcess(toArr(this.batches));
         if (batch) await this.processBatch(batch);
-
-        this.maybeStuckTimeout = setTimeout(this.syncMaybeStuck, this.opts.maybeStuckTimeoutMs);
       }
     } catch (e) {
       // A batch could not be processed after max retry limit. It's likely that all peers
@@ -217,18 +210,10 @@ export class SyncChain {
       // TODO: Should peers be reported for MAX_DOWNLOAD_ATTEMPTS?
 
       throw e;
-    } finally {
-      clearTimeout(this.maybeStuckTimeout);
     }
 
     this.logger.important("Completed initial sync");
   }
-
-  private syncMaybeStuck = (): void => {
-    this.triggerBatchDownloader();
-    this.triggerBatchProcessor();
-    this.logger.verbose(`SyncChain maybe stuck ${this.renderChainState()}`);
-  };
 
   /**
    * Request to process batches if any
@@ -418,19 +403,5 @@ export class SyncChain {
     }
 
     this.startEpoch = newStartEpoch;
-  }
-
-  /**
-   * Helper to print internal state for debugging when chain gets stuck
-   */
-  private renderChainState(): string {
-    const batchesMetadata = toArr(this.batches).map((batch) => batch.getMetadata());
-    return `
-startEpoch: ${this.startEpoch}
-batches: ${this.batches.size}
-\t${"epoch"} \t${"status"}
-\t${"-----"} \t${"------"}
-${batchesMetadata.map(({startEpoch, status}) => `\t${startEpoch} \t${status}`).join("\n")}
-`;
   }
 }
