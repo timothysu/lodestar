@@ -10,11 +10,12 @@ export const MAX_BATCH_DOWNLOAD_ATTEMPTS = 5;
 /** Consider batch faulty after downloading and processing this number of times */
 export const MAX_BATCH_PROCESSING_ATTEMPTS = 3;
 
-/// The number of slots ahead of us that is allowed before requesting a long-range (batch)  Sync
-/// from a peer. If a peer is within this tolerance (forwards or backwards), it is treated as a
-/// fully sync'd peer.
-///
-/// This means that we consider ourselves synced (and hence subscribe to all subnets and block
-/// gossip if no peers are further than this range ahead of us that we have not already downloaded
-/// blocks for.
+/**
+ * The number of slots ahead of us that is allowed before starting a RangeSync
+ * If a peer is within this tolerance (forwards or backwards), it is treated as a fully sync'd peer.
+ *
+ * This means that we consider ourselves synced (and hence subscribe to all subnets and block
+ * gossip if no peers are further than this range ahead of us that we have not already downloaded
+ * blocks for.
+ */
 export const SLOT_IMPORT_TOLERANCE = 32;

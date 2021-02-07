@@ -2,19 +2,18 @@ import {Status} from "@chainsafe/lodestar-types";
 import {IBeaconChain} from "../../chain";
 import {SLOT_IMPORT_TOLERANCE} from "../constants";
 
-/// The type of peer relative to our current state.
+/** The type of peer relative to our current state */
 export enum PeerSyncType {
-  /// The peer is on our chain and is fully synced with respect to our chain.
+  /** The peer is on our chain and is fully synced with respect to our chain */
   FullySynced,
-  /// The peer has a greater knowledge of the chain than us that warrants a full sync.
+  /** The peer has a greater knowledge of the chain than us that warrants a full sync */
   Advanced,
-  /// A peer is behind in the sync and not useful to us for downloading blocks.
+  /** A peer is behind in the sync and not useful to us for downloading blocks */
   Behind,
 }
 
 export function getPeerSyncType(local: Status, remote: Status, chain: IBeaconChain): PeerSyncType {
-  // auxiliary variables for clarity: Inclusive boundaries of the range in which we consider a peer's
-  // head "near" ours.
+  // Aux vars: Inclusive boundaries of the range to consider a peer's head synced to ours.
   const nearRangeStart = local.headSlot - SLOT_IMPORT_TOLERANCE;
   const nearRangeEnd = local.headSlot + SLOT_IMPORT_TOLERANCE;
 
@@ -42,8 +41,7 @@ export function getPeerSyncType(local: Status, remote: Status, chain: IBeaconCha
         remote.headSlot <= nearRangeEnd) ||
       chain.forkChoice.hasBlock(remote.headRoot)
     ) {
-      // This peer is near enough to us to be considered synced, or
-      // we have already synced up to this peer's head
+      // This peer is near enough to be considered synced, or we have already synced up to its head
       return PeerSyncType.FullySynced;
     } else {
       return PeerSyncType.Advanced;
@@ -55,31 +53,28 @@ export function getPeerSyncType(local: Status, remote: Status, chain: IBeaconCha
     if (remote.headSlot < nearRangeStart) {
       return PeerSyncType.Behind;
     } else if (remote.headSlot > nearRangeEnd && !chain.forkChoice.hasBlock(remote.headRoot)) {
-      // This peer has a head ahead enough of ours and we have no knowledge of their best
-      // block.
+      // This peer has a head ahead enough of ours and we have no knowledge of their best block.
       return PeerSyncType.Advanced;
     } else {
-      // This peer is either in the tolerance range, or ahead us with an already rejected
-      // block.
+      // This peer is either in the tolerance range, or ahead us with an already rejected block.
       return PeerSyncType.FullySynced;
     }
   }
 }
 
 export enum RangeSyncType {
-  /// A finalized chain sync should be started with this peer.
+  /** A finalized chain sync should be started with this peer */
   Finalized = "Finalized",
-  /// A head chain sync should be started with this peer.
+  /** A head chain sync should be started with this peer */
   Head = "Head",
 }
 
+/**
+ * Check if a peer requires a finalized chain sync. Only if:
+ * - The remotes finalized epoch is greater than our current finalized epoch and we have
+ *   not seen the finalized hash before
+ */
 export function getRangeSyncType(chain: IBeaconChain, local: Status, remote: Status): RangeSyncType {
-  // Check for finalized chain sync
-  //
-  // The condition is:
-  // -  The remotes finalized epoch is greater than our current finalized epoch and we have
-  //    not seen the finalized hash before.
-
   if (remote.finalizedEpoch > local.finalizedEpoch && !chain.forkChoice.hasBlock(remote.finalizedRoot)) {
     return RangeSyncType.Finalized;
   } else {

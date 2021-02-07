@@ -57,6 +57,7 @@ const EPOCHS_PER_BATCH = 2;
 /**
  * The maximum number of batches to queue before requesting more.
  */
+// TODO: When switching branches usually all batches in AwaitingProcessing are dropped, could it be optimized?
 const BATCH_BUFFER_SIZE = 5;
 
 enum SyncState {
@@ -110,20 +111,20 @@ export class SyncChain {
     this.opts = {epochsPerBatch: opts?.epochsPerBatch ?? EPOCHS_PER_BATCH};
   }
 
-  /// Either a new chain, or an old one with a peer list
-  /// This chain has been requested to start syncing.
-  ///
-  /// This could be new chain, or an old chain that is being resumed.
+  /**
+   * Start syncing a new chain or an old one with an existing peer list
+   * In the same call, advance the chain if localFinalizedEpoch >
+   */
   async startSyncing(localFinalizedEpoch: Epoch): Promise<void> {
     if (this.state !== SyncState.Stopped) {
       throw Error(`Attempting to start a SyncChain with state ${this.state}`);
     }
 
-    // to avoid dropping local progress, we advance the chain wrt its batch boundaries.
-    // get the *aligned* epoch that produces a batch containing the `local_finalized_epoch`
-    const alignedLocalFinalizedEpoch =
+    // to avoid dropping local progress, we advance the chain with its batch boundaries.
+    // get the aligned epoch that produces a batch containing the `localFinalizedEpoch`
+    const localFinalizedEpochAligned =
       this.startEpoch + Math.floor((localFinalizedEpoch - this.startEpoch) / EPOCHS_PER_BATCH) * EPOCHS_PER_BATCH;
-    this.advanceChain(alignedLocalFinalizedEpoch);
+    this.advanceChain(localFinalizedEpochAligned);
 
     try {
       this.state = SyncState.Syncing;
@@ -133,7 +134,7 @@ export class SyncChain {
       this.state = SyncState.Error;
 
       // A batch could not be processed after max retry limit. It's likely that all peers
-      // in this cahin are sending invalid batches repeatedly and are either malicious or faulty.
+      // in this chain are sending invalid batches repeatedly so are either malicious or faulty.
       // We drop the chain and report all peers.
       // There are some edge cases with forks that could cause this situation, but it's unlikely.
       if (e instanceof BatchError && e.type.code === BatchErrorCode.MAX_PROCESSING_ATTEMPTS) {
@@ -148,16 +149,23 @@ export class SyncChain {
     }
   }
 
+  /**
+   * Temporarily stop the chain. Will prevent batches from being processed
+   */
   stopSyncing(): void {
     this.state = SyncState.Stopped;
   }
 
+  /**
+   * Permanently remove this chain. Throws the main AsyncIterable
+   */
   remove(): void {
     this.batchProcessor.end(new ErrorAborted("SyncChain"));
   }
 
-  /// Add a peer to the chain.
-  /// If the chain is active, this starts requesting batches from this peer.
+  /**
+   * Add peer to the chain and request batches if active
+   */
   addPeer(peerId: PeerId): void {
     if (!this.peerset.has(peerId)) {
       this.peerset.add(peerId);
@@ -224,14 +232,14 @@ export class SyncChain {
   }
 
   /**
-   * Request to process batches if any
+   * Request to process batches if possible
    */
   private triggerBatchProcessor(): void {
     this.batchProcessor.trigger();
   }
 
   /**
-   * Request to download batches if any
+   * Request to download batches if possible
    * Backlogs requests into a single pending request
    */
   private triggerBatchDownloader(): void {
@@ -246,9 +254,6 @@ export class SyncChain {
   /**
    * Attempts to request the next required batches from the peer pool if the chain is syncing.
    * It will exhaust the peer pool and left over batches until the batch buffer is reached.
-   *
-   * The peers that agree on the same finalized checkpoint and thus available to download
-   * this chain from, as well as the batches we are currently requesting.
    */
   private requestBatches(peers: PeerId[]): void {
     if (this.state !== SyncState.Syncing) {
@@ -280,7 +285,7 @@ export class SyncChain {
   }
 
   /**
-   * Creates the next required batch from the chain. If there are no more batches required, `null` is returned.
+   * Creates the next required batch from the chain. If there are no more batches required, returns `null`.
    */
   private includeNextBatch(): Batch | null {
     const batches = toArr(this.batches);
@@ -318,7 +323,6 @@ export class SyncChain {
    */
   private async sendBatch(batch: Batch, peer: PeerId): Promise<void> {
     try {
-      // Inform the batch about the new request
       batch.startDownloading(peer);
 
       // wrapError ensures to never call both batch success() and batch error()
@@ -352,7 +356,7 @@ export class SyncChain {
     if (!res.err) {
       batch.processingSuccess();
 
-      // If the processed batch was not empty, we can validate previous unvalidated blocks.
+      // If the processed batch is not empty, validate previous AwaitingValidation blocks.
       if (blocks.length > 0) {
         this.advanceChain(batch.startEpoch);
       }
@@ -370,8 +374,8 @@ export class SyncChain {
       }
 
       // The current batch could not be processed, so either this or previous batches are invalid.
-      // All previous batches (awaiting validation) are potentially faulty and marked for retry
-      // Progress will be drop back to this.startEpoch
+      // All previous batches (AwaitingValidation) are potentially faulty and marked for retry.
+      // Progress will be drop back to `this.startEpoch`
       for (const pendingBatch of this.batches.values()) {
         if (pendingBatch.startEpoch < batch.startEpoch) {
           this.logger.verbose("Batch validation error", pendingBatch.getMetadata());

@@ -159,15 +159,12 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
         continue;
       }
 
+      // TODO:
       // Queue an outgoing connection request to the cached peers that are on `s.subnet_id`.
       // If we connect to the cached peers before the discovery query starts, then we potentially
       // save a costly discovery query.
 
-      /// Dial cached enrs in discovery service that are in the given `subnet_id` and aren't
-      /// in Connected, Dialing or Banned state.
-      // this.dial_cached_enrs_in_subnet(subnet.subnetId);
-
-      // Look for existing peers in discv5 records that may declare to be part of a subnet
+      // Get cached ENRs from the discovery service that are in the requested `subnetId`, but not connected yet
       const discPeersOnSubnet = await this.discovery.getDiscoveryPeersOnSubnet(subnet.subnetId, peersToDiscover);
       this.peersDiscovered(discPeersOnSubnet);
 

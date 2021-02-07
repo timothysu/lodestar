@@ -3,6 +3,10 @@ import {MIN_FINALIZED_CHAIN_VALIDATED_EPOCHS, PARALLEL_HEAD_CHAINS} from "../../
 import {RangeSyncType} from "../../utils/remoteSyncType";
 import {SyncChain} from "../chain";
 
+/**
+ * Priotize existing chains based on their target and peer count
+ * Returns an array of chains toStart and toStop to comply with the priotization
+ */
 export function updateChains(chains: SyncChain[]): {toStart: SyncChain[]; toStop: SyncChain[]} {
   const finalizedChains: SyncChain[] = [];
   const headChains: SyncChain[] = [];
@@ -22,8 +26,6 @@ export function updateChains(chains: SyncChain[]): {toStart: SyncChain[]; toStop
   );
 }
 
-/// This looks at all current finalized chains and decides if a new chain should be prioritised
-/// or not.
 function updateFinalizedChains(finalizedChains: SyncChain[]): {toStart: SyncChain[]; toStop: SyncChain[]} | null {
   // Find the chain with most peers and check if it is already syncing
   const preferredSyncChains = sortBy(

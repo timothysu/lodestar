@@ -2,6 +2,9 @@ import {Slot} from "@chainsafe/lodestar-types";
 import {IBeaconChain} from "../../../chain";
 import {SyncChain} from "../chain";
 
+/**
+ * Checks if a Finalized or Head chain should be removed
+ */
 export function shouldRemoveChain(syncChain: SyncChain, localFinalizedSlot: Slot, chain: IBeaconChain): boolean {
   return (
     // Sync chain has completed syncing or encountered an error
