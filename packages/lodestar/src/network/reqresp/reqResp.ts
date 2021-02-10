@@ -2,7 +2,6 @@
  * @module network
  */
 import {EventEmitter} from "events";
-import StrictEventEmitter from "strict-event-emitter-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {
   BeaconBlocksByRangeRequest,
@@ -19,8 +18,7 @@ import {ILogger} from "@chainsafe/lodestar-utils";
 import {AbortController} from "abort-controller";
 import LibP2p from "libp2p";
 import PeerId from "peer-id";
-import {IReqResp} from "../interface";
-import {IReqRespModules, ILibP2pStream} from "./interface";
+import {IReqResp, ReqRespEvent, ReqRespEmitter, IReqRespModules, ILibP2pStream} from "./interface";
 import {sendRequest} from "./request";
 import {handleRequest} from "./response";
 import {Method, ReqRespEncoding, timeoutOptions} from "../../constants";
@@ -30,20 +28,6 @@ import {IRpcScoreTracker} from "../peers/score";
 import {createRpcProtocol} from "../util";
 import {MetadataController} from "../metadata";
 import {ReqRespHandler} from "./handlers";
-
-export enum ReqRespEvent {
-  receivedPing = "ReqResp-receivedPing",
-  receivedGoodbye = "ReqResp-receivedGoodbye",
-  receivedStatus = "ReqResp-receivedStatus",
-}
-
-type ReqRespEvents = {
-  [ReqRespEvent.receivedPing]: (peer: PeerId, seqNumber: Ping) => void;
-  [ReqRespEvent.receivedGoodbye]: (peer: PeerId, goodbye: Goodbye) => void;
-  [ReqRespEvent.receivedStatus]: (peer: PeerId, status: Status) => void;
-};
-
-type ReqRespEmitter = StrictEventEmitter<EventEmitter, ReqRespEvents>;
 
 export type IReqRespOptions = Partial<typeof timeoutOptions>;
 

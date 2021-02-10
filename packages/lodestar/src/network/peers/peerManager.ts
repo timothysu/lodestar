@@ -10,7 +10,7 @@ import {GoodByeReasonCode, GOODBYE_KNOWN_CODES} from "../../constants";
 import {IBeaconMetrics} from "../../metrics";
 import {shuffle} from "../../util/shuffle";
 import {sortBy} from "../../util/sortBy";
-import {ReqResp, ReqRespEvent} from "../reqresp";
+import {IReqResp, ReqRespEvent} from "../reqresp";
 import {assertPeerRelevance} from "./assertPeerRelevance";
 import {Libp2pPeerMetadataStore} from "./metastore";
 import {PeerDiscovery, SubnetDiscovery} from "./discover";
@@ -57,7 +57,7 @@ const HEARTBEAT_INTERVAL_MS = 30 * 1000;
 export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) {
   // TODO: Reorg - TEMP
   private libp2p: LibP2p;
-  private reqResp: ReqResp;
+  private reqResp: IReqResp;
   private logger: ILogger;
   private metrics: IBeaconMetrics;
   private chain: IBeaconChain;
@@ -74,7 +74,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
 
   constructor(
     libp2p: LibP2p,
-    reqResp: ReqResp,
+    reqResp: IReqResp,
     logger: ILogger,
     metrics: IBeaconMetrics,
     chain: IBeaconChain,

@@ -1,8 +1,45 @@
+import {EventEmitter} from "events";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {RequestId, RequestBody, ResponseBody} from "@chainsafe/lodestar-types";
+import PeerId from "peer-id";
+import StrictEventEmitter from "strict-event-emitter-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
+import {
+  RequestId,
+  RequestBody,
+  ResponseBody,
+  Ping,
+  Goodbye,
+  Status,
+  BeaconBlocksByRangeRequest,
+  BeaconBlocksByRootRequest,
+  Metadata,
+  SignedBeaconBlock,
+} from "@chainsafe/lodestar-types";
 import {Method, Methods, ReqRespEncoding} from "../../constants";
 import {IPeerMetadataStore, IRpcScoreTracker} from "../peers";
+
+export enum ReqRespEvent {
+  receivedPing = "ReqResp-receivedPing",
+  receivedGoodbye = "ReqResp-receivedGoodbye",
+  receivedStatus = "ReqResp-receivedStatus",
+}
+
+type ReqRespEvents = {
+  [ReqRespEvent.receivedPing]: (peer: PeerId, seqNumber: Ping) => void;
+  [ReqRespEvent.receivedGoodbye]: (peer: PeerId, goodbye: Goodbye) => void;
+  [ReqRespEvent.receivedStatus]: (peer: PeerId, status: Status) => void;
+};
+
+export type ReqRespEmitter = StrictEventEmitter<EventEmitter, ReqRespEvents>;
+
+export interface IReqResp extends ReqRespEmitter {
+  status(peerId: PeerId, request: Status): Promise<Status>;
+  goodbye(peerId: PeerId, request: Goodbye): Promise<void>;
+  ping(peerId: PeerId): Promise<Ping>;
+  metadata(peerId: PeerId): Promise<Metadata>;
+  beaconBlocksByRange(peerId: PeerId, request: BeaconBlocksByRangeRequest): Promise<SignedBeaconBlock[]>;
+  beaconBlocksByRoot(peerId: PeerId, request: BeaconBlocksByRootRequest): Promise<SignedBeaconBlock[]>;
+}
 
 export interface IReqRespModules {
   config: IBeaconConfig;

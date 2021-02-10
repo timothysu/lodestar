@@ -2,15 +2,6 @@
  * @module network
  */
 import {ENR} from "@chainsafe/discv5/lib";
-import {
-  BeaconBlocksByRangeRequest,
-  BeaconBlocksByRootRequest,
-  Goodbye,
-  Metadata,
-  Ping,
-  SignedBeaconBlock,
-  Status,
-} from "@chainsafe/lodestar-types";
 import {EventEmitter} from "events";
 import Multiaddr from "multiaddr";
 import PeerId from "peer-id";
@@ -20,15 +11,7 @@ import {MetadataController} from "./metadata";
 import {IPeerMetadataStore} from "./peers/interface";
 import {PeerManager} from "./peers/peerManager";
 import {IRpcScoreTracker} from "./peers/score";
-
-export interface IReqResp {
-  status(peerId: PeerId, request: Status): Promise<Status>;
-  goodbye(peerId: PeerId, request: Goodbye): Promise<void>;
-  ping(peerId: PeerId, request: Ping): Promise<Ping>;
-  metadata(peerId: PeerId): Promise<Metadata>;
-  beaconBlocksByRange(peerId: PeerId, request: BeaconBlocksByRangeRequest): Promise<SignedBeaconBlock[]>;
-  beaconBlocksByRoot(peerId: PeerId, request: BeaconBlocksByRootRequest): Promise<SignedBeaconBlock[]>;
-}
+import {IReqResp} from "./reqresp";
 
 export enum NetworkEvent {
   peerConnect = "peer:connect",
