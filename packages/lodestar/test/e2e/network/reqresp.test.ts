@@ -19,6 +19,13 @@ import {generateEmptySignedBlock} from "../../utils/block";
 import {expectRejectedWithLodestarError} from "../../utils/errors";
 import {connect, onPeerConnect} from "../../utils/network";
 
+// TODO: TEST
+// sync req resp
+// - should handle request - onStatus
+// - should handle request - onGoodbye
+// - Throw if BeaconBlocksByRangeRequest is invalid: step < 1
+// - should handle request - onBeaconBlocksByRange
+
 chai.use(chaiAsPromised);
 
 describe("network / ReqResp", function () {

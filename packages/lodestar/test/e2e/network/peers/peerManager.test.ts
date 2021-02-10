@@ -22,6 +22,8 @@ import {LogLevel, sleep, WinstonLogger} from "@chainsafe/lodestar-utils";
 const debugMode = process.env.DEBUG;
 const logger = debugMode ? new WinstonLogger({level: LogLevel.debug}) : silentLogger;
 
+// TODO: Tests
+
 // handlePeerMetadataSequence
 // - Show that if seqNum is the same should not request metadata
 // - Show that if seqNum is bigger should request metadata
@@ -31,6 +33,25 @@ const logger = debugMode ? new WinstonLogger({level: LogLevel.debug}) : silentLo
 
 // syncPeersToDisconnect + gossipPeersToDisconnect
 // - Compute peers to disconnect, according to conditions
+
+// CheckPeerAliveTask
+// - cannot ping, should disconnect
+// - ping returns null, should disconnect
+// - ping successfully, return same sequence number > metadata not called
+// - ping successfully, return bigger sequence number > metadata called
+
+// DiversifyPeersBySubnetTask
+// - ??
+
+// Sync / ReqResp
+// - hello handshake on peer connect with correct encoding
+//    A sends status request to B with ssz encoding
+//    Peers should know each other and store the prefered encoding to
+//    netA.peerMetadata.getEncoding(netB.peerId)
+// - Should goodbye all peers on stop
+
+// sync peer utils
+// - Filter and prioritize peers for sync or something else
 
 describe("network / peers / PeerManager", function () {
   const peerId1 = new PeerId(Buffer.from("lodestar-1"));
