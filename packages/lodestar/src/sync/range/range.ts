@@ -92,7 +92,7 @@ export class RangeSync {
    */
   addPeer(peerId: PeerId, localStatus: Status, peerStatus: Status): void {
     // Compute if we should do a Finalized or Head sync with this peer
-    const rangeSyncType = getRangeSyncType(this.chain, localStatus, peerStatus);
+    const rangeSyncType = getRangeSyncType(localStatus, peerStatus, this.chain);
     this.logger.debug("Sync peer joined", {peer: peerId.toB58String(), rangeSyncType});
 
     // If the peer existed in any other chain, remove it.

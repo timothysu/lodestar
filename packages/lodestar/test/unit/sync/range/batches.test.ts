@@ -9,7 +9,7 @@ import {
   getNextBatchToProcess,
   toBeProcessedStartEpoch,
   toBeDownloadedStartEpoch,
-} from "../../../../src/sync/range/batches";
+} from "../../../../src/sync/range/utils/batches";
 
 describe("sync / range / batches", () => {
   const opts: BatchOpts = {epochsPerBatch: 2};

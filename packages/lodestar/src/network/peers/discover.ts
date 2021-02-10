@@ -8,7 +8,7 @@ import {getConnectedPeerIds} from "./utils";
 /** Target number of peers we'd like to have connected to a given long-lived subnet */
 const TARGET_SUBNET_PEERS = 6;
 
-export type SubnetDiscovery = {
+export type SubnetToDiscover = {
   subnetId: number;
   minTtl: number;
 };
@@ -43,7 +43,7 @@ export class PeerDiscovery {
   /**
    * Request to find peers on a given subnet.
    */
-  async discoverSubnetPeers(subnetsToDiscover: SubnetDiscovery[]): Promise<void> {
+  async discoverSubnetPeers(subnetsToDiscover: SubnetToDiscover[]): Promise<void> {
     const connectedPeers = getConnectedPeerIds(this.libp2p);
     const subnetsToDiscoverFiltered: typeof subnetsToDiscover = [];
 
@@ -60,7 +60,7 @@ export class PeerDiscovery {
 
       // Already have target number of peers, no need for subnet discovery
       const peersToDiscover = TARGET_SUBNET_PEERS - peersOnSubnet.length;
-      if (peersToDiscover > 0) {
+      if (peersToDiscover <= 0) {
         continue;
       }
 

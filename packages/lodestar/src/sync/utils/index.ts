@@ -1,3 +1,3 @@
 export * from "./attestation-collector";
-export * from "./blocks";
+export * from "./assertSequentialBlocksInRange";
 export * from "./robin";

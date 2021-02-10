@@ -1,5 +1,4 @@
 import PeerId from "peer-id";
-import {AbortController} from "abort-controller";
 import {LogLevel, WinstonLogger} from "@chainsafe/lodestar-utils";
 import {config} from "@chainsafe/lodestar-config/minimal";
 import {Epoch, SignedBeaconBlock, Slot} from "@chainsafe/lodestar-types";
@@ -8,13 +7,30 @@ import {generateEmptyBlock, generateEmptySignedBlock} from "../../../utils/block
 import {silentLogger} from "../../../utils/logger";
 import {
   SyncChain,
-  SyncChainOpts,
   ProcessChainSegment,
   DownloadBeaconBlocksByRange,
-  GetPeersAndTargetEpoch,
+  ChainTarget,
+  ReportPeerFn,
 } from "../../../../src/sync/range/chain";
+import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
+import {RangeSyncType} from "../../../../src/sync/utils/remoteSyncType";
+import {ZERO_HASH} from "../../../../src/constants";
 
 const debugMode = process.env.DEBUG;
+
+// ORA / BlockRangeFetcher
+// - should fetch next range initially
+// - should fetch next range based on last fetch block
+//     handle the case when peer does not return all blocks
+//     next fetch should start from last fetch block
+// - should handle getBlockRange error (null, no block or single block)
+//     should switch peer
+//     second block is ignored since we can't validate if it's orphaned block or not
+// - should handle getBlockRange returning 2 blocks, one of which is last fetched block
+//     !!! Probably not an issue anymore because the chain won't reject
+//     !!! Also chain will ensure that the returned blocks match the requested range
+// - should handle getBlockRange timeout
+// - should handle non-linear chain segment
 
 describe("sync / range / chain", () => {
   const {SLOTS_PER_EPOCH} = config.params;
@@ -57,10 +73,12 @@ describe("sync / range / chain", () => {
 
   // Helper variables to trigger errors
   const logger = debugMode ? new WinstonLogger({level: LogLevel.debug}) : silentLogger;
-  const controller = new AbortController();
   const ACCEPT_BLOCK = Buffer.alloc(96, 0);
   const REJECT_BLOCK = Buffer.alloc(96, 1);
   const interval: NodeJS.Timeout | null = null;
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  const reportPeer: ReportPeerFn = () => {};
 
   afterEach(() => {
     if (interval) clearInterval(interval);
@@ -93,55 +111,53 @@ describe("sync / range / chain", () => {
         return blocks;
       };
 
-      const peers = [new PeerId(Buffer.from("lodestar"))];
-      const getPeerSet: GetPeersAndTargetEpoch = () => {
-        return {
-          peers,
-          targetEpoch,
-        };
-      };
-
+      const target: ChainTarget = {slot: computeStartSlotAtEpoch(config, targetEpoch), root: ZERO_HASH};
+      const syncType = RangeSyncType.Finalized;
       const initialSync = new SyncChain(
         startEpoch,
+        target,
+        syncType,
         processChainSegment,
         downloadBeaconBlocksByRange,
-        getPeerSet,
+        reportPeer,
         config,
-        logger,
-        controller.signal
+        logger
       );
 
-      await initialSync.sync();
+      const peers = [new PeerId(Buffer.from("lodestar"))];
+      for (const peer of peers) initialSync.addPeer(peer);
+
+      await initialSync.startSyncing(startEpoch);
     });
   }
 
   it("Should start with no peers, then sync to target", async () => {
-    const opts: SyncChainOpts = {epochsPerBatch: 2, maybeStuckTimeoutMs: 5};
     const startEpoch = 0;
     const targetEpoch = 16;
     const peers = [new PeerId(Buffer.from("lodestar"))];
-    let returnNoPeers = true;
-
-    setTimeout(() => {
-      returnNoPeers = false;
-    }, 20);
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     const processChainSegment: ProcessChainSegment = async () => {};
     const downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange = async () => [generateEmptySignedBlock()];
-    const getPeerSet: GetPeersAndTargetEpoch = () => (returnNoPeers ? null : {peers, targetEpoch});
 
+    const target: ChainTarget = {slot: computeStartSlotAtEpoch(config, targetEpoch), root: ZERO_HASH};
+    const syncType = RangeSyncType.Finalized;
     const initialSync = new SyncChain(
       startEpoch,
+      target,
+      syncType,
       processChainSegment,
       downloadBeaconBlocksByRange,
-      getPeerSet,
+      reportPeer,
       config,
-      logger,
-      controller.signal,
-      opts
+      logger
     );
 
-    await initialSync.sync();
+    // Add peers after some time
+    setTimeout(() => {
+      for (const peer of peers) initialSync.addPeer(peer);
+    }, 20);
+
+    await initialSync.startSyncing(startEpoch);
   });
 });

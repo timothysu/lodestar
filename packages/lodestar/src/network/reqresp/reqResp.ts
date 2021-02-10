@@ -27,7 +27,7 @@ import {IPeerMetadataStore} from "../peers/interface";
 import {IRpcScoreTracker} from "../peers/score";
 import {createRpcProtocol} from "../util";
 import {MetadataController} from "../metadata";
-import {ReqRespHandler} from "./handlers";
+import {IReqRespHandler} from "./handlers";
 
 export type IReqRespOptions = Partial<typeof timeoutOptions>;
 
@@ -40,7 +40,7 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
   private config: IBeaconConfig;
   private libp2p: LibP2p;
   private logger: ILogger;
-  private reqRespHandler: ReqRespHandler;
+  private reqRespHandler: IReqRespHandler;
   private metadataController: MetadataController;
   private peerMetadata: IPeerMetadataStore;
   private peerRpcScores: IRpcScoreTracker;
@@ -58,7 +58,7 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
       metadata,
       peerRpcScores,
       logger,
-    }: IReqRespModules & {metadata: MetadataController; reqRespHandler: ReqRespHandler},
+    }: IReqRespModules & {metadata: MetadataController; reqRespHandler: IReqRespHandler},
     options?: IReqRespOptions
   ) {
     super();

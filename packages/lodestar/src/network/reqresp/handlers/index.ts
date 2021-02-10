@@ -10,11 +10,15 @@ import {IBeaconDb} from "../../../db";
 import {onBeaconBlocksByRange} from "./beaconBlocksByRange";
 import {onBeaconBlocksByRoot} from "./beaconBlocksByRoot";
 
+export interface IReqRespHandler {
+  onRequest(method: Method, requestBody: RequestBody): AsyncIterable<ResponseBody>;
+}
+
 /**
  * The ReqRespHandler module handles app-level requests / responses from other peers,
  * fetching state from the chain and database as needed.
  */
-export class ReqRespHandler {
+export class ReqRespHandler implements IReqRespHandler {
   private db: IBeaconDb;
   private chain: IBeaconChain;
 

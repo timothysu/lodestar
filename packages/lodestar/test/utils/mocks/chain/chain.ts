@@ -10,6 +10,7 @@ import {
   Number64,
   SignedBeaconBlock,
   Slot,
+  Status,
   Uint16,
   Uint64,
 } from "@chainsafe/lodestar-types";
@@ -42,26 +43,26 @@ export class MockBeaconChain implements IBeaconChain {
   public checkpointStateCache: CheckpointStateCache;
   public chainId: Uint16;
   public networkId: Uint64;
-  public clock!: IBeaconClock;
+  public clock: IBeaconClock;
   public regen: IStateRegenerator;
   public emitter: ChainEventEmitter;
   public pendingBlocks: BlockPool;
   public pendingAttestations: AttestationPool;
 
-  private state: TreeBacked<BeaconState> | null;
+  private state: TreeBacked<BeaconState>;
   private config: IBeaconConfig;
   private abortController: AbortController;
 
-  public constructor({chainId, networkId, state, config}: Partial<IMockChainParams>) {
+  public constructor({chainId, networkId, state, config}: IMockChainParams) {
     this.chainId = chainId || 0;
     this.networkId = networkId || BigInt(0);
-    this.state = state!;
-    this.config = config!;
+    this.state = state;
+    this.config = config;
     this.emitter = new ChainEventEmitter();
     this.abortController = new AbortController();
     this.clock = new LocalClock({
-      config: config!,
-      genesisTime: state!.genesisTime,
+      config: config,
+      genesisTime: state.genesisTime,
       emitter: this.emitter,
       signal: this.abortController.signal,
     });
@@ -89,21 +90,21 @@ export class MockBeaconChain implements IBeaconChain {
 
   public getHeadStateContext(): ITreeStateContext {
     return {
-      state: createCachedValidatorsBeaconState(this.state!),
+      state: createCachedValidatorsBeaconState(this.state),
       epochCtx: new EpochContext(this.config),
     };
   }
 
   public async getHeadStateContextAtCurrentEpoch(): Promise<ITreeStateContext> {
     return {
-      state: createCachedValidatorsBeaconState(this.state!),
+      state: createCachedValidatorsBeaconState(this.state),
       epochCtx: new EpochContext(this.config),
     };
   }
 
   public async getHeadStateContextAtCurrentSlot(): Promise<ITreeStateContext> {
     return {
-      state: createCachedValidatorsBeaconState(this.state!),
+      state: createCachedValidatorsBeaconState(this.state),
       epochCtx: new EpochContext(this.config),
     };
   }
@@ -130,11 +131,11 @@ export class MockBeaconChain implements IBeaconChain {
   }
 
   public getFinalizedCheckpoint(): Checkpoint {
-    return this.state!.finalizedCheckpoint;
+    return this.state.finalizedCheckpoint;
   }
 
   public getForkDigest(): ForkDigest {
-    return computeForkDigest(this.config, this.state!.fork.currentVersion, this.state!.genesisValidatorsRoot);
+    return computeForkDigest(this.config, this.state.fork.currentVersion, this.state.genesisValidatorsRoot);
   }
 
   public getENRForkID(): ENRForkID {
@@ -161,12 +162,21 @@ export class MockBeaconChain implements IBeaconChain {
     return;
   }
 
-  async close(): Promise<void> {
+  close(): void {
     this.abortController.abort();
-    return;
   }
 
   async getStateContextByBlockRoot(): Promise<ITreeStateContext | null> {
     return null;
+  }
+
+  getStatus(): Status {
+    return {
+      forkDigest: this.getForkDigest(),
+      finalizedRoot: Buffer.alloc(32),
+      finalizedEpoch: 0,
+      headRoot: Buffer.alloc(32),
+      headSlot: 0,
+    };
   }
 }

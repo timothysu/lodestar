@@ -5,9 +5,10 @@ import {config} from "@chainsafe/lodestar-config/mainnet";
 import {LogLevel, sleep, WinstonLogger} from "@chainsafe/lodestar-utils";
 import {Method, ReqRespEncoding} from "../../../src/constants";
 import {BeaconMetrics} from "../../../src/metrics";
-import {createPeerId, IReqRespOptions, Libp2pNetwork, NetworkEvent} from "../../../src/network";
+import {createPeerId, IReqRespOptions, Libp2pNetwork} from "../../../src/network";
 import {GossipMessageValidator} from "../../../src/network/gossip/validator";
 import {INetworkOptions} from "../../../src/network/options";
+import {IReqRespHandler} from "../../../src/network/reqresp/handlers";
 import {RequestError, RequestErrorCode} from "../../../src/network/reqresp/request";
 import {silentLogger} from "../../utils/logger";
 import {MockBeaconChain} from "../../utils/mocks/chain/chain";
@@ -16,10 +17,11 @@ import {generateState} from "../../utils/state";
 import {arrToSource, generateEmptySignedBlocks} from "../../unit/network/reqresp/utils";
 import {generateEmptySignedBlock} from "../../utils/block";
 import {expectRejectedWithLodestarError} from "../../utils/errors";
+import {connect, onPeerConnect} from "../../utils/network";
 
 chai.use(chaiAsPromised);
 
-describe("[network] network", function () {
+describe("network / ReqResp", function () {
   if (this.timeout() < 5000) this.timeout(5000);
 
   const multiaddr = "/ip4/127.0.0.1/tcp/0";
@@ -32,8 +34,7 @@ describe("[network] network", function () {
     disconnectTimeout: 5000,
     localMultiaddrs: [],
   };
-  const logger = new WinstonLogger({level: LogLevel.error});
-  const metrics = new BeaconMetrics({enabled: true, timeout: 5000, pushGateway: false}, {logger});
+  const metrics = new BeaconMetrics({enabled: true, timeout: 5000, pushGateway: false}, {logger: silentLogger});
   const validator = {} as GossipMessageValidator;
   const state = generateState();
   const chain = new MockBeaconChain({genesisTime: 0, chainId: 0, networkId: BigInt(0), state, config});
@@ -47,29 +48,32 @@ describe("[network] network", function () {
     }
   });
 
-  async function createAndConnectPeers(reqRespOpts?: IReqRespOptions): Promise<[Libp2pNetwork, Libp2pNetwork]> {
+  async function createAndConnectPeers(
+    reqRespOpts?: IReqRespOptions,
+    onRequest?: IReqRespHandler["onRequest"]
+  ): Promise<[Libp2pNetwork, Libp2pNetwork]> {
     const peerIdB = await createPeerId();
-    const [libP2pA, libP2pB] = await Promise.all([createNode(multiaddr), createNode(multiaddr, peerIdB)]);
+    const [libp2pA, libp2pB] = await Promise.all([createNode(multiaddr), createNode(multiaddr, peerIdB)]);
 
     // Run tests with `DEBUG=true mocha ...` to get detailed logs of ReqResp exchanges
     const debugMode = process.env.DEBUG;
     const loggerA = debugMode ? new WinstonLogger({level: LogLevel.verbose, module: "A"}) : silentLogger;
     const loggerB = debugMode ? new WinstonLogger({level: LogLevel.verbose, module: "B"}) : silentLogger;
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    const reqRespHandler: IReqRespHandler = {onRequest: onRequest || async function* () {}};
     const opts = {...networkOptsDefault, ...reqRespOpts};
-    const netA = new Libp2pNetwork(opts, {config, libp2p: libP2pA, logger: loggerA, metrics, validator, chain});
-    const netB = new Libp2pNetwork(opts, {config, libp2p: libP2pB, logger: loggerB, metrics, validator, chain});
+    const modules = {config, metrics, validator, chain, reqRespHandler};
+    const netA = new Libp2pNetwork(opts, {...modules, libp2p: libp2pA, logger: loggerA});
+    const netB = new Libp2pNetwork(opts, {...modules, libp2p: libp2pB, logger: loggerB});
     await Promise.all([netA.start(), netB.start()]);
 
-    const connected = Promise.all([
-      new Promise((resolve) => netA.on(NetworkEvent.peerConnect, resolve)),
-      new Promise((resolve) => netB.on(NetworkEvent.peerConnect, resolve)),
-    ]);
-    await netA.connect(netB.peerId, netB.localMultiaddrs);
+    const connected = Promise.all([onPeerConnect(netA), onPeerConnect(netB)]);
+    await connect(netA, netB.peerId, netB.localMultiaddrs);
     await connected;
 
     afterEachCallbacks.push(async () => {
-      await chain.close();
+      chain.close();
       await Promise.all([netA.stop(), netB.stop()]);
     });
 
@@ -79,19 +83,14 @@ describe("[network] network", function () {
   it("should send/receive a ping message", async function () {
     const [netA, netB] = await createAndConnectPeers();
 
-    const pingBody = BigInt(128);
+    // Modify the metadata to make the seqNumber non-zero
+    netB.metadata.attnets = [];
+    netB.metadata.attnets = [];
+    const expectedPong = netB.metadata.seqNumber;
+    expect(expectedPong.toString()).to.deep.equal("2", "seqNumber");
 
-    netB.reqResp.registerHandler(async function* (method, requestBody) {
-      if (method === Method.Ping) {
-        if (requestBody !== pingBody) throw Error(`Wrong requestBody ${requestBody} !== ${pingBody}`);
-        yield pingBody;
-      } else {
-        throw Error(`${method} not implemented`);
-      }
-    });
-
-    const pingRes = await netA.reqResp.ping(netB.peerId, pingBody);
-    expect(pingRes?.toString()).to.deep.equal(pingBody.toString(), "Wrong response body");
+    const pong = await netA.reqResp.ping(netB.peerId);
+    expect(pong.toString()).to.deep.equal(expectedPong.toString(), "Wrong response body");
   });
 
   it("should send/receive a metadata message", async function () {
@@ -102,31 +101,21 @@ describe("[network] network", function () {
       attnets: netB.metadata.attnets,
     };
 
-    netB.reqResp.registerHandler(async function* (method) {
-      if (method === Method.Metadata) {
-        yield metadataBody;
-      } else {
-        throw Error(`${method} not implemented`);
-      }
-    });
-
     const metadata = await netA.reqResp.metadata(netB.peerId);
     expect(metadata).to.deep.equal(metadataBody, "Wrong response body");
   });
 
   it("should send/receive signed blocks", async function () {
-    const [netA, netB] = await createAndConnectPeers();
-
-    const count = 2;
-    const blocks = generateEmptySignedBlocks(count);
-
-    netB.reqResp.registerHandler(async function* (method) {
+    const [netA, netB] = await createAndConnectPeers({}, async function* onRequest(method) {
       if (method === Method.BeaconBlocksByRange) {
         yield* arrToSource(blocks);
       } else {
         throw Error(`${method} not implemented`);
       }
     });
+
+    const count = 2;
+    const blocks = generateEmptySignedBlocks(count);
 
     const returnedBlocks = await netA.reqResp.beaconBlocksByRange(netB.peerId, {startSlot: 0, step: 1, count});
 
@@ -142,13 +131,10 @@ describe("[network] network", function () {
   });
 
   it("should handle a server error", async function () {
-    const [netA, netB] = await createAndConnectPeers();
-
     const testErrorMessage = "TEST_EXAMPLE_ERROR_1234";
-
     // eslint-disable-next-line require-yield
-    netB.reqResp.registerHandler(async function* (method) {
-      if (method === Method.Metadata) {
+    const [netA, netB] = await createAndConnectPeers({}, async function* onRequest(method) {
+      if (method === Method.BeaconBlocksByRange) {
         throw Error(testErrorMessage);
       } else {
         throw Error(`${method} not implemented`);
@@ -156,20 +142,18 @@ describe("[network] network", function () {
     });
 
     await expectRejectedWithLodestarError(
-      netA.reqResp.metadata(netB.peerId),
+      netA.reqResp.beaconBlocksByRange(netB.peerId, {startSlot: 0, step: 1, count: 3}),
       new RequestError(
         {code: RequestErrorCode.SERVER_ERROR, errorMessage: testErrorMessage},
-        {method: Method.Metadata, encoding: ReqRespEncoding.SSZ_SNAPPY, peer: netB.peerId.toB58String()}
+        {method: Method.BeaconBlocksByRange, encoding: ReqRespEncoding.SSZ_SNAPPY, peer: netB.peerId.toB58String()}
       )
     );
   });
 
   it("should handle a server error after emitting two blocks", async function () {
-    const [netA, netB] = await createAndConnectPeers();
-
     const testErrorMessage = "TEST_EXAMPLE_ERROR_1234";
 
-    netB.reqResp.registerHandler(async function* (method) {
+    const [netA, netB] = await createAndConnectPeers({}, async function* onRequest(method) {
       if (method === Method.BeaconBlocksByRange) {
         yield* arrToSource(generateEmptySignedBlocks(2));
         throw Error(testErrorMessage);
@@ -193,9 +177,7 @@ describe("[network] network", function () {
     const TTFB_TIMEOUT = 250;
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const [netA, netB] = await createAndConnectPeers({TTFB_TIMEOUT});
-
-    netB.reqResp.registerHandler(async function* (method) {
+    const [netA, netB] = await createAndConnectPeers({TTFB_TIMEOUT}, async function* onRequest(method) {
       if (method === Method.BeaconBlocksByRange) {
         // Wait for too long before sending first response chunk
         await sleep(TTFB_TIMEOUT * 10, controller.signal);
@@ -220,9 +202,7 @@ describe("[network] network", function () {
     const RESP_TIMEOUT = 250;
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const [netA, netB] = await createAndConnectPeers({RESP_TIMEOUT});
-
-    netB.reqResp.registerHandler(async function* (method) {
+    const [netA, netB] = await createAndConnectPeers({RESP_TIMEOUT}, async function* onRequest(method) {
       if (method === Method.BeaconBlocksByRange) {
         yield generateEmptySignedBlock();
         // Wait for too long before sending second response chunk

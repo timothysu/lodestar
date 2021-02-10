@@ -2,7 +2,8 @@ import {ENR, Discv5Discovery} from "@chainsafe/discv5";
 import Bootstrap from "libp2p-bootstrap";
 import MDNS from "libp2p-mdns";
 import PeerId from "peer-id";
-
+import Multiaddr from "multiaddr";
+import {Libp2pNetwork} from "../../src/network";
 import {NodejsNode} from "../../src/network/nodejs";
 import {createPeerId} from "../../src/network";
 import {defaultDiscv5Options} from "../../src/network/options";
@@ -23,4 +24,23 @@ export async function createNode(
     discv5: {...defaultDiscv5Options, enr, bindAddr},
     peerDiscovery,
   });
+}
+
+// Helpers to manipulate network's libp2p instance for testing only
+
+export async function connect(network: Libp2pNetwork, peer: PeerId, multiaddr: Multiaddr[]): Promise<void> {
+  network["libp2p"].peerStore.addressBook.add(peer, multiaddr);
+  await network["libp2p"].dial(peer);
+}
+
+export async function disconnect(network: Libp2pNetwork, peer: PeerId): Promise<void> {
+  await network["libp2p"].hangUp(peer);
+}
+
+export function onPeerConnect(network: Libp2pNetwork): Promise<void> {
+  return new Promise<void>((resolve) => network["libp2p"].connectionManager.on("peer:connect", () => resolve()));
+}
+
+export function onPeerDisconnect(network: Libp2pNetwork): Promise<void> {
+  return new Promise<void>((resolve) => network["libp2p"].connectionManager.on("peer:disconnect", () => resolve()));
 }

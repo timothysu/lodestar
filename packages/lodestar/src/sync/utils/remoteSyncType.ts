@@ -5,11 +5,11 @@ import {SLOT_IMPORT_TOLERANCE} from "../constants";
 /** The type of peer relative to our current state */
 export enum PeerSyncType {
   /** The peer is on our chain and is fully synced with respect to our chain */
-  FullySynced,
+  FullySynced = "FullySynced",
   /** The peer has a greater knowledge of the chain than us that warrants a full sync */
-  Advanced,
+  Advanced = "Advanced",
   /** A peer is behind in the sync and not useful to us for downloading blocks */
-  Behind,
+  Behind = "Behind",
 }
 
 export function getPeerSyncType(local: Status, remote: Status, chain: IBeaconChain): PeerSyncType {
@@ -74,7 +74,7 @@ export enum RangeSyncType {
  * - The remotes finalized epoch is greater than our current finalized epoch and we have
  *   not seen the finalized hash before
  */
-export function getRangeSyncType(chain: IBeaconChain, local: Status, remote: Status): RangeSyncType {
+export function getRangeSyncType(local: Status, remote: Status, chain: IBeaconChain): RangeSyncType {
   if (remote.finalizedEpoch > local.finalizedEpoch && !chain.forkChoice.hasBlock(remote.finalizedRoot)) {
     return RangeSyncType.Finalized;
   } else {

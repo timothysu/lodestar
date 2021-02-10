@@ -20,10 +20,9 @@ import {MetadataController} from "./metadata";
 import {Discv5Discovery, ENR} from "@chainsafe/discv5";
 import {IPeerMetadataStore} from "./peers/interface";
 import {Libp2pPeerMetadataStore} from "./peers/metastore";
-import {PeerManager} from "./peers/peerManager";
+import {PeerManager, SubnetToDiscover} from "./peers/peerManager";
 import {IRpcScoreTracker, SimpleRpcScoreTracker} from "./peers/score";
-import {IBeaconDb} from "../db";
-import {ReqRespHandler} from "./reqresp/handlers";
+import {IReqRespHandler} from "./reqresp/handlers";
 
 // peer connection
 // - If more peers are needed, run a discv5 query
@@ -49,7 +48,7 @@ interface ILibp2pModules {
   metrics: IBeaconMetrics;
   validator: IGossipMessageValidator;
   chain: IBeaconChain;
-  db: IBeaconDb;
+  reqRespHandler: IReqRespHandler;
 }
 
 export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter}) implements INetwork {
@@ -69,7 +68,7 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
 
   public constructor(
     opts: INetworkOptions & IReqRespOptions,
-    {config, libp2p, logger, metrics, validator, chain, db}: ILibp2pModules
+    {config, libp2p, logger, metrics, validator, chain, reqRespHandler}: ILibp2pModules
   ) {
     super();
     this.opts = opts;
@@ -83,8 +82,6 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     this.metadata = metadata;
     this.peerMetadata = peerMetadata;
     this.peerRpcScores = peerRpcScores;
-
-    const reqRespHandler = new ReqRespHandler({db, chain});
     this.reqResp = new ReqResp({config, libp2p, reqRespHandler, peerMetadata, metadata, peerRpcScores, logger}, opts);
     this.gossip = (new Gossip(opts, {config, libp2p, logger, validator, chain}) as unknown) as IGossip;
 
@@ -149,9 +146,9 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
   /**
    * Search existing peers connected to a subnet
    */
-  public async searchSubnetPeers(subnets: number[]): Promise<void> {
+  public async searchSubnetPeers(subnets: SubnetToDiscover[]): Promise<void> {
     // TODO: Attach min_ttl to the requested subnets and connect to them
     // this.peerManager.discoverSubnetPeers(subnets);
-    subnets;
+    await this.peerManager.discoverSubnetPeers(subnets);
   }
 }

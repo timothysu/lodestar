@@ -13,7 +13,8 @@ import {sortBy} from "../../util/sortBy";
 import {IReqResp, ReqRespEvent} from "../reqresp";
 import {assertPeerRelevance} from "./assertPeerRelevance";
 import {Libp2pPeerMetadataStore} from "./metastore";
-import {PeerDiscovery, SubnetDiscovery} from "./discover";
+import {PeerDiscovery, SubnetToDiscover} from "./discover";
+export {SubnetToDiscover};
 
 export enum PeerManagerEvent {
   peerConnected = "PeerManager-peerConnected",
@@ -128,7 +129,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   /**
    * Request to find peers on a given subnet.
    */
-  async discoverSubnetPeers(subnetsToDiscover: SubnetDiscovery[]): Promise<void> {
+  async discoverSubnetPeers(subnetsToDiscover: SubnetToDiscover[]): Promise<void> {
     await this.discovery.discoverSubnetPeers(subnetsToDiscover);
   }
 
