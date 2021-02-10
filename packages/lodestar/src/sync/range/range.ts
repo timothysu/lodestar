@@ -135,7 +135,7 @@ export class RangeSync {
    */
   removePeer(peerId: PeerId): void {
     for (const syncChain of this.chains.values()) {
-      syncChain.removePeer(peerId);
+      const hasRemoved = syncChain.removePeer(peerId);
     }
   }
 

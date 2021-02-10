@@ -6,8 +6,8 @@ export class PeerSet {
   add(peer: PeerId): void {
     this.peerMap.set(peer, peer);
   }
-  delete(peer: PeerId): void {
-    this.peerMap.delete(peer);
+  delete(peer: PeerId): boolean {
+    return this.peerMap.delete(peer);
   }
   has(peer: PeerId): boolean {
     return this.peerMap.has(peer);
@@ -36,8 +36,8 @@ export class PeerMap<T> {
   }
 
   set(peer: PeerId, value: T): void {
-    this.map.set(this.getPeerIdString(peer), value);
     this.peers.set(this.getPeerIdString(peer), peer);
+    this.map.set(this.getPeerIdString(peer), value);
   }
   get(peer: PeerId): T | undefined {
     return this.map.get(this.getPeerIdString(peer));
@@ -45,9 +45,9 @@ export class PeerMap<T> {
   has(peer: PeerId): boolean {
     return this.map.has(this.getPeerIdString(peer));
   }
-  delete(peer: PeerId): void {
-    this.map.delete(this.getPeerIdString(peer));
+  delete(peer: PeerId): boolean {
     this.peers.delete(this.getPeerIdString(peer));
+    return this.map.delete(this.getPeerIdString(peer));
   }
 
   get size(): number {

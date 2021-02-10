@@ -173,10 +173,12 @@ export class SyncChain {
     }
   }
 
-  removePeer(peerId: PeerId): void {
-    this.peerset.delete(peerId);
-
+  /**
+   * Returns true if the peer existed and has been removed
+   */
+  removePeer(peerId: PeerId): boolean {
     // TODO: What to do when peer count is zero?
+    return this.peerset.delete(peerId);
   }
 
   getMetadata(): ChainTarget {
