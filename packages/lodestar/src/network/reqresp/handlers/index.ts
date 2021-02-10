@@ -26,7 +26,7 @@ export class ReqRespHandler {
   public async *onRequest(method: Method, requestBody: RequestBody): AsyncIterable<ResponseBody> {
     switch (method) {
       case Method.Status:
-        yield await this.chain.getStatus();
+        yield this.chain.getStatus();
         break;
 
       case Method.BeaconBlocksByRange:

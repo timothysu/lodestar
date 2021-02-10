@@ -201,7 +201,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
 
   private async requestStatus(peers: PeerId[]): Promise<void> {
     try {
-      const localStatus = await this.chain.getStatus();
+      const localStatus = this.chain.getStatus();
       await Promise.all(
         peers.map(async (peer) => {
           try {

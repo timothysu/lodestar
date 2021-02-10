@@ -15,7 +15,7 @@ class IrrelevantNetworkPeer extends Error {}
  * irrelevant the reason is returned.
  */
 export async function assertPeerRelevance(remote: Status, chain: IBeaconChain, config: IBeaconConfig): Promise<void> {
-  const local = await chain.getStatus();
+  const local = chain.getStatus();
 
   // The node is on a different network/fork
   if (!config.types.ForkDigest.equals(local.forkDigest, remote.forkDigest)) {
@@ -60,7 +60,7 @@ export function isZeroRoot(config: IBeaconConfig, root: Root): boolean {
 }
 
 async function getRootAtHistoricalEpoch(config: IBeaconConfig, chain: IBeaconChain, epoch: Epoch): Promise<Root> {
-  const headState = await chain.getHeadState();
+  const headState = chain.getHeadState();
 
   const slot = computeStartSlotAtEpoch(config, epoch);
 

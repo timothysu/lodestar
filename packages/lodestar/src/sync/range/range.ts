@@ -249,7 +249,7 @@ export class RangeSync {
       }
     }
 
-    const localStatus = await this.chain.getStatus();
+    const localStatus = this.chain.getStatus();
     this.update(localStatus.finalizedEpoch);
   }
 }

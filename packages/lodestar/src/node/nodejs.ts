@@ -239,7 +239,7 @@ export class BeaconNode {
       if (this.restApi) await this.restApi.close();
 
       await (this.metrics as BeaconMetrics).stop();
-      await this.chain.close();
+      this.chain.close();
       await this.db.stop();
       if (this.controller) this.controller.abort();
       this.status = BeaconNodeStatus.closed;

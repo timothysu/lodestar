@@ -137,7 +137,7 @@ export class BeaconChain implements IBeaconChain {
     handleChainEvents.bind(this)(this.abortController.signal);
   }
 
-  public async close(): Promise<void> {
+  public close(): void {
     this.abortController.abort();
     this.stateCache.clear();
     this.checkpointStateCache.clear();
@@ -281,11 +281,11 @@ export class BeaconChain implements IBeaconChain {
     };
   }
 
-  public async getStatus(): Promise<Status> {
+  public getStatus(): Status {
     const head = this.forkChoice.getHead();
     const finalizedCheckpoint = this.forkChoice.getFinalizedCheckpoint();
     return {
-      forkDigest: await this.getForkDigest(),
+      forkDigest: this.getForkDigest(),
       finalizedRoot: finalizedCheckpoint.epoch === GENESIS_EPOCH ? ZERO_HASH : finalizedCheckpoint.root,
       finalizedEpoch: finalizedCheckpoint.epoch,
       headRoot: head.blockRoot,

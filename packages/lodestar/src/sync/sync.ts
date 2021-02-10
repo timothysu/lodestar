@@ -136,8 +136,8 @@ export class BeaconSync implements IBeaconSync {
    * If the peer is within the `SLOT_IMPORT_TOLERANCE`, then it's head is sufficiently close to
    * ours that we consider it fully sync'd with respect to our current chain.
    */
-  private addPeer = async (peerId: PeerId, peerStatus: Status): Promise<void> => {
-    const localStatus = await this.chain.getStatus();
+  private addPeer = (peerId: PeerId, peerStatus: Status): void => {
+    const localStatus = this.chain.getStatus();
     const syncType = getPeerSyncType(localStatus, peerStatus, this.chain);
 
     if (syncType === PeerSyncType.Advanced) {

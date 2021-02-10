@@ -81,7 +81,7 @@ export interface IBeaconChain {
   /**
    * Stop beacon chain processing
    */
-  close(): Promise<void>;
+  close(): void;
 
   getHeadStateContext(): ITreeStateContext;
   getHeadState(): TreeBacked<BeaconState>;
@@ -130,5 +130,5 @@ export interface IBeaconChain {
   /**
    * Create a local status message with the current chain state
    */
-  getStatus(): Promise<Status>;
+  getStatus(): Status;
 }
