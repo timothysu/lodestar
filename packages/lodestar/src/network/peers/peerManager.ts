@@ -13,7 +13,7 @@ import {sortBy} from "../../util/sortBy";
 import {ReqResp, ReqRespEvent} from "../reqresp";
 import {assertPeerRelevance} from "./assertPeerRelevance";
 import {Libp2pPeerMetadataStore} from "./metastore";
-import {PeerDiscovery} from "./discover";
+import {PeerDiscovery, SubnetDiscovery} from "./discover";
 
 export enum PeerManagerEvent {
   peerConnected = "PeerManager-peerConnected",
@@ -38,13 +38,6 @@ const PING_INTERVAL_MS = 15 * 1000;
 const STATUS_INTERVAL_MS = 5 * 60 * 1000;
 /** heartbeat performs regular updates such as updating reputations and performing discovery requests */
 const HEARTBEAT_INTERVAL_MS = 30 * 1000;
-/** Target number of peers we'd like to have connected to a given long-lived subnet */
-const TARGET_SUBNET_PEERS = 6;
-
-type SubnetDiscovery = {
-  subnetId: number;
-  minTtl: number;
-};
 
 // min_ttl is computed from the subnet highest slot
 // if the slot is more than epoch away, add an event to start looking for peers
@@ -62,15 +55,15 @@ type SubnetDiscovery = {
  * - Disconnect peers if over target peers
  */
 export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) {
-  // TEMP
-  libp2p: LibP2p;
-  reqResp: ReqResp;
-  logger: ILogger;
-  metrics: IBeaconMetrics;
-  chain: IBeaconChain;
-  config: IBeaconConfig;
-  peerMetadataStore: Libp2pPeerMetadataStore;
-  discovery: PeerDiscovery;
+  // TODO: Reorg - TEMP
+  private libp2p: LibP2p;
+  private reqResp: ReqResp;
+  private logger: ILogger;
+  private metrics: IBeaconMetrics;
+  private chain: IBeaconChain;
+  private config: IBeaconConfig;
+  private peerMetadataStore: Libp2pPeerMetadataStore;
+  private discovery: PeerDiscovery;
 
   /** A collection of inbound and outbound peers awaiting to be Ping'd. */
   private peersToPing = new Map<PeerId, number>();
@@ -78,8 +71,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private peersToStatus = new Map<PeerId, number>();
   /** The target number of peers we would like to connect to. */
   private targetPeers: number;
-  /** The maximum number of peers we allow (exceptions for subnet peers) */
-  private maxPeers: number;
 
   constructor(
     libp2p: LibP2p,
@@ -101,9 +92,8 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.config = config;
     this.peerMetadataStore = peerMetadataStore;
     this.targetPeers = opts.targetPeers;
-    this.maxPeers = opts.maxPeers;
 
-    this.discovery = new PeerDiscovery(libp2p, logger, config);
+    this.discovery = new PeerDiscovery(libp2p, logger, config, peerMetadataStore, opts);
 
     // TODO: Connect to peers in the peerstore. Is this done automatically by libp2p?
 
@@ -139,83 +129,11 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    * Request to find peers on a given subnet.
    */
   async discoverSubnetPeers(subnetsToDiscover: SubnetDiscovery[]): Promise<void> {
-    const connectedPeers = this.getConnectedPeerIds();
-    const subnetsToDiscoverFiltered: typeof subnetsToDiscover = [];
-
-    for (const subnet of subnetsToDiscover) {
-      // TODO: Consider optimizing this to only deserialize metadata once
-      const peersOnSubnet = connectedPeers.filter((peer) => this.peerMetadataStore.onSubnet(peer, subnet.subnetId));
-
-      // Extend min_ttl of connected peers on required subnets
-      for (const peer of peersOnSubnet) {
-        const currentMinTtl = this.peerMetadataStore.getMinTtl(peer);
-        // Don't overwrite longer TTL
-        this.peerMetadataStore.setMinTtl(peer, Math.max(currentMinTtl, subnet.minTtl));
-      }
-
-      // Already have target number of peers, no need for subnet discovery
-      const peersToDiscover = TARGET_SUBNET_PEERS - peersOnSubnet.length;
-      if (peersToDiscover > 0) {
-        continue;
-      }
-
-      // TODO:
-      // Queue an outgoing connection request to the cached peers that are on `s.subnet_id`.
-      // If we connect to the cached peers before the discovery query starts, then we potentially
-      // save a costly discovery query.
-
-      // Get cached ENRs from the discovery service that are in the requested `subnetId`, but not connected yet
-      const discPeersOnSubnet = await this.discovery.getDiscoveryPeersOnSubnet(subnet.subnetId, peersToDiscover);
-      this.peersDiscovered(discPeersOnSubnet);
-
-      // Query a discv5 query if more peers are needed
-      if (TARGET_SUBNET_PEERS - peersOnSubnet.length - discPeersOnSubnet.length > 0) {
-        subnetsToDiscoverFiltered.push(subnet);
-      }
-    }
-
-    // Run a discv5 subnet query to try to discover new peers
-    if (subnetsToDiscoverFiltered.length > 0) {
-      void this.discovery.runSubnetQuery(subnetsToDiscoverFiltered.map((subnet) => subnet.subnetId));
-    }
+    await this.discovery.discoverSubnetPeers(subnetsToDiscover);
   }
 
   /**
-   * Handles DiscoveryEvent::QueryResult
-   * Peers that have been returned by discovery requests are dialed here if they are suitable.
-   */
-  private peersDiscovered(discoveredPeers: PeerId[]): void {
-    const connectedPeersCount = this.getConnectedPeerIds().length;
-    const toDialPeers: PeerId[] = [];
-
-    for (const peer of discoveredPeers) {
-      if (
-        connectedPeersCount + toDialPeers.length < this.maxPeers &&
-        !this.libp2p.connectionManager.get(peer)
-        // TODO:
-        // && !this.peers.isBannedOrDisconnected(peer)
-      ) {
-        // we attempt a connection if this peer is a subnet peer or if the max peer count
-        // is not yet filled (including dialing peers)
-        toDialPeers.push(peer);
-      }
-    }
-
-    for (const peer of toDialPeers) {
-      // Note: PeerDiscovery adds the multiaddrTCP beforehand
-      this.logger.debug("Dialing discovered peer", {peer: peer.toB58String()});
-
-      // Note: `libp2p.dial()` is what libp2p.connectionManager autoDial calls
-      // Note: You must listen to the connected events to listen for a successful conn upgrade
-      this.libp2p.dial(peer).catch((e) => {
-        this.logger.debug("Error dialing discovered peer", {peer: peer.toB58String()}, e);
-      });
-    }
-  }
-
-  /**
-   * Handle a PING request (rpc handler responds with PONG automatically)
-   * Handle a PONG response
+   * Handle a PING request + response (rpc handler responds with PONG automatically)
    */
   private onPing = (peer: PeerId, seqNumber: Ping): void => {
     // reset the to-ping timer for this peer
@@ -229,8 +147,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   };
 
   /**
-   * Handle a METADATA request (rpc handler responds with METADATA automatically)
-   * Handle a METADATA response
+   * Handle a METADATA request + response (rpc handler responds with METADATA automatically)
    */
   private onMetadata = (peer: PeerId, metadata: Metadata): void => {
     // Store metadata always in case the peer updates attnets but not the sequence number
@@ -244,12 +161,13 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     const description = GOODBYE_KNOWN_CODES[goodbyeReason.toString()] || "";
     this.logger.verbose("Received goodbye request", {peer: peer.toB58String(), reason: goodbyeReason, description});
 
+    // TODO: Register if we are banned
+
     void this.disconnect(peer);
   };
 
   /**
-   * Handle a STATUS request (rpc handler responds with STATUS automatically)
-   * Handle a STATUS response
+   * Handle a STATUS request + response (rpc handler responds with STATUS automatically)
    */
   private onStatus = async (peer: PeerId, status: Status): Promise<void> => {
     this.peersToStatus.set(peer, Date.now());
