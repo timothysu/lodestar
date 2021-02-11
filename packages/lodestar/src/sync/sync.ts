@@ -10,7 +10,7 @@ import {ChainEvent, IBeaconChain} from "../chain";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {toHexString} from "@chainsafe/ssz";
 import {BlockError, BlockErrorCode} from "../chain/errors";
-import {RangeSync, RangeSyncStatus} from "./range/range";
+import {RangeSync, RangeSyncStatus, RangeSyncEvent} from "./range/range";
 import {AttestationCollector} from "./utils";
 import {fetchUnknownBlockRoot} from "./utils/unknownRoot";
 import {PeerManagerEvent} from "../network/peers/peerManager";
@@ -46,6 +46,8 @@ export class BeaconSync implements IBeaconSync {
       modules.gossipHandler || new BeaconGossipHandler(modules.chain, modules.network, modules.db, this.logger);
     this.attestationCollector = modules.attestationCollector || new AttestationCollector(modules.config, modules);
     this.processingRoots = new Set();
+
+    this.rangeSync.on(RangeSyncEvent.completedChain, this.updateSyncState);
   }
 
   // TODO: Log peer count every interval, currently it was done every 3 * SECONDS_PER_SLOT * 1000
@@ -56,6 +58,8 @@ export class BeaconSync implements IBeaconSync {
     this.network.peerManager.on(PeerManagerEvent.peerConnected, this.addPeer);
     this.network.peerManager.on(PeerManagerEvent.peerDisconnected, this.removePeer);
 
+    // TODO: It's okay to start this on initial sync?
+    this.chain.emitter.on(ChainEvent.errorBlock, this.onUnknownBlockRoot);
     this.attestationCollector.start();
   }
 
@@ -144,8 +148,9 @@ export class BeaconSync implements IBeaconSync {
       // TODO: Consider that the peer may not be connected anymore at this point
       // This is a potential race condition
       this.rangeSync.addPeer(peerId, localStatus, peerStatus);
-      this.updateSyncState();
     }
+
+    this.updateSyncState();
   };
 
   /**
@@ -154,10 +159,12 @@ export class BeaconSync implements IBeaconSync {
    */
   private removePeer = (peerId: PeerId): void => {
     this.rangeSync.removePeer(peerId);
-    this.updateSyncState();
   };
 
-  private updateSyncState(): void {
+  /**
+   * Subscribe to RangeSync completing a SyncChain and recompute sync state
+   */
+  private updateSyncState = (): void => {
     const prevState = this.prevState;
     const currentState = this.state;
     this.prevState = currentState;
@@ -168,13 +175,13 @@ export class BeaconSync implements IBeaconSync {
       this.network.subscribeCoreTopics();
 
       // ONLY after completing initial sync
-      this.chain.emitter.on(ChainEvent.errorBlock, this.onUnknownBlockRoot);
+
       void this.gossip.start();
 
       // ONLY after completing regular sync
       this.gossip.handleSyncCompleted();
     }
-  }
+  };
 
   private onUnknownBlockRoot = async (err: BlockError): Promise<void> => {
     if (err.type.code !== BlockErrorCode.PARENT_UNKNOWN) {

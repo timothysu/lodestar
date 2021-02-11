@@ -1,3 +1,5 @@
+import {EventEmitter} from "events";
+import StrictEventEmitter from "strict-event-emitter-types";
 import {computeEpochAtSlot, computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Epoch, Slot, Status} from "@chainsafe/lodestar-types";
@@ -13,30 +15,16 @@ import {shouldRemoveChain} from "./utils/shouldRemoveChain";
 import {INetwork, PeerAction} from "../../network";
 import {assertSequentialBlocksInRange} from "../utils";
 
-/**
- * RangeSync groups peers by their `status` into static target `SyncChain` instances
- * Peers on each chain will be queried for batches until reaching their target.
- *
- * Not all SyncChain-s will sync at once, and are grouped by sync type:
- * - Finalized Chain Sync
- * - Head Chain Sync
- *
- * ### Finalized Chain Sync
- *
- * At least one peer's status finalized checkpoint is greater than ours. Then we'll form
- * a chain starting from our finalized epoch and sync up to their finalized checkpoint.
- * - Only one finalized chain can sync at a time
- * - The finalized chain with the largest peer pool takes priority
- * - As peers' status progresses we will switch to a SyncChain with a better target
- *
- * ### Head Chain Sync
- *
- * If no Finalized Chain Sync is active, and the peer's STATUS head is beyond
- * `SLOT_IMPORT_TOLERANCE`, then we'll form a chain starting from our finalized epoch and sync
- * up to their head.
- * - More than one head chain can sync in parallel
- * - If there are many head chains the ones with more peers take priority
- */
+export enum RangeSyncEvent {
+  completedChain = "RangeSync-completedChain",
+}
+
+type RangeSyncEvents = {
+  [RangeSyncEvent.completedChain]: () => void;
+};
+
+type RangeSyncEmitter = StrictEventEmitter<EventEmitter, RangeSyncEvents>;
+
 export enum RangeSyncStatus {
   /** A finalized chain is being synced */
   Finalized,
@@ -62,7 +50,31 @@ export type RangeSyncModules = {
 
 export type RangeSyncOpts = SyncChainOpts;
 
-export class RangeSync {
+/**
+ * RangeSync groups peers by their `status` into static target `SyncChain` instances
+ * Peers on each chain will be queried for batches until reaching their target.
+ *
+ * Not all SyncChain-s will sync at once, and are grouped by sync type:
+ * - Finalized Chain Sync
+ * - Head Chain Sync
+ *
+ * ### Finalized Chain Sync
+ *
+ * At least one peer's status finalized checkpoint is greater than ours. Then we'll form
+ * a chain starting from our finalized epoch and sync up to their finalized checkpoint.
+ * - Only one finalized chain can sync at a time
+ * - The finalized chain with the largest peer pool takes priority
+ * - As peers' status progresses we will switch to a SyncChain with a better target
+ *
+ * ### Head Chain Sync
+ *
+ * If no Finalized Chain Sync is active, and the peer's STATUS head is beyond
+ * `SLOT_IMPORT_TOLERANCE`, then we'll form a chain starting from our finalized epoch and sync
+ * up to their head.
+ * - More than one head chain can sync in parallel
+ * - If there are many head chains the ones with more peers take priority
+ */
+export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   chain: IBeaconChain;
   network: INetwork;
   config: IBeaconConfig;
@@ -72,6 +84,7 @@ export class RangeSync {
   private opts?: SyncChainOpts;
 
   constructor({chain, network, config, logger}: RangeSyncModules, signal: AbortSignal, opts?: SyncChainOpts) {
+    super();
     this.chain = chain;
     this.network = network;
     this.config = config;
@@ -241,6 +254,7 @@ export class RangeSync {
     try {
       await syncChain.startSyncing(localFinalizedEpoch);
       this.logger.verbose("SyncChain reached target", syncChainMetdata);
+      this.emit(RangeSyncEvent.completedChain);
     } catch (e) {
       if (e instanceof ErrorAborted) {
         return; // Ignore
