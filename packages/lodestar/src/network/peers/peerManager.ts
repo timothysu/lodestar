@@ -1,20 +1,19 @@
 import {EventEmitter} from "events";
 import StrictEventEmitter from "strict-event-emitter-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {Metadata, Ping, Status} from "@chainsafe/lodestar-types";
+import {Metadata, Ping, Slot, Status} from "@chainsafe/lodestar-types";
 import {Goodbye} from "@chainsafe/lodestar-types/src";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import PeerId from "peer-id";
 import {IBeaconChain} from "../../chain";
 import {GoodByeReasonCode, GOODBYE_KNOWN_CODES} from "../../constants";
 import {IBeaconMetrics} from "../../metrics";
-import {shuffle} from "../../util/shuffle";
-import {sortBy} from "../../util/sortBy";
 import {IReqResp, ReqRespEvent} from "../reqresp";
 import {assertPeerRelevance} from "./assertPeerRelevance";
 import {Libp2pPeerMetadataStore} from "./metastore";
-import {PeerDiscovery, SubnetToDiscover} from "./discover";
-export {SubnetToDiscover};
+import {PeerDiscovery} from "./discover";
+import {prioritizePeers} from "./priorization";
+import {RequestedSubnet} from "./interface";
 
 export enum PeerManagerEvent {
   peerConnected = "PeerManager-peerConnected",
@@ -39,6 +38,18 @@ const PING_INTERVAL_MS = 15 * 1000;
 const STATUS_INTERVAL_MS = 5 * 60 * 1000;
 /** heartbeat performs regular updates such as updating reputations and performing discovery requests */
 const HEARTBEAT_INTERVAL_MS = 30 * 1000;
+
+// TODO:
+// maxPeers and targetPeers should be dynamic on the num of validators connected
+// The Node should compute a recomended value every interval and log a warning
+// to terminal if it deviates significantly from the user's settings
+
+type PeerManagerOpts = {
+  /** The target number of peers we would like to connect to. */
+  targetPeers: number;
+  /** The maximum number of peers we allow (exceptions for subnet peers) */
+  maxPeers: number;
+};
 
 // min_ttl is computed from the subnet highest slot
 // if the slot is more than epoch away, add an event to start looking for peers
@@ -70,8 +81,10 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private peersToPing = new Map<PeerId, number>();
   /** A collection of peers awaiting to be Status'd. */
   private peersToStatus = new Map<PeerId, number>();
-  /** The target number of peers we would like to connect to. */
-  private targetPeers: number;
+  private opts: PeerManagerOpts;
+
+  /** Map of subnets and the slot until they are needed */
+  private subnets = new Map<number, Slot>();
 
   constructor(
     libp2p: LibP2p,
@@ -82,7 +95,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     config: IBeaconConfig,
     signal: AbortSignal,
     peerMetadataStore: Libp2pPeerMetadataStore,
-    opts: {targetPeers: number; maxPeers: number}
+    opts: PeerManagerOpts
   ) {
     super();
     this.libp2p = libp2p;
@@ -92,9 +105,9 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.chain = chain;
     this.config = config;
     this.peerMetadataStore = peerMetadataStore;
-    this.targetPeers = opts.targetPeers;
+    this.opts = opts;
 
-    this.discovery = new PeerDiscovery(libp2p, logger, config, peerMetadataStore, opts);
+    this.discovery = new PeerDiscovery(libp2p, logger, config, opts);
 
     // TODO: Connect to peers in the peerstore. Is this done automatically by libp2p?
 
@@ -129,8 +142,32 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   /**
    * Request to find peers on a given subnet.
    */
-  async discoverSubnetPeers(subnetsToDiscover: SubnetToDiscover[]): Promise<void> {
-    await this.discovery.discoverSubnetPeers(subnetsToDiscover);
+  async requestAttSubnets(requestedSubnets: RequestedSubnet[]): Promise<void> {
+    // Prune expired subnets
+    for (const [subnetId, toSlot] of this.subnets.entries()) {
+      if (toSlot < this.chain.clock.currentSlot) {
+        this.subnets.delete(subnetId);
+      }
+    }
+
+    // TODO:
+    // Only if the slot is more than epoch away, add an event to start looking for peers
+
+    // Register requested subnets
+    for (const {subnetId, toSlot} of requestedSubnets) {
+      this.subnets.set(subnetId, toSlot);
+    }
+
+    // Request to run heartbeat fn
+    this.heartbeat();
+  }
+
+  /**
+   * The app layer needs to refresh the status of some peers. The sync have reached a target
+   */
+  reStatusPeers(peers: PeerId[]): void {
+    for (const peer of peers) this.peersToStatus.set(peer, 0);
+    void this.pingAndStatusTimeouts();
   }
 
   /**
@@ -234,41 +271,66 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    * It will request discovery queries if the peer count has not reached the desired number of peers.
    * NOTE: Discovery should only add a new query if one isn't already queued.
    */
-  private async heartbeat(): Promise<void> {
-    const connectedPeersCount = this.getConnectedPeerIds().length;
+  private heartbeat(): void {
+    const connectedPeers = this.getConnectedPeerIds();
 
-    // TODO
-    // If we need more peers, queue a discovery lookup.
-    // if (connectedPeersCount < this.targetPeers) {
-    //   this.discoverPeers();
-    // }
+    // libp2p autodial
+    // (A) on _maybeConnect(), when a peer is discovered
+    //  if minConnections > opts.minConnections
+    //    await this.dialer.connectToPeer(peerId)
+    //
+    // (B) every interval, if under minConnections iterate peerStore
+    //  and connect to some peers
 
     // ban and disconnect peers with excesive bad score
     // if score < MIN_SCORE_BEFORE_BAN -> Banned
     // if score < MIN_SCORE_BEFORE_DISCONNECT -> Disconnected
     // else -> Healthy
-    // TODO:
-    // this.banBadPeers();
-
-    const peerCountToDisconnect = connectedPeersCount - this.targetPeers;
-    if (peerCountToDisconnect <= 0) {
-      return;
+    const connectedHealthPeers: PeerId[] = [];
+    for (const peer of connectedPeers) {
+      const score = this.peerMetadataStore.getRpcScore(peer) || 0;
+      if (score < MIN_SCORE_BEFORE_BAN) {
+        void this.goodbyeAndDisconnect(peer, GoodByeReasonCode.BANNED);
+      } else if (score < MIN_SCORE_BEFORE_DISCONNECT) {
+        void this.goodbyeAndDisconnect(peer, GoodByeReasonCode.SCORE_TOO_LOW);
+      } else {
+        connectedHealthPeers.push(peer);
+      }
     }
 
-    // Peer sorting:
-    // - All connected with no future duty, sorted by score (worst first) (ties broken random)
-    // - hasNoFutureDuty(): if peer has some future validator duty: peer.min_ttl > now()
-    const peers = this.getConnectedPeerIds();
-    const peersToDisconnect = sortBy(shuffle(peers), (peer) => this.peerMetadataStore.getRpcScore(peer) || 0)
-      .filter((peer) => this.peerMetadataStore.hasFutureDuty(peer))
-      .slice(0, peerCountToDisconnect);
+    // Collect subnets which we need peers for in the current slot
+    const activeSubnetIds: number[] = [];
+    for (const [subnetId, toSlot] of this.subnets.entries()) {
+      if (toSlot >= this.chain.clock.currentSlot) {
+        activeSubnetIds.push(subnetId);
+      }
+    }
+
+    const {peersToDisconnect, discv5Queries, peersToConnect} = prioritizePeers(
+      connectedPeers.map((peer) => ({
+        id: peer,
+        attnets: this.peerMetadataStore.getMetadata(peer)?.attnets || [],
+        score: this.peerMetadataStore.getRpcScore(peer) || 0,
+      })),
+      activeSubnetIds,
+      this.opts
+    );
+
+    if (discv5Queries.length > 0) {
+      // It's a promise due to crypto lib calls only
+      void this.discovery.discoverSubnetPeers(discv5Queries);
+    }
+
+    if (peersToConnect > 0) {
+      this.discovery.discoverPeers(peersToConnect);
+    }
 
     for (const peer of peersToDisconnect) {
-      await this.goodbyeAndDisconnect(peer, GoodByeReasonCode.TOO_MANY_PEERS);
+      void this.goodbyeAndDisconnect(peer, GoodByeReasonCode.TOO_MANY_PEERS);
     }
   }
 
-  private async pingAndStatusTimeouts(): Promise<void> {
+  private pingAndStatusTimeouts(): void {
     // Every interval request to send some peers our seqNumber and process theirs
     // If the seqNumber is different it must request the new metadata
     for (const [peer, lastMs] of this.peersToPing.entries()) {

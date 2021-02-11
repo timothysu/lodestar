@@ -2,16 +2,9 @@ import PeerId from "peer-id";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {Discv5, Discv5Discovery} from "@chainsafe/discv5";
-import {Libp2pPeerMetadataStore} from "./metastore";
 import {getConnectedPeerIds} from "./utils";
-
-/** Target number of peers we'd like to have connected to a given long-lived subnet */
-const TARGET_SUBNET_PEERS = 6;
-
-export type SubnetToDiscover = {
-  subnetId: number;
-  minTtl: number;
-};
+import {Discv5Query} from "./interface";
+import {shuffle} from "../../util/shuffle";
 
 export type PeerDiscoveryOpts = {
   maxPeers: number;
@@ -21,81 +14,70 @@ export class PeerDiscovery {
   private libp2p: LibP2p;
   private logger: ILogger;
   private config: IBeaconConfig;
-  private peerMetadataStore: Libp2pPeerMetadataStore;
 
   /** The maximum number of peers we allow (exceptions for subnet peers) */
   private maxPeers: number;
 
-  constructor(
-    libp2p: LibP2p,
-    logger: ILogger,
-    config: IBeaconConfig,
-    peerMetadataStore: Libp2pPeerMetadataStore,
-    opts: PeerDiscoveryOpts
-  ) {
+  constructor(libp2p: LibP2p, logger: ILogger, config: IBeaconConfig, opts: PeerDiscoveryOpts) {
     this.libp2p = libp2p;
     this.logger = logger;
     this.config = config;
-    this.peerMetadataStore = peerMetadataStore;
     this.maxPeers = opts.maxPeers;
+  }
+
+  /**
+   * Request to find peers. First, looked at cached peers in peerStore
+   */
+  discoverPeers(maxPeersToDiscover: number): void {
+    const notConnectedPeers = Array.from(this.libp2p.peerStore.peers.values()).filter(
+      (peer) => !this.libp2p.connectionManager.get(peer.id)
+    );
+
+    const discPeers = shuffle(notConnectedPeers).slice(0, maxPeersToDiscover);
+    this.peersDiscovered(discPeers.map((peer) => peer.id));
+
+    // TODO: Run a general discv5 query
   }
 
   /**
    * Request to find peers on a given subnet.
    */
-  async discoverSubnetPeers(subnetsToDiscover: SubnetToDiscover[]): Promise<void> {
-    const connectedPeers = getConnectedPeerIds(this.libp2p);
-    const subnetsToDiscoverFiltered: typeof subnetsToDiscover = [];
+  async discoverSubnetPeers(subnetsToDiscover: Discv5Query[]): Promise<void> {
+    const subnetsToDiscoverFiltered: number[] = [];
 
-    for (const subnet of subnetsToDiscover) {
-      // TODO: Consider optimizing this to only deserialize metadata once
-      const peersOnSubnet = connectedPeers.filter((peer) => this.peerMetadataStore.onSubnet(peer, subnet.subnetId));
-
-      // Extend min_ttl of connected peers on required subnets
-      for (const peer of peersOnSubnet) {
-        const currentMinTtl = this.peerMetadataStore.getMinTtl(peer);
-        // Don't overwrite longer TTL
-        this.peerMetadataStore.setMinTtl(peer, Math.max(currentMinTtl, subnet.minTtl));
-      }
-
-      // Already have target number of peers, no need for subnet discovery
-      const peersToDiscover = TARGET_SUBNET_PEERS - peersOnSubnet.length;
-      if (peersToDiscover <= 0) {
-        continue;
-      }
-
+    for (const {subnetId, maxPeersToDiscover} of subnetsToDiscover) {
       // TODO:
       // Queue an outgoing connection request to the cached peers that are on `s.subnet_id`.
       // If we connect to the cached peers before the discovery query starts, then we potentially
       // save a costly discovery query.
 
       // Get cached ENRs from the discovery service that are in the requested `subnetId`, but not connected yet
-      const discPeersOnSubnet = await this.getDiscoveryPeersOnSubnet(subnet.subnetId, peersToDiscover);
+      const discPeersOnSubnet = await this.getCachedDiscoveryPeersOnSubnet(subnetId, maxPeersToDiscover);
       this.peersDiscovered(discPeersOnSubnet);
 
       // Query a discv5 query if more peers are needed
-      if (TARGET_SUBNET_PEERS - peersOnSubnet.length - discPeersOnSubnet.length > 0) {
-        subnetsToDiscoverFiltered.push(subnet);
+      if (maxPeersToDiscover - discPeersOnSubnet.length > 0) {
+        subnetsToDiscoverFiltered.push(subnetId);
       }
     }
 
     // Run a discv5 subnet query to try to discover new peers
     if (subnetsToDiscoverFiltered.length > 0) {
-      void this.runSubnetQuery(subnetsToDiscoverFiltered.map((subnet) => subnet.subnetId));
+      void this.runSubnetQuery(subnetsToDiscoverFiltered.map((subnetId) => subnetId));
     }
   }
 
   /**
    * List existing peers that declare being part of a target subnet
    */
-  private async getDiscoveryPeersOnSubnet(subnet: number, maxPeersToDiscover: number): Promise<PeerId[]> {
+  async getCachedDiscoveryPeersOnSubnet(subnet: number, maxPeersToDiscover: number): Promise<PeerId[]> {
     const discovery: Discv5Discovery = this.libp2p._discovery.get("discv5") as Discv5Discovery;
     const discv5: Discv5 = discovery.discv5;
 
     const peersOnSubnet: PeerId[] = [];
 
     for (const enr of discv5.kadValues()) {
-      if (peersOnSubnet.length > maxPeersToDiscover) {
+      if (peersOnSubnet.length >= maxPeersToDiscover) {
         break;
       }
 

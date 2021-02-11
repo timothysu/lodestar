@@ -8,8 +8,8 @@ import PeerId from "peer-id";
 import StrictEventEmitter from "strict-event-emitter-types";
 import {IGossip} from "./gossip/interface";
 import {MetadataController} from "./metadata";
-import {IPeerMetadataStore} from "./peers/interface";
-import {PeerManager, SubnetToDiscover} from "./peers/peerManager";
+import {IPeerMetadataStore, RequestedSubnet} from "./peers/interface";
+import {PeerManager} from "./peers/peerManager";
 import {IRpcScoreTracker} from "./peers/score";
 import {IReqResp} from "./reqresp";
 
@@ -46,7 +46,7 @@ export interface INetwork extends NetworkEventEmitter {
   getConnectionsByPeer(): Map<string, LibP2pConnection[]>;
   getPeerFromPeerStore(peer: PeerId): LibP2p.Peer | null;
   /** Search peers joining subnets */
-  searchSubnetPeers(subnets: SubnetToDiscover[]): Promise<void>;
+  requestAttSubnets(requestedSubnets: RequestedSubnet[]): Promise<void>;
   subscribeCoreTopics(): void;
   // Service
   start(): Promise<void>;

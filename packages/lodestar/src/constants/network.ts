@@ -139,6 +139,8 @@ export enum GoodByeReasonCode {
   IRRELEVANT_NETWORK = 2,
   ERROR = 3,
   TOO_MANY_PEERS = 129,
+  SCORE_TOO_LOW = 250,
+  BANNED = 251,
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention

@@ -1,6 +1,10 @@
 import PeerId from "peer-id";
-import {Metadata, Status} from "@chainsafe/lodestar-types";
+import {Metadata, Slot, Status} from "@chainsafe/lodestar-types";
 import {ReqRespEncoding} from "../../constants";
+
+export type Discv5Query = {subnetId: number; maxPeersToDiscover: number};
+
+export type RequestedSubnet = {subnetId: number; toSlot: Slot};
 
 /**
  * Get/set data about peers.

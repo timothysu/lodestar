@@ -18,9 +18,9 @@ import {IGossip, IGossipMessageValidator} from "./gossip/interface";
 import {IBeaconChain} from "../chain";
 import {MetadataController} from "./metadata";
 import {Discv5Discovery, ENR} from "@chainsafe/discv5";
-import {IPeerMetadataStore} from "./peers/interface";
+import {IPeerMetadataStore, RequestedSubnet} from "./peers";
 import {Libp2pPeerMetadataStore} from "./peers/metastore";
-import {PeerManager, SubnetToDiscover} from "./peers/peerManager";
+import {PeerManager} from "./peers/peerManager";
 import {IRpcScoreTracker, SimpleRpcScoreTracker} from "./peers/score";
 import {IReqRespHandler} from "./reqresp/handlers";
 
@@ -144,11 +144,11 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
   }
 
   /**
-   * Search existing peers connected to a subnet
+   * Request att subnets up `toSlot`. Network will ensure to mantain some peers for each
    */
-  public async searchSubnetPeers(subnets: SubnetToDiscover[]): Promise<void> {
+  public async requestAttSubnets(requestedSubnets: RequestedSubnet[]): Promise<void> {
     // TODO: Attach min_ttl to the requested subnets and connect to them
     // this.peerManager.discoverSubnetPeers(subnets);
-    await this.peerManager.discoverSubnetPeers(subnets);
+    await this.peerManager.requestAttSubnets(requestedSubnets);
   }
 }

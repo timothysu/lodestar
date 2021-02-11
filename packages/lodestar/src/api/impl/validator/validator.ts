@@ -37,7 +37,7 @@ import {IApiOptions} from "../../options";
 import {ApiError} from "../errors/api";
 import {ApiNamespace, IApiModules} from "../interface";
 import {checkSyncStatus} from "../utils";
-import {IValidatorApi} from "./interface";
+import {BeaconCommitteeSubscription, IValidatorApi} from "./interface";
 
 /**
  * Server implementation for handling validator duties.
@@ -194,18 +194,33 @@ export class ValidatorApi implements IValidatorApi {
     );
   }
 
-  public async prepareBeaconCommitteeSubnet(
-    validatorIndex: ValidatorIndex,
-    committeeIndex: CommitteeIndex,
-    committeesAtSlot: number,
-    slot: Slot,
-    isAggregator: boolean
-  ): Promise<void> {
+  public async prepareBeaconCommitteeSubnet(subscriptions: BeaconCommitteeSubscription[]): Promise<void> {
     await checkSyncStatus(this.config, this.sync);
-    if (isAggregator) {
-      await this.sync.collectAttestations(slot, committeeIndex);
+
+    // Determine if the validator is an aggregator. If so, we subscribe to the subnet and
+    // if successful add the validator to a mapping of known aggregators for that exact
+    // subnet.
+    for (const {isAggregator, slot, committeeIndex} of subscriptions) {
+      if (isAggregator) {
+        await this.sync.collectAttestations(slot, committeeIndex);
+      }
     }
-    const subnet = computeSubnetForCommitteesAtSlot(this.config, slot, committeesAtSlot, committeeIndex);
-    await this.network.searchSubnetPeers([subnet]);
+
+    await this.network.requestAttSubnets(
+      subscriptions.map(({slot, committeesAtSlot, committeeIndex}) => ({
+        subnetId: computeSubnetForCommitteesAtSlot(this.config, slot, committeesAtSlot, committeeIndex),
+        // Network should keep finding peers for this subnet until `toSlot`
+        // add one slot to ensure we keep the peer for the subscription slot
+        toSlot: slot + 1,
+      }))
+    );
+
+    // TODO:
+    // Update the `known_validators` mapping and subscribes to a set of random subnets if required
+    // It must also update the ENR to indicate our long-lived subscription to the subnet
+
+    // TODO:
+    // If the discovery mechanism isn't disabled, attempt to set up a peer discovery for the
+    // required subnets.
   }
 }
