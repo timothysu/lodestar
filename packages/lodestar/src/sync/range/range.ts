@@ -105,19 +105,12 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
    */
   addPeer(peerId: PeerId, localStatus: Status, peerStatus: Status): void {
     // Compute if we should do a Finalized or Head sync with this peer
-    const rangeSyncType = getRangeSyncType(localStatus, peerStatus, this.chain);
-    this.logger.debug("Sync peer joined", {peer: peerId.toB58String(), rangeSyncType});
-
-    // If the peer existed in any other chain, remove it.
-    // re-status'd peers can exist in multiple finalized chains, only one syncs at a time
-    // if (rangeSyncType === RangeSyncType.Head) this.removePeer(peerId);
-
-    // TODO: Use above
-    this.removePeer(peerId);
+    const syncType = getRangeSyncType(localStatus, peerStatus, this.chain);
+    this.logger.debug("Sync peer joined", {peer: peerId.toB58String(), syncType});
 
     let startEpoch: Slot;
     let target: ChainTarget;
-    switch (rangeSyncType) {
+    switch (syncType) {
       case RangeSyncType.Finalized: {
         startEpoch = localStatus.finalizedEpoch;
         target = {
@@ -139,7 +132,13 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
       }
     }
 
-    this.addPeerOrCreateChain(startEpoch, target, peerId, RangeSyncType.Finalized);
+    // If the peer existed in any other chain, remove it.
+    // re-status'd peers can exist in multiple finalized chains, only one sync at a time
+    if (syncType === RangeSyncType.Head) {
+      this.removePeer(peerId);
+    }
+
+    this.addPeerOrCreateChain(startEpoch, target, peerId, syncType);
     this.update(localStatus.finalizedEpoch);
   }
 
