@@ -3,10 +3,10 @@ import {BeaconBlocksByRangeRequest, Epoch, Root, SignedBeaconBlock, Slot} from "
 import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {PeerAction} from "../../network";
 import {ChainSegmentError} from "../../chain/errors";
 import {ItTrigger} from "../../util/itTrigger";
 import {byteArrayEquals} from "../../util/bytes";
-import {PeerAction} from "../../network/peers";
 import {RangeSyncType} from "../utils/remoteSyncType";
 import {ChainPeersBalancer} from "./utils/peerBalancer";
 import {PeerSet} from "./utils/peerMap";

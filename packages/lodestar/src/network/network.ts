@@ -21,7 +21,7 @@ import {Discv5Discovery, ENR} from "@chainsafe/discv5";
 import {IPeerMetadataStore, RequestedSubnet} from "./peers";
 import {Libp2pPeerMetadataStore} from "./peers/metastore";
 import {PeerManager} from "./peers/peerManager";
-import {IRpcScoreTracker, SimpleRpcScoreTracker} from "./peers/score";
+import {IPeerRpcScoreStore, SimpleRpcScore} from "./peers/score";
 import {IReqRespHandler} from "./reqresp/handlers";
 
 // peer connection
@@ -56,7 +56,7 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
   public gossip: IGossip;
   public metadata: MetadataController;
   public peerMetadata: IPeerMetadataStore;
-  public peerRpcScores: IRpcScoreTracker;
+  public peerRpcScores: IPeerRpcScoreStore;
 
   public peerManager: PeerManager;
   private opts: INetworkOptions;
@@ -78,7 +78,7 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     this.libp2p = libp2p;
     const metadata = new MetadataController({}, {config, chain, logger});
     const peerMetadata = new Libp2pPeerMetadataStore(config, libp2p.peerStore.metadataBook);
-    const peerRpcScores = new SimpleRpcScoreTracker(peerMetadata);
+    const peerRpcScores = new SimpleRpcScore(peerMetadata);
     this.metadata = metadata;
     this.peerMetadata = peerMetadata;
     this.peerRpcScores = peerRpcScores;
@@ -94,6 +94,7 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
       config,
       this.controller.signal,
       peerMetadata,
+      peerRpcScores,
       {targetPeers: opts.minPeers, maxPeers: opts.maxPeers}
     );
   }

@@ -22,9 +22,9 @@ import {IReqResp, ReqRespEvent, ReqRespEmitter, IReqRespModules, ILibP2pStream} 
 import {sendRequest} from "./request";
 import {handleRequest} from "./response";
 import {Method, ReqRespEncoding, timeoutOptions} from "../../constants";
-import {errorToScoreEvent, successToScoreEvent} from "./score";
+import {onOutgoingReqRespError} from "./score";
 import {IPeerMetadataStore} from "../peers/interface";
-import {IRpcScoreTracker} from "../peers/score";
+import {IPeerRpcScoreStore} from "../peers/score";
 import {createRpcProtocol} from "../util";
 import {MetadataController} from "../metadata";
 import {IReqRespHandler} from "./handlers";
@@ -43,7 +43,7 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
   private reqRespHandler: IReqRespHandler;
   private metadataController: MetadataController;
   private peerMetadata: IPeerMetadataStore;
-  private peerRpcScores: IRpcScoreTracker;
+  private peerRpcScores: IPeerRpcScoreStore;
   private controller: AbortController | undefined;
   private options?: IReqRespOptions;
   private reqCount = 0;
@@ -78,6 +78,12 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
       for (const encoding of Object.values(ReqRespEncoding)) {
         this.libp2p.handle(createRpcProtocol(method, encoding), async ({connection, stream}) => {
           const peerId = connection.remotePeer;
+
+          // TODO: Do we really need this now that there is only one encoding?
+          // Remember the prefered encoding of this peer
+          if (method === Method.Status) {
+            this.peerMetadata.encoding.set(peerId, encoding);
+          }
 
           try {
             await handleRequest(
@@ -145,7 +151,7 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
     maxResponses?: number
   ): Promise<T | null> {
     try {
-      const encoding = this.peerMetadata.getEncoding(peerId) ?? ReqRespEncoding.SSZ_SNAPPY;
+      const encoding = this.peerMetadata.encoding.get(peerId) ?? ReqRespEncoding.SSZ_SNAPPY;
       const result = await sendRequest<T>(
         {libp2p: this.libp2p, logger: this.logger, config: this.config},
         peerId,
@@ -158,11 +164,10 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
         this.reqCount++
       );
 
-      this.peerRpcScores.update(peerId, successToScoreEvent(method));
-
       return result;
     } catch (e) {
-      this.peerRpcScores.update(peerId, errorToScoreEvent(e, method));
+      const peerAction = onOutgoingReqRespError(e, method);
+      if (peerAction !== null) this.peerRpcScores.applyAction(peerId, peerAction);
 
       throw e;
     }

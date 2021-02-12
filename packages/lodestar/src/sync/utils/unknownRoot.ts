@@ -33,6 +33,6 @@ function getUnknownRootPeers(network: INetwork): PeerId[] {
   const peerIds = peerIdStrs.map((peerIdStr) => createFromCID(peerIdStr));
 
   return peersThatSupportProtocols(network, peerIds, getUnknownRootProtocols()).filter(
-    (peer) => !!network.peerMetadata.getStatus(peer) && network.peerRpcScores.getScore(peer) > 50
+    (peer) => !!network.peerMetadata.status.get(peer) && network.peerRpcScores.getScore(peer) > 50
   );
 }

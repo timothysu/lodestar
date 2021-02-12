@@ -14,6 +14,7 @@ import {Libp2pPeerMetadataStore} from "./metastore";
 import {PeerDiscovery} from "./discover";
 import {prioritizePeers} from "./priorization";
 import {RequestedSubnet} from "./interface";
+import {IPeerRpcScoreStore, ScoreState} from "./score";
 
 export enum PeerManagerEvent {
   peerConnected = "PeerManager-peerConnected",
@@ -75,6 +76,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private chain: IBeaconChain;
   private config: IBeaconConfig;
   private peerMetadataStore: Libp2pPeerMetadataStore;
+  private peerRpcScores: IPeerRpcScoreStore;
   private discovery: PeerDiscovery;
 
   /** A collection of inbound and outbound peers awaiting to be Ping'd. */
@@ -95,6 +97,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     config: IBeaconConfig,
     signal: AbortSignal,
     peerMetadataStore: Libp2pPeerMetadataStore,
+    peerRpcScores: IPeerRpcScoreStore,
     opts: PeerManagerOpts
   ) {
     super();
@@ -105,6 +108,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.chain = chain;
     this.config = config;
     this.peerMetadataStore = peerMetadataStore;
+    this.peerRpcScores = peerRpcScores;
     this.opts = opts;
 
     this.discovery = new PeerDiscovery(libp2p, logger, config, opts);
@@ -178,7 +182,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.peersToPing.set(peer, Date.now());
 
     // if the sequence number is unknown send an update the meta data of the peer.
-    const metadata = this.peerMetadataStore.getMetadata(peer);
+    const metadata = this.peerMetadataStore.metadata.get(peer);
     if (!metadata || metadata.seqNumber < seqNumber) {
       void this.requestMetadata(peer);
     }
@@ -189,7 +193,8 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    */
   private onMetadata = (peer: PeerId, metadata: Metadata): void => {
     // Store metadata always in case the peer updates attnets but not the sequence number
-    this.peerMetadataStore.setMetadata(peer, metadata);
+    // Trust that the peer always sends the latest metadata (From Lighthouse)
+    this.peerMetadataStore.metadata.set(peer, metadata);
   };
 
   /**
@@ -221,7 +226,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
 
     // set status on peer
     // TODO: TEMP code from before
-    this.peerMetadataStore.setStatus(peer, status);
+    this.peerMetadataStore.status.set(peer, status);
 
     // Peer is usable, send it to the rangeSync
     this.emit(PeerManagerEvent.peerConnected, peer, status);
@@ -288,13 +293,15 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     // else -> Healthy
     const connectedHealthPeers: PeerId[] = [];
     for (const peer of connectedPeers) {
-      const score = this.peerMetadataStore.getRpcScore(peer) || 0;
-      if (score < MIN_SCORE_BEFORE_BAN) {
-        void this.goodbyeAndDisconnect(peer, GoodByeReasonCode.BANNED);
-      } else if (score < MIN_SCORE_BEFORE_DISCONNECT) {
-        void this.goodbyeAndDisconnect(peer, GoodByeReasonCode.SCORE_TOO_LOW);
-      } else {
-        connectedHealthPeers.push(peer);
+      switch (this.peerRpcScores.getScoreState(peer)) {
+        case ScoreState.Banned:
+          void this.goodbyeAndDisconnect(peer, GoodByeReasonCode.BANNED);
+          break;
+        case ScoreState.Disconnected:
+          void this.goodbyeAndDisconnect(peer, GoodByeReasonCode.SCORE_TOO_LOW);
+          break;
+        case ScoreState.Healthy:
+          connectedHealthPeers.push(peer);
       }
     }
 
@@ -309,8 +316,8 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     const {peersToDisconnect, discv5Queries, peersToConnect} = prioritizePeers(
       connectedPeers.map((peer) => ({
         id: peer,
-        attnets: this.peerMetadataStore.getMetadata(peer)?.attnets || [],
-        score: this.peerMetadataStore.getRpcScore(peer) || 0,
+        attnets: this.peerMetadataStore.metadata.get(peer)?.attnets || [],
+        score: this.peerMetadataStore.rpcScore.get(peer) || 0,
       })),
       activeSubnetIds,
       this.opts

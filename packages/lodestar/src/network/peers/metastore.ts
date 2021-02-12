@@ -1,75 +1,49 @@
-import {IPeerMetadataStore} from "./interface";
+import {IPeerMetadataStore, PeerMetadataStoreItem} from "./interface";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {ReqRespEncoding} from "../../constants";
 import PeerId from "peer-id";
 import {Metadata, Status} from "@chainsafe/lodestar-types";
 import {BasicType, ContainerType} from "@chainsafe/ssz";
-import {StringType} from "./sszTypes";
 import {notNullish} from "../../util/notNullish";
+import {ReqRespEncoding} from "../../constants";
 
 enum MetadataKey {
   ENCODING = "encoding",
   METADATA = "metadata",
-  SCORE = "score",
   STATUS = "status",
+  SCORE = "score",
+  SCORE_LAST_UPDATE = "score-last-update",
 }
+
+type Item<T> = PeerMetadataStoreItem<T>; // shorter alias for readability
 
 /**
  * Wrapper around Libp2p.peerstore.metabook
  * that uses ssz serialization to store data
  */
 export class Libp2pPeerMetadataStore implements IPeerMetadataStore {
+  encoding: Item<ReqRespEncoding>;
+  metadata: Item<Metadata>;
+  status: Item<Status>;
+  rpcScore: Item<number>;
+  rpcScoreLastUpdate: Item<number>;
+
   private readonly config: IBeaconConfig;
   private readonly metabook: MetadataBook;
 
   constructor(config: IBeaconConfig, metabook: MetadataBook) {
     this.config = config;
     this.metabook = metabook;
+    this.encoding = this.typedStore(MetadataKey.ENCODING, new StringType());
+    this.metadata = this.typedStore(MetadataKey.METADATA, this.config.types.Metadata);
+    this.status = this.typedStore(MetadataKey.STATUS, this.config.types.Status);
+    this.rpcScore = this.typedStore(MetadataKey.SCORE, this.config.types.Number64);
+    this.rpcScoreLastUpdate = this.typedStore(MetadataKey.SCORE_LAST_UPDATE, this.config.types.Number64);
   }
 
-  public getEncoding(peer: PeerId): ReqRespEncoding | null {
-    return this.get(peer, MetadataKey.ENCODING, new StringType()) as ReqRespEncoding | null;
-  }
-
-  public getMetadata(peer: PeerId): Metadata | null {
-    return this.get(peer, MetadataKey.METADATA, this.config.types.Metadata);
-  }
-
-  public getRpcScore(peer: PeerId): number | null {
-    return this.get(peer, MetadataKey.SCORE, this.config.types.Number64);
-  }
-
-  public getStatus(peer: PeerId): Status | null {
-    return this.get(peer, MetadataKey.STATUS, this.config.types.Status);
-  }
-
-  public setEncoding(peer: PeerId, encoding: ReqRespEncoding | null): void {
-    return this.set(peer, MetadataKey.ENCODING, new StringType(), encoding);
-  }
-
-  public setMetadata(peer: PeerId, metadata: Metadata | null): void {
-    if (!metadata) {
-      // clears metadata
-      return this.set(peer, MetadataKey.METADATA, this.config.types.Metadata, metadata);
-    }
-    const currentMetadata = this.getMetadata(peer);
-    if (!currentMetadata || currentMetadata.seqNumber < metadata.seqNumber) {
-      return this.set(peer, MetadataKey.METADATA, this.config.types.Metadata, metadata);
-    }
-  }
-
-  public setRpcScore(peer: PeerId, score: number | null): void {
-    return this.set(peer, MetadataKey.SCORE, this.config.types.Number64, score);
-  }
-
-  public setStatus(peer: PeerId, status: Status | null): void {
-    return this.set(peer, MetadataKey.STATUS, this.config.types.Status, status);
-  }
-
-  public onSubnet(peer: PeerId, subnetId: number): boolean {
-    const metadata = this.getMetadata(peer);
-    if (!metadata) return false;
-    return metadata.attnets[subnetId];
+  private typedStore<T>(key: MetadataKey, type: BasicType<T> | ContainerType<T>): Item<T> {
+    const set = (peer: PeerId, value: T): void => this.set(peer, key, type, value);
+    const get = (peer: PeerId): T | undefined => this.get(peer, key, type);
+    return {set, get};
   }
 
   private set<T>(peer: PeerId, key: MetadataKey, type: BasicType<T> | ContainerType<T>, value: T | null): void {
@@ -80,12 +54,23 @@ export class Libp2pPeerMetadataStore implements IPeerMetadataStore {
     }
   }
 
-  private get<T>(peer: PeerId, key: MetadataKey, type: BasicType<T> | ContainerType<T>): T | null {
+  private get<T>(peer: PeerId, key: MetadataKey, type: BasicType<T> | ContainerType<T>): T | undefined {
     const value = this.metabook.getValue(peer, key);
     if (value) {
       return type.deserialize(value);
-    } else {
-      return null;
     }
+  }
+}
+
+/**
+ * Dedicated string type only used here, so not worth to keep it in `lodestar-types`
+ */
+class StringType<T extends string> extends BasicType<T> {
+  serialize(value: T): Uint8Array {
+    return Buffer.from(value);
+  }
+
+  deserialize(data: Uint8Array): T {
+    return (Buffer.from(data).toString() as unknown) as T;
   }
 }

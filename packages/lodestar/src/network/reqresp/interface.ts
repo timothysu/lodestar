@@ -16,7 +16,7 @@ import {
   SignedBeaconBlock,
 } from "@chainsafe/lodestar-types";
 import {Method, Methods, ReqRespEncoding} from "../../constants";
-import {IPeerMetadataStore, IRpcScoreTracker} from "../peers";
+import {IPeerMetadataStore, IPeerRpcScoreStore} from "../peers";
 
 export enum ReqRespEvent {
   receivedPing = "ReqResp-receivedPing",
@@ -46,7 +46,7 @@ export interface IReqRespModules {
   libp2p: LibP2p;
   logger: ILogger;
   peerMetadata: IPeerMetadataStore;
-  peerRpcScores: IRpcScoreTracker;
+  peerRpcScores: IPeerRpcScoreStore;
 }
 
 export type ReqRespRequest<Body extends RequestBody | null = null> = {

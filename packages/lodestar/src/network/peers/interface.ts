@@ -6,21 +6,18 @@ export type Discv5Query = {subnetId: number; maxPeersToDiscover: number};
 
 export type RequestedSubnet = {subnetId: number; toSlot: Slot};
 
+export type PeerMetadataStoreItem<T> = {
+  set: (peer: PeerId, value: T) => void;
+  get: (peer: PeerId) => T | undefined;
+};
+
 /**
  * Get/set data about peers.
  */
 export interface IPeerMetadataStore {
-  setStatus(peer: PeerId, status: Status | null): void;
-  getStatus(peer: PeerId): Status | null;
-  setRpcScore(peer: PeerId, score: number | null): void;
-  getRpcScore(peer: PeerId): number | null;
-  /**
-   * It will never store metadata with lower seq number
-   * @param peer
-   * @param metadata
-   */
-  setMetadata(peer: PeerId, metadata: Metadata | null): void;
-  getMetadata(peer: PeerId): Metadata | null;
-  setEncoding(peer: PeerId, encoding: ReqRespEncoding | null): void;
-  getEncoding(peer: PeerId): ReqRespEncoding | null;
+  encoding: PeerMetadataStoreItem<ReqRespEncoding>;
+  metadata: PeerMetadataStoreItem<Metadata>;
+  status: PeerMetadataStoreItem<Status>;
+  rpcScore: PeerMetadataStoreItem<number>;
+  rpcScoreLastUpdate: PeerMetadataStoreItem<number>;
 }

@@ -10,7 +10,7 @@ import {IGossip} from "./gossip/interface";
 import {MetadataController} from "./metadata";
 import {IPeerMetadataStore, RequestedSubnet} from "./peers/interface";
 import {PeerManager} from "./peers/peerManager";
-import {IRpcScoreTracker} from "./peers/score";
+import {IPeerRpcScoreStore} from "./peers/score";
 import {IReqResp} from "./reqresp";
 
 export enum NetworkEvent {
@@ -37,7 +37,7 @@ export interface INetwork extends NetworkEventEmitter {
   gossip: IGossip;
   metadata: MetadataController;
   peerMetadata: IPeerMetadataStore;
-  peerRpcScores: IRpcScoreTracker;
+  peerRpcScores: IPeerRpcScoreStore;
   peerManager: PeerManager;
   /** Our network identity */
   peerId: PeerId;
