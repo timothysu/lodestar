@@ -3,6 +3,7 @@ import {BeaconBlocksByRangeRequest, Epoch, Root, SignedBeaconBlock, Slot} from "
 import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {toHexString} from "@chainsafe/ssz";
 import {PeerAction} from "../../network";
 import {ChainSegmentError} from "../../chain/errors";
 import {ItTrigger} from "../../util/itTrigger";
@@ -74,6 +75,8 @@ export class SyncChain {
   /** Should sync up until this slot, then stop */
   target: ChainTarget;
   syncType: RangeSyncType;
+  /** Short string id to identify this SyncChain in logs */
+  id: string;
   /** Number of validated epochs. For the SyncRange to prevent switching chains too fast */
   validatedEpochs = 0;
   private processChainSegment: ProcessChainSegment;
@@ -109,6 +112,7 @@ export class SyncChain {
     this.config = config;
     this.logger = logger;
     this.opts = {epochsPerBatch: opts?.epochsPerBatch ?? EPOCHS_PER_BATCH};
+    this.id = `${syncType}-${target.slot}-${toHexString(target.root).slice(0, 6)}`;
   }
 
   /**
@@ -311,7 +315,7 @@ export class SyncChain {
     }
 
     if (this.batches.has(startEpoch)) {
-      this.logger.error("Attempting to add existing Batch to SyncChain", {startEpoch});
+      this.logger.error("Attempting to add existing Batch to SyncChain", {id: this.id, startEpoch});
       return null;
     }
 
@@ -334,7 +338,7 @@ export class SyncChain {
         batch.downloadingSuccess(res.result);
         this.triggerBatchProcessor();
       } else {
-        this.logger.verbose("Batch download error", batch.getMetadata(), res.err);
+        this.logger.verbose("Batch download error", {id: this.id, ...batch.getMetadata()}, res.err);
         batch.downloadingError(); // Throws after MAX_DOWNLOAD_ATTEMPTS
       }
 
@@ -366,7 +370,7 @@ export class SyncChain {
       // Potentially process next AwaitingProcessing batch
       this.triggerBatchProcessor();
     } else {
-      this.logger.verbose("Batch process error", batch.getMetadata(), res.err);
+      this.logger.verbose("Batch process error", {id: this.id, ...batch.getMetadata()}, res.err);
       batch.processingError(); // Throws after MAX_BATCH_PROCESSING_ATTEMPTS
 
       // At least one block was successfully verified and imported, so we can be sure all
@@ -380,7 +384,7 @@ export class SyncChain {
       // Progress will be drop back to `this.startEpoch`
       for (const pendingBatch of this.batches.values()) {
         if (pendingBatch.startEpoch < batch.startEpoch) {
-          this.logger.verbose("Batch validation error", pendingBatch.getMetadata());
+          this.logger.verbose("Batch validation error", {id: this.id, ...pendingBatch.getMetadata()});
           pendingBatch.validationError(); // Throws after MAX_BATCH_PROCESSING_ATTEMPTS
         }
       }
