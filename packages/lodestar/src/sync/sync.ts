@@ -26,12 +26,12 @@ export class BeaconSync implements IBeaconSync {
   private readonly chain: IBeaconChain;
 
   private prevState: SyncState = SyncState.Stalled;
-  private rangeSync: RangeSync;
-  private gossip: IGossipHandler;
-  private attestationCollector: AttestationCollector;
+  private readonly rangeSync: RangeSync;
+  private readonly gossip: IGossipHandler;
+  private readonly attestationCollector: AttestationCollector;
 
   // avoid finding same root at the same time
-  private processingRoots: Set<string>;
+  private readonly processingRoots: Set<string>;
 
   private controller = new AbortController();
 

@@ -69,28 +69,31 @@ enum SyncState {
 }
 
 export class SyncChain {
-  state = SyncState.Stopped;
-  /** The start of the chain segment. Any epoch previous to this one has been validated. */
-  startEpoch: Epoch;
-  /** Should sync up until this slot, then stop */
-  target: ChainTarget;
-  syncType: RangeSyncType;
   /** Short string id to identify this SyncChain in logs */
-  id: string;
+  readonly id: string;
+  /** Should sync up until this slot, then stop */
+  readonly target: ChainTarget;
+  readonly syncType: RangeSyncType;
+
   /** Number of validated epochs. For the SyncRange to prevent switching chains too fast */
   validatedEpochs = 0;
-  private processChainSegment: ProcessChainSegment;
-  private downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange;
-  private reportPeer: ReportPeerFn;
-  /** AsyncIterable that guarantees processChainSegment is run only at once at anytime */
-  private batchProcessor = new ItTrigger();
-  /** Sorted map of batches undergoing some kind of processing. */
-  private batches = new Map<Epoch, Batch>();
-  private peerset = new PeerSet();
 
-  private logger: ILogger;
-  private config: IBeaconConfig;
-  private opts: SyncChainOpts;
+  /** The start of the chain segment. Any epoch previous to this one has been validated. */
+  private startEpoch: Epoch;
+  private state = SyncState.Stopped;
+
+  private readonly processChainSegment: ProcessChainSegment;
+  private readonly downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange;
+  private readonly reportPeer: ReportPeerFn;
+  /** AsyncIterable that guarantees processChainSegment is run only at once at anytime */
+  private readonly batchProcessor = new ItTrigger();
+  /** Sorted map of batches undergoing some kind of processing. */
+  private readonly batches = new Map<Epoch, Batch>();
+  private readonly peerset = new PeerSet();
+
+  private readonly logger: ILogger;
+  private readonly config: IBeaconConfig;
+  private readonly opts: SyncChainOpts;
 
   constructor(
     startEpoch: Epoch,
@@ -183,10 +186,6 @@ export class SyncChain {
   removePeer(peerId: PeerId): boolean {
     // TODO: What to do when peer count is zero?
     return this.peerset.delete(peerId);
-  }
-
-  getMetadata(): ChainTarget {
-    return this.target;
   }
 
   /**

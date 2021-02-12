@@ -66,16 +66,16 @@ export const BATCH_SLOT_OFFSET = 1;
  *       Batch 1       |              Batch 2              |  Batch 3
  */
 export class Batch {
-  startEpoch: Epoch;
+  readonly startEpoch: Epoch;
   /** State of the batch. */
   state: BatchState = {status: BatchStatus.AwaitingDownload};
   /** BeaconBlocksByRangeRequest */
-  request: BeaconBlocksByRangeRequest;
+  readonly request: BeaconBlocksByRangeRequest;
   /** The `Attempts` that have been made and failed to send us this batch. */
-  failedProcessingAttempts: Attempt[] = [];
+  readonly failedProcessingAttempts: Attempt[] = [];
   /** The number of download retries this batch has undergone due to a failed request. */
-  private failedDownloadAttempts: PeerId[] = [];
-  private config: IBeaconConfig;
+  private readonly failedDownloadAttempts: PeerId[] = [];
+  private readonly config: IBeaconConfig;
 
   constructor(startEpoch: Epoch, config: IBeaconConfig, opts: BatchOpts) {
     const startSlot = computeStartSlotAtEpoch(config, startEpoch) + BATCH_SLOT_OFFSET;

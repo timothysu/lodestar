@@ -1,19 +1,19 @@
 import {EventEmitter} from "events";
 import StrictEventEmitter from "strict-event-emitter-types";
+import {AbortSignal} from "abort-controller";
+import PeerId from "peer-id";
 import {computeEpochAtSlot, computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Epoch, Slot, Status} from "@chainsafe/lodestar-types";
 import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
-import PeerId from "peer-id";
+import {toHexString} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../chain";
+import {INetwork, PeerAction} from "../../network";
 import {RangeSyncType, getRangeSyncType} from "../utils/remoteSyncType";
-import {ChainTarget, DownloadBeaconBlocksByRange, ProcessChainSegment, SyncChain, SyncChainOpts} from "./chain";
-import {AbortSignal} from "abort-controller";
-import {Json, toHexString} from "@chainsafe/ssz";
+import {assertSequentialBlocksInRange} from "../utils";
 import {updateChains} from "./utils/updateChains";
 import {shouldRemoveChain} from "./utils/shouldRemoveChain";
-import {INetwork, PeerAction} from "../../network";
-import {assertSequentialBlocksInRange} from "../utils";
+import {ChainTarget, DownloadBeaconBlocksByRange, ProcessChainSegment, SyncChain, SyncChainOpts} from "./chain";
 
 export enum RangeSyncEvent {
   completedChain = "RangeSync-completedChain",
@@ -75,11 +75,11 @@ export type RangeSyncOpts = SyncChainOpts;
  * - If there are many head chains the ones with more peers take priority
  */
 export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
-  chain: IBeaconChain;
-  network: INetwork;
-  config: IBeaconConfig;
-  logger: ILogger;
-  chains = new Map<SyncChainId, SyncChain>();
+  private readonly chain: IBeaconChain;
+  private readonly network: INetwork;
+  private readonly config: IBeaconConfig;
+  private readonly logger: ILogger;
+  private readonly chains = new Map<SyncChainId, SyncChain>();
 
   private opts?: SyncChainOpts;
 
@@ -247,17 +247,15 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   }
 
   private async runChain(syncChain: SyncChain, localFinalizedEpoch: Epoch): Promise<void> {
-    const syncChainMetdata = (syncChain.getMetadata() as unknown) as Json;
-
     try {
       await syncChain.startSyncing(localFinalizedEpoch);
-      this.logger.verbose("SyncChain reached target", syncChainMetdata);
+      this.logger.verbose("SyncChain reached target", {id: syncChain.id});
       this.emit(RangeSyncEvent.completedChain);
     } catch (e) {
       if (e instanceof ErrorAborted) {
         return; // Ignore
       } else {
-        this.logger.error("SyncChain error", syncChainMetdata, e);
+        this.logger.error("SyncChain error", {id: syncChain.id}, e);
       }
     }
 
