@@ -12,7 +12,7 @@ import {RangeSyncType} from "../utils/remoteSyncType";
 import {ChainPeersBalancer} from "./utils/peerBalancer";
 import {PeerSet} from "./utils/peerMap";
 import {wrapError} from "./utils/wrapError";
-import {Batch, BatchError, BatchErrorCode, BatchMetadata, BatchOpts, BatchStatus} from "./batch";
+import {Batch, BatchError, BatchErrorCode, BatchMetadata, BatchOpts, BatchStatus, BATCH_SLOT_OFFSET} from "./batch";
 import {
   validateBatchesStatus,
   getNextBatchToProcess,
@@ -308,9 +308,10 @@ export class SyncChain {
 
     // This line decides the starting epoch of the next batch. MUST ensure no duplicate batch for the same startEpoch
     const startEpoch = toBeDownloadedStartEpoch(batches, this.startEpoch, this.opts);
+    const toBeDownloadedSlot = computeStartSlotAtEpoch(this.config, startEpoch) + BATCH_SLOT_OFFSET;
 
     // Don't request batches beyond the target head slot
-    if (computeStartSlotAtEpoch(this.config, startEpoch) > this.target.slot) {
+    if (toBeDownloadedSlot > this.target.slot) {
       return null;
     }
 

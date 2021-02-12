@@ -52,6 +52,9 @@ export type BatchMetadata = {
   status: BatchStatus;
 };
 
+/** Batch range excludes the first block of the epoch. @see Batch */
+export const BATCH_SLOT_OFFSET = 1;
+
 /**
  * Batches are downloaded excluding the first block of the epoch assuming it has already been
  * downloaded.
@@ -75,7 +78,7 @@ export class Batch {
   private config: IBeaconConfig;
 
   constructor(startEpoch: Epoch, config: IBeaconConfig, opts: BatchOpts) {
-    const startSlot = computeStartSlotAtEpoch(config, startEpoch) + 1;
+    const startSlot = computeStartSlotAtEpoch(config, startEpoch) + BATCH_SLOT_OFFSET;
     const endSlot = startSlot + opts.epochsPerBatch * config.params.SLOTS_PER_EPOCH;
 
     this.config = config;
