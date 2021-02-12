@@ -1,9 +1,10 @@
-import {INetwork} from "../network";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {CommitteeIndex, Slot, SyncingStatus} from "@chainsafe/lodestar-types";
+import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {INetwork} from "../network";
 import {IGossipHandler} from "./gossip";
 import {IBeaconChain} from "../chain";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {IBeaconMetrics} from "../metrics";
 import {IBeaconDb} from "../db/api";
 import {AttestationCollector} from "./utils";
 
@@ -39,6 +40,7 @@ export interface ISyncModules {
   config: IBeaconConfig;
   network: INetwork;
   db: IBeaconDb;
+  metrics: IBeaconMetrics;
   logger: ILogger;
   chain: IBeaconChain;
   gossipHandler?: IGossipHandler;

@@ -9,6 +9,7 @@ import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
 import {toHexString} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../chain";
 import {INetwork, PeerAction} from "../../network";
+import {IBeaconMetrics} from "../../metrics";
 import {RangeSyncType, getRangeSyncType} from "../utils/remoteSyncType";
 import {assertSequentialBlocksInRange} from "../utils";
 import {updateChains} from "./utils/updateChains";
@@ -44,6 +45,7 @@ type RangeSyncState =
 export type RangeSyncModules = {
   chain: IBeaconChain;
   network: INetwork;
+  metrics: IBeaconMetrics;
   config: IBeaconConfig;
   logger: ILogger;
 };
@@ -77,18 +79,20 @@ export type RangeSyncOpts = SyncChainOpts;
 export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   private readonly chain: IBeaconChain;
   private readonly network: INetwork;
+  private readonly metrics: IBeaconMetrics;
   private readonly config: IBeaconConfig;
   private readonly logger: ILogger;
   private readonly chains = new Map<SyncChainId, SyncChain>();
 
   private opts?: SyncChainOpts;
 
-  constructor({chain, network, config, logger}: RangeSyncModules, signal: AbortSignal, opts?: SyncChainOpts) {
+  constructor(modules: RangeSyncModules, signal: AbortSignal, opts?: SyncChainOpts) {
     super();
-    this.chain = chain;
-    this.network = network;
-    this.config = config;
-    this.logger = logger;
+    this.chain = modules.chain;
+    this.network = modules.network;
+    this.metrics = modules.metrics;
+    this.config = modules.config;
+    this.logger = modules.logger;
     this.opts = opts;
 
     // Throw / return all AsyncGenerators inside each SyncChain instance
@@ -148,6 +152,9 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   removePeer(peerId: PeerId): void {
     for (const syncChain of this.chains.values()) {
       const hasRemoved = syncChain.removePeer(peerId);
+      if (hasRemoved) {
+        this.runSyncChainMetrics(syncChain);
+      }
     }
   }
 
@@ -200,10 +207,10 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   private addPeerOrCreateChain(startEpoch: Epoch, target: ChainTarget, peer: PeerId, syncType: RangeSyncType): void {
     const id = getSyncChainId(syncType, target);
 
-    let syncingChain = this.chains.get(id);
-    if (!syncingChain) {
-      this.logger.debug("New syncingChain", {slot: target.slot, root: toHexString(target.root), startEpoch});
-      syncingChain = new SyncChain(
+    let syncChain = this.chains.get(id);
+    if (!syncChain) {
+      this.logger.debug("New syncChain", {slot: target.slot, root: toHexString(target.root), startEpoch});
+      syncChain = new SyncChain(
         startEpoch,
         target,
         syncType,
@@ -214,10 +221,12 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
         this.logger,
         this.opts
       );
-      this.chains.set(id, syncingChain);
+      this.chains.set(id, syncChain);
     }
 
-    syncingChain.addPeer(peer);
+    syncChain.addPeer(peer);
+
+    this.runSyncChainMetrics(syncChain);
   }
 
   private update(localFinalizedEpoch: Epoch): void {
@@ -261,6 +270,10 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
 
     const localStatus = this.chain.getStatus();
     this.update(localStatus.finalizedEpoch);
+  }
+
+  private runSyncChainMetrics(syncChain: SyncChain): void {
+    this.metrics.peersPerSyncChain.set({id: syncChain.id}, syncChain.peers);
   }
 }
 

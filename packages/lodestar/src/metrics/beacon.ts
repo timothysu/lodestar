@@ -36,6 +36,7 @@ export class BeaconMetrics extends Metrics implements IBeaconMetrics {
   public previousEpochTargetGwei: Gauge;
   public observedEpochAttesters: Gauge;
   public observedEpochAggregators: Gauge;
+  public peersPerSyncChain: Gauge;
 
   private logger: ILogger;
 
@@ -178,6 +179,15 @@ export class BeaconMetrics extends Metrics implements IBeaconMetrics {
     this.observedEpochAggregators = new Gauge({
       name: "beacon_observed_epoch_aggregators",
       help: "number of aggregators for which we have seen an attestation, not necessarily included on chain.",
+      registers,
+    });
+
+    // Lodestar custom metrics
+
+    this.peersPerSyncChain = new Gauge({
+      name: "lodestar_peers_per_sync_chain",
+      help: "number of peers per sync chain, labeled by target",
+      labelNames: ["id"],
       registers,
     });
   }

@@ -123,6 +123,10 @@ export interface IBeaconMetrics extends IMetrics {
    * That attestation is not necessarily included on chain.
    */
   observedEpochAggregators: Gauge;
+  /**
+   * Track number of peers on each SyncChain
+   */
+  peersPerSyncChain: Gauge;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
