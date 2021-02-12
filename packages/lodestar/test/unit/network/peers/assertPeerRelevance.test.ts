@@ -11,6 +11,7 @@ import {
   IrrelevantPeerErrorCode,
 } from "../../../../src/network/peers/assertPeerRelevance";
 import {expectRejectedWithLodestarError} from "../../../utils/errors";
+import {toHexString} from "@chainsafe/ssz";
 
 chai.use(chaiAsPromised);
 
@@ -34,6 +35,7 @@ describe("network / peers / assertPeerRelevance", () => {
   const correctForkDigest = chain.getForkDigest();
   const differentForkDigest = Buffer.alloc(4, 1);
   const ZERO_HASH = Buffer.alloc(32, 0);
+  const differedRoot = Buffer.alloc(32, 1);
 
   const testCases: {id: string; remote: Status; error?: IrrelevantPeerError}[] = [
     {
@@ -55,23 +57,23 @@ describe("network / peers / assertPeerRelevance", () => {
       id: "Head is too far away from our clock",
       remote: {
         forkDigest: correctForkDigest,
-        finalizedRoot: Buffer.alloc(32, 1),
+        finalizedRoot: differedRoot,
         finalizedEpoch: 0,
         headRoot: ZERO_HASH,
-        headSlot: 10000000, // Too far from current slot (= 0)
+        headSlot: 100, // Too far from current slot (= 0)
       },
-      error: new IrrelevantPeerError({code: IrrelevantPeerErrorCode.DIFFERENT_CLOCKS}),
+      error: new IrrelevantPeerError({code: IrrelevantPeerErrorCode.DIFFERENT_CLOCKS, slotDiff: 100}),
     },
     {
       id: "Reject non zeroed genesis",
       remote: {
         forkDigest: correctForkDigest,
-        finalizedRoot: Buffer.alloc(32, 1), // non zero root
+        finalizedRoot: differedRoot, // non zero root
         finalizedEpoch: 0, // at genesis
         headRoot: ZERO_HASH,
         headSlot: 0,
       },
-      error: new IrrelevantPeerError({code: IrrelevantPeerErrorCode.GENESIS_NONZERO}),
+      error: new IrrelevantPeerError({code: IrrelevantPeerErrorCode.GENESIS_NONZERO, root: toHexString(differedRoot)}),
     },
     {
       id: "Accept a finalized epoch equal to ours, with same root",
@@ -88,7 +90,7 @@ describe("network / peers / assertPeerRelevance", () => {
       remote: {
         forkDigest: correctForkDigest,
         finalizedRoot: ZERO_HASH,
-        finalizedEpoch: 10000000, // Greater than ours (= 0)
+        finalizedEpoch: 100, // Greater than ours (= 0)
         headRoot: ZERO_HASH,
         headSlot: 0,
       },

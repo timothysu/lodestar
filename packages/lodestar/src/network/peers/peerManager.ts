@@ -3,7 +3,7 @@ import StrictEventEmitter from "strict-event-emitter-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Metadata, Ping, Slot, Status} from "@chainsafe/lodestar-types";
 import {Goodbye} from "@chainsafe/lodestar-types/src";
-import {ILogger} from "@chainsafe/lodestar-utils";
+import {ILogger, LodestarError} from "@chainsafe/lodestar-utils";
 import PeerId from "peer-id";
 import {IBeaconChain} from "../../chain";
 import {GoodByeReasonCode, GOODBYE_KNOWN_CODES} from "../../constants";
@@ -219,7 +219,10 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     try {
       await assertPeerRelevance(status, this.chain, this.config);
     } catch (e) {
-      this.logger.debug("Irrelevant peer", {peer: peer.toB58String(), reason: e.message});
+      this.logger.debug("Irrelevant peer", {
+        peer: peer.toB58String(),
+        reason: e instanceof LodestarError ? e.getMetadata() : e.message,
+      });
       await this.goodbyeAndDisconnect(peer, GoodByeReasonCode.IRRELEVANT_NETWORK);
       return;
     }

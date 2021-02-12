@@ -2,6 +2,7 @@ import {computeStartSlotAtEpoch, getBlockRootAtSlot} from "@chainsafe/lodestar-b
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Epoch, ForkDigest, Root, Status} from "@chainsafe/lodestar-types";
 import {LodestarError} from "@chainsafe/lodestar-utils";
+import {toHexString} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../chain";
 import {GENESIS_EPOCH} from "../../constants";
 
@@ -17,9 +18,9 @@ export enum IrrelevantPeerErrorCode {
 
 type IrrelevantPeerErrorType =
   | {code: IrrelevantPeerErrorCode.INCOMPATIBLE_FORKS; ours: ForkDigest; theirs: ForkDigest}
-  | {code: IrrelevantPeerErrorCode.DIFFERENT_CLOCKS}
-  | {code: IrrelevantPeerErrorCode.GENESIS_NONZERO}
-  | {code: IrrelevantPeerErrorCode.DIFFERENT_FINALIZED};
+  | {code: IrrelevantPeerErrorCode.DIFFERENT_CLOCKS; slotDiff: number}
+  | {code: IrrelevantPeerErrorCode.GENESIS_NONZERO; root: string}
+  | {code: IrrelevantPeerErrorCode.DIFFERENT_FINALIZED; expectedRoot: string; remoteRoot: string};
 
 export class IrrelevantPeerError extends LodestarError<IrrelevantPeerErrorType> {}
 
@@ -42,27 +43,41 @@ export async function assertPeerRelevance(remote: Status, chain: IBeaconChain, c
   // The remote's head is on a slot that is significantly ahead of what we consider the
   // current slot. This could be because they are using a different genesis time, or that
   // their or our system's clock is incorrect.
-  if (remote.headSlot > chain.clock.currentSlot + FUTURE_SLOT_TOLERANCE) {
-    throw new IrrelevantPeerError({code: IrrelevantPeerErrorCode.DIFFERENT_CLOCKS});
+  const slotDiff = remote.headSlot - chain.clock.currentSlot;
+  if (slotDiff > FUTURE_SLOT_TOLERANCE) {
+    throw new IrrelevantPeerError({code: IrrelevantPeerErrorCode.DIFFERENT_CLOCKS, slotDiff});
   }
 
   // TODO: Is this check necessary?
   if (remote.finalizedEpoch === GENESIS_EPOCH && !isZeroRoot(config, remote.finalizedRoot)) {
-    throw new IrrelevantPeerError({code: IrrelevantPeerErrorCode.GENESIS_NONZERO});
+    throw new IrrelevantPeerError({
+      code: IrrelevantPeerErrorCode.GENESIS_NONZERO,
+      root: toHexString(remote.finalizedRoot),
+    });
   }
 
   // The remote's finalized epoch is less than or equal to ours, but the block root is
   // different to the one in our chain. Therefore, the node is on a different chain and we
   // should not communicate with them.
-  if (remote.finalizedEpoch === local.finalizedEpoch) {
-    if (!config.types.Root.equals(remote.finalizedRoot, local.finalizedRoot)) {
-      throw new IrrelevantPeerError({code: IrrelevantPeerErrorCode.DIFFERENT_FINALIZED});
-    }
-  } else if (remote.finalizedEpoch < local.finalizedEpoch) {
-    // This will get the latest known block at the start of the epoch.
-    const localRoot = await getRootAtHistoricalEpoch(config, chain, remote.finalizedEpoch);
-    if (!config.types.Root.equals(remote.finalizedRoot, localRoot)) {
-      throw new IrrelevantPeerError({code: IrrelevantPeerErrorCode.DIFFERENT_FINALIZED});
+
+  if (
+    remote.finalizedEpoch <= local.finalizedEpoch &&
+    !isZeroRoot(config, remote.finalizedRoot) &&
+    !isZeroRoot(config, local.finalizedRoot)
+  ) {
+    const remoteRoot = remote.finalizedRoot;
+    const expectedRoot =
+      remote.finalizedEpoch === local.finalizedEpoch
+        ? local.finalizedRoot
+        : // This will get the latest known block at the start of the epoch.
+          await getRootAtHistoricalEpoch(config, chain, remote.finalizedEpoch);
+
+    if (!config.types.Root.equals(remoteRoot, expectedRoot)) {
+      throw new IrrelevantPeerError({
+        code: IrrelevantPeerErrorCode.DIFFERENT_FINALIZED,
+        expectedRoot: toHexString(expectedRoot), // forkChoice returns Tree BranchNode which the logger prints as {}
+        remoteRoot: toHexString(remoteRoot),
+      });
     }
   }
 
