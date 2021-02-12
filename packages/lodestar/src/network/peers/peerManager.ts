@@ -28,17 +28,10 @@ type PeerManagerEvents = {
 
 type PeerManagerEmitter = StrictEventEmitter<EventEmitter, PeerManagerEvents>;
 
-// In Lodestar currently we do
-// STATUS every:
-// - intial sync = SLOTS_PER_EPOCH * SECONDS_PER_SLOT * 1000
-// - regular sync = 3 * SECONDS_PER_SLOT * 1000
-
-/** The time in seconds between PING events. We do not send a ping if the other peer has PING'd us */
-const PING_INTERVAL_MS = 15 * 1000;
-/** The time in seconds between re-status's peers. */
-const STATUS_INTERVAL_MS = 5 * 60 * 1000;
 /** heartbeat performs regular updates such as updating reputations and performing discovery requests */
 const HEARTBEAT_INTERVAL_MS = 30 * 1000;
+/** The time in seconds between PING events. We do not send a ping if the other peer has PING'd us */
+const PING_INTERVAL_MS = 15 * 1000;
 
 // TODO:
 // maxPeers and targetPeers should be dynamic on the num of validators connected
@@ -88,6 +81,10 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   /** Map of subnets and the slot until they are needed */
   private subnets = new Map<number, Slot>();
 
+  /** The time in seconds between re-status's peers. */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  private STATUS_INTERVAL_MS: number;
+
   constructor(
     libp2p: LibP2p,
     reqResp: IReqResp,
@@ -110,6 +107,8 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.peerMetadataStore = peerMetadataStore;
     this.peerRpcScores = peerRpcScores;
     this.opts = opts;
+
+    this.STATUS_INTERVAL_MS = config.params.SLOTS_PER_EPOCH * config.params.SECONDS_PER_SLOT * 1000;
 
     this.discovery = new PeerDiscovery(libp2p, logger, config, opts);
 
@@ -358,7 +357,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     // So the sync layer can update things
     const peersToStatus: PeerId[] = [];
     for (const [peer, lastMs] of this.peersToStatus.entries()) {
-      if (Date.now() - lastMs > STATUS_INTERVAL_MS) {
+      if (Date.now() - lastMs > this.STATUS_INTERVAL_MS) {
         this.peersToStatus.set(peer, Date.now());
         peersToStatus.push(peer);
       }

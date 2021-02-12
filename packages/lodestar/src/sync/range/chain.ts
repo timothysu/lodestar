@@ -208,6 +208,10 @@ export class SyncChain {
     return this.peerset.size;
   }
 
+  getPeers(): PeerId[] {
+    return this.peerset.values();
+  }
+
   /**
    * Main Promise that handles the sync process. Will resolve when initial sync completes
    * i.e. when it successfully processes a epoch >= than this chain `targetEpoch`

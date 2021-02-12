@@ -152,4 +152,11 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     // this.peerManager.discoverSubnetPeers(subnets);
     await this.peerManager.requestAttSubnets(requestedSubnets);
   }
+
+  /**
+   * The app layer needs to refresh the status of some peers. The sync have reached a target
+   */
+  reStatusPeers(peers: PeerId[]): void {
+    this.peerManager.reStatusPeers(peers);
+  }
 }

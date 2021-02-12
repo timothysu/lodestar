@@ -231,9 +231,8 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
         this.chains.delete(id);
         this.logger.debug("Removed chain", {id});
 
-        // Re-status peers
-        // TODO: Then what? On new status call the add handler and repeat?
-        // this.network.statusPeers(syncChain.peers);
+        // Re-status peers from successful chain. Potentially trigger a Head sync
+        this.network.reStatusPeers(syncChain.getPeers());
       }
     }
 
