@@ -172,17 +172,18 @@ export class BeaconSync implements IBeaconSync {
     const currentState = this.state;
     this.prevState = currentState;
 
-    // TODO
-    // If we have become synced - Subscribe to all the core subnet topics
     if (prevState !== SyncState.Synced && currentState === SyncState.Synced) {
-      this.network.subscribeCoreTopics();
-
-      // ONLY after completing initial sync
-
-      void this.gossip.start();
-
-      // ONLY after completing regular sync
-      this.gossip.handleSyncCompleted();
+      // We have become synced, subscribe to all the gossip core topics
+      this.gossip.start();
+      this.logger.info("Subscribed gossip handlers");
+    } else if (prevState === SyncState.Synced && currentState !== SyncState.Synced) {
+      // If we stopped being synced and falled significantly behind, stop gossip
+      const currentSlot = this.chain.clock.currentSlot;
+      const headSlot = this.chain.forkChoice.getHead().slot;
+      if (headSlot < currentSlot - this.slotImportTolerance * 2) {
+        this.gossip.stop();
+        this.logger.warn("Un-subscribed gossip handlers");
+      }
     }
   };
 
