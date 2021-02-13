@@ -3,6 +3,7 @@ import chaiAsPromised from "chai-as-promised";
 import {AbortController} from "abort-controller";
 import {config} from "@chainsafe/lodestar-config/mainnet";
 import {LogLevel, sleep, WinstonLogger} from "@chainsafe/lodestar-utils";
+import {Status} from "@chainsafe/lodestar-types";
 import {Method, ReqRespEncoding} from "../../../src/constants";
 import {BeaconMetrics} from "../../../src/metrics";
 import {createPeerId, IReqRespOptions, Libp2pNetwork} from "../../../src/network";
@@ -18,13 +19,6 @@ import {arrToSource, generateEmptySignedBlocks} from "../../unit/network/reqresp
 import {generateEmptySignedBlock} from "../../utils/block";
 import {expectRejectedWithLodestarError} from "../../utils/errors";
 import {connect, onPeerConnect} from "../../utils/network";
-
-// TODO: TEST
-// sync req resp
-// - should handle request - onStatus
-// - should handle request - onGoodbye
-// - Throw if BeaconBlocksByRangeRequest is invalid: step < 1
-// - should handle request - onBeaconBlocksByRange
 
 chai.use(chaiAsPromised);
 
@@ -110,6 +104,29 @@ describe("network / ReqResp", function () {
 
     const metadata = await netA.reqResp.metadata(netB.peerId);
     expect(metadata).to.deep.equal(metadataBody, "Wrong response body");
+  });
+
+  it("should send/receive a status message", async function () {
+    const status: Status = {
+      forkDigest: Buffer.alloc(4, 0),
+      finalizedRoot: Buffer.alloc(32, 0),
+      finalizedEpoch: 0,
+      headRoot: Buffer.alloc(32, 0),
+      headSlot: 0,
+    };
+    const statusNetA: Status = {...status, finalizedEpoch: 1};
+    const statusNetB: Status = {...status, finalizedEpoch: 2};
+
+    const [netA, netB] = await createAndConnectPeers({}, async function* onRequest(method) {
+      if (method === Method.Status) {
+        yield statusNetB;
+      } else {
+        throw Error(`${method} not implemented`);
+      }
+    });
+
+    const receivedStatus = await netA.reqResp.status(netB.peerId, statusNetA);
+    expect(receivedStatus).to.deep.equal(statusNetB, "Wrong response body");
   });
 
   it("should send/receive signed blocks", async function () {

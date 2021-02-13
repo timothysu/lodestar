@@ -1,16 +1,18 @@
 import {Discv5Discovery, ENR} from "@chainsafe/discv5";
 import {config} from "@chainsafe/lodestar-config/mainnet";
-import {Attestation, SignedBeaconBlock} from "@chainsafe/lodestar-types";
+import {Attestation, Goodbye, SignedBeaconBlock} from "@chainsafe/lodestar-types";
 import {LogLevel, sleep, WinstonLogger, withTimeout} from "@chainsafe/lodestar-utils";
 import {expect} from "chai";
 import sinon, {SinonStubbedInstance} from "sinon";
-import {IBeaconChain} from "../../../src/chain";
+import PeerId from "peer-id";
+import {AbortController} from "abort-controller";
 import {BeaconMetrics} from "../../../src/metrics";
-import {IReqRespHandler, Libp2pNetwork} from "../../../src/network";
+import {Libp2pNetwork, ReqRespEvent, ReqRespHandler} from "../../../src/network";
 import {ExtendedValidatorResult} from "../../../src/network/gossip/constants";
 import {getAttestationSubnetEvent} from "../../../src/network/gossip/utils";
 import {GossipMessageValidator} from "../../../src/network/gossip/validator";
 import {INetworkOptions} from "../../../src/network/options";
+import {GoodByeReasonCode} from "../../../src/constants";
 import {generateEmptyAttestation, generateEmptySignedAggregateAndProof} from "../../utils/attestation";
 import {generateEmptySignedBlock} from "../../utils/block";
 import {silentLogger} from "../../utils/logger";
@@ -18,6 +20,7 @@ import {MockBeaconChain} from "../../utils/mocks/chain/chain";
 import {createNode} from "../../utils/network";
 import {generateState} from "../../utils/state";
 import {connect, disconnect, onPeerConnect, onPeerDisconnect} from "../../utils/network";
+import {StubbedBeaconDb} from "../../utils/stub";
 
 describe("network", function () {
   if (this.timeout() < 5000) this.timeout(5000);
@@ -39,13 +42,18 @@ describe("network", function () {
   validator.isValidIncomingAggregateAndProof = sinon.stub();
   validator.isValidIncomingCommitteeAttestation = sinon.stub();
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  const reqRespHandler: IReqRespHandler = {onRequest: async function* () {}};
+  const afterEachCallbacks: (() => Promise<void> | void)[] = [];
+  afterEach(async () => {
+    while (afterEachCallbacks.length > 0) {
+      const callback = afterEachCallbacks.pop();
+      if (callback) await callback();
+    }
+  });
 
-  let chain: IBeaconChain;
-  let netA: Libp2pNetwork, netB: Libp2pNetwork;
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  async function mockModules() {
+    const controller = new AbortController();
 
-  beforeEach(async () => {
     const block = generateEmptySignedBlock();
     const state = generateState({
       finalizedCheckpoint: {
@@ -53,37 +61,42 @@ describe("network", function () {
         root: config.types.BeaconBlock.hashTreeRoot(block.message),
       },
     });
-    // state.finalizedCheckpoint = {
-    //   epoch: 0,
-    //   root: config.types.BeaconBlock.hashTreeRoot(block.message),
-    // };
-    chain = new MockBeaconChain({genesisTime: 0, chainId: 0, networkId: BigInt(0), state, config});
+    const chain = new MockBeaconChain({genesisTime: 0, chainId: 0, networkId: BigInt(0), state, config});
+
+    const db = new StubbedBeaconDb(sinon);
+    const reqRespHandler = new ReqRespHandler({db, chain});
+
     const [libp2pA, libp2pB] = await Promise.all([createNode(multiaddr), createNode(multiaddr)]);
 
     // Run tests with `DEBUG=true mocha ...` to get detailed logs of ReqResp exchanges
-    const debugMode = process.env.DEBUG;
-    const loggerA = debugMode ? new WinstonLogger({level: LogLevel.verbose, module: "A"}) : silentLogger;
-    const loggerB = debugMode ? new WinstonLogger({level: LogLevel.verbose, module: "B"}) : silentLogger;
+    const level = process.env.DEBUG ? LogLevel.debug : LogLevel.error;
+    const loggerA = new WinstonLogger({level, module: "A"});
+    const loggerB = new WinstonLogger({level, module: "B"});
 
     const modules = {config, metrics, validator, chain, reqRespHandler};
-    netA = new Libp2pNetwork(opts, {...modules, libp2p: libp2pA, logger: loggerA});
-    netB = new Libp2pNetwork(opts, {...modules, libp2p: libp2pB, logger: loggerB});
+    const netA = new Libp2pNetwork(opts, {...modules, libp2p: libp2pA, logger: loggerA});
+    const netB = new Libp2pNetwork(opts, {...modules, libp2p: libp2pB, logger: loggerB});
     await Promise.all([netA.start(), netB.start()]);
-  });
 
-  afterEach(async () => {
-    chain.close();
-    await Promise.all([netA.stop(), netB.stop()]);
-    sinon.restore();
-  });
+    afterEachCallbacks.push(async () => {
+      chain.close();
+      controller.abort();
+      await Promise.all([netA.stop(), netB.stop()]);
+      sinon.restore();
+    });
+
+    return {netA, netB, chain, controller};
+  }
 
   it("should create a peer on connect", async function () {
+    const {netA, netB} = await mockModules();
     await Promise.all([onPeerConnect(netA), onPeerConnect(netB), connect(netA, netB.peerId, netB.localMultiaddrs)]);
     expect(Array.from(netA.getConnectionsByPeer().values()).length).to.equal(1);
     expect(Array.from(netB.getConnectionsByPeer().values()).length).to.equal(1);
   });
 
   it("should delete a peer on disconnect", async function () {
+    const {netA, netB} = await mockModules();
     const connected = Promise.all([onPeerConnect(netA), onPeerConnect(netB)]);
     await connect(netA, netB.peerId, netB.localMultiaddrs);
     await connected;
@@ -100,6 +113,7 @@ describe("network", function () {
   });
 
   it("should not receive duplicate block", async function () {
+    const {netA, netB, chain} = await mockModules();
     const connected = Promise.all([onPeerConnect(netA), onPeerConnect(netB)]);
     const spy = sinon.spy();
     const forkDigest = chain.getForkDigest();
@@ -127,6 +141,7 @@ describe("network", function () {
   });
 
   it("should receive blocks on subscription", async function () {
+    const {netA, netB, chain} = await mockModules();
     const connected = Promise.all([onPeerConnect(netA), onPeerConnect(netB)]);
     await connect(netA, netB.peerId, netB.localMultiaddrs);
     await connected;
@@ -147,6 +162,7 @@ describe("network", function () {
   });
 
   it("should receive aggregate on subscription", async function () {
+    const {netA, netB, chain} = await mockModules();
     const connected = Promise.all([onPeerConnect(netA), onPeerConnect(netB)]);
     await connect(netA, netB.peerId, netB.localMultiaddrs);
     await connected;
@@ -163,6 +179,7 @@ describe("network", function () {
   });
 
   it("should receive committee attestations on subscription", async function () {
+    const {netA, netB, chain} = await mockModules();
     const connected = Promise.all([onPeerConnect(netA), onPeerConnect(netB)]);
     await connect(netA, netB.peerId, netB.localMultiaddrs);
     await connected;
@@ -186,6 +203,7 @@ describe("network", function () {
   });
 
   it("should connect to new peer by subnet", async function () {
+    const {netA, netB} = await mockModules();
     const subnetId = 10;
     netB.metadata.attnets[subnetId] = true;
     const connected = Promise.all([onPeerConnect(netA), onPeerConnect(netB)]);
@@ -204,5 +222,26 @@ describe("network", function () {
       true,
       "netA has not connected to peerB"
     );
+  });
+
+  it("Should goodbye peers on stop", async function () {
+    const {netA, netB, controller} = await mockModules();
+
+    const connected = Promise.all([onPeerConnect(netA), onPeerConnect(netB)]);
+    await connect(netA, netB.peerId, netB.localMultiaddrs);
+    await connected;
+
+    const onGoodbyeNetB = sinon.stub<[PeerId, Goodbye]>();
+    netB.reqResp.on(ReqRespEvent.receivedGoodbye, onGoodbyeNetB);
+
+    // Wait some time and stop netA expecting to goodbye netB
+    await sleep(500, controller.signal);
+    await netA.stop();
+    await sleep(500, controller.signal);
+
+    expect(onGoodbyeNetB.callCount).to.equal(1, "netB must receive 1 goodbye");
+    const [peer, goodbye] = onGoodbyeNetB.getCall(0).args;
+    expect(peer.toB58String()).to.equal(netA.peerId.toB58String(), "netA must be the goodbye requester");
+    expect(goodbye).to.equal(BigInt(GoodByeReasonCode.CLIENT_SHUTDOWN), "goodbye reason must be CLIENT_SHUTDOWN");
   });
 });

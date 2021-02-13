@@ -6,6 +6,8 @@ import {IBeaconDb} from "../../../db";
 import {RpcResponseStatus} from "../../../constants";
 import {ResponseError} from "../response";
 
+// TODO: Unit test
+
 export async function* onBeaconBlocksByRange(
   requestBody: BeaconBlocksByRangeRequest,
   chain: IBeaconChain,

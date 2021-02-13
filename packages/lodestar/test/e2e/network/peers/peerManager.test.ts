@@ -22,18 +22,6 @@ import {LogLevel, sleep, WinstonLogger} from "@chainsafe/lodestar-utils";
 const debugMode = process.env.DEBUG;
 const logger = debugMode ? new WinstonLogger({level: LogLevel.debug}) : silentLogger;
 
-// TODO: Tests
-
-// findMissingSubnets
-// - Ensure there are peers for all required subnets
-
-// Sync / ReqResp
-// - hello handshake on peer connect with correct encoding
-//    A sends status request to B with ssz encoding
-//    Peers should know each other and store the prefered encoding to
-//    netA.peerMetadata.getEncoding(netB.peerId)
-// - Should goodbye all peers on stop
-
 describe("network / peers / PeerManager", function () {
   const peerId1 = new PeerId(Buffer.from("lodestar-1"));
 
