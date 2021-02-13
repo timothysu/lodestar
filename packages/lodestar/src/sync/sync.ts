@@ -112,7 +112,12 @@ export class BeaconSync implements IBeaconSync {
   get state(): SyncState {
     const currentSlot = this.chain.clock.currentSlot;
     const headSlot = this.chain.forkChoice.getHead().slot;
-    if (currentSlot >= headSlot && headSlot >= currentSlot - this.slotImportTolerance && headSlot > 0) {
+    if (
+      currentSlot >= headSlot &&
+      headSlot >= currentSlot - this.slotImportTolerance
+      // TODO: Consider enabling this condition (used in Lighthouse)
+      // && headSlot > 0
+    ) {
       return SyncState.Synced;
     }
 
