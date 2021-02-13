@@ -9,9 +9,9 @@ import {silentLogger} from "../../../utils/logger";
 import {Libp2pPeerMetadataStore} from "../../../../src/network/peers/metastore";
 import {IReqResp, ReqRespEvent} from "../../../../src/network/reqresp";
 import {SimpleRpcScore} from "../../../../src/network/peers";
-import {PeerManager} from "../../../../src/network/peers/peerManager";
+import {PeerManager, PeerManagerEvent} from "../../../../src/network/peers/peerManager";
 import {BeaconMetrics} from "../../../../src/metrics";
-import {createNode} from "../../../utils/network";
+import {createNode, getAttnets} from "../../../utils/network";
 import {MockBeaconChain} from "../../../utils/mocks/chain/chain";
 import {generateEmptySignedBlock} from "../../../utils/block";
 import {generateState} from "../../../utils/state";
@@ -24,24 +24,8 @@ const logger = debugMode ? new WinstonLogger({level: LogLevel.debug}) : silentLo
 
 // TODO: Tests
 
-// handlePeerMetadataSequence
-// - Show that if seqNum is the same should not request metadata
-// - Show that if seqNum is bigger should request metadata
-
 // findMissingSubnets
 // - Ensure there are peers for all required subnets
-
-// syncPeersToDisconnect + gossipPeersToDisconnect
-// - Compute peers to disconnect, according to conditions
-
-// CheckPeerAliveTask
-// - cannot ping, should disconnect
-// - ping returns null, should disconnect
-// - ping successfully, return same sequence number > metadata not called
-// - ping successfully, return bigger sequence number > metadata called
-
-// DiversifyPeersBySubnetTask
-// - ??
 
 // Sync / ReqResp
 // - hello handshake on peer connect with correct encoding
@@ -49,9 +33,6 @@ const logger = debugMode ? new WinstonLogger({level: LogLevel.debug}) : silentLo
 //    Peers should know each other and store the prefered encoding to
 //    netA.peerMetadata.getEncoding(netB.peerId)
 // - Should goodbye all peers on stop
-
-// sync peer utils
-// - Filter and prioritize peers for sync or something else
 
 describe("network / peers / PeerManager", function () {
   const peerId1 = new PeerId(Buffer.from("lodestar-1"));
@@ -92,7 +73,24 @@ describe("network / peers / PeerManager", function () {
       controller.abort();
     });
 
-    return {chain, libp2p, controller};
+    const reqRespFake = new ReqRespFake();
+    const peerMetadataStore = new Libp2pPeerMetadataStore(config, libp2p.peerStore.metadataBook);
+    const peerScoreStore = new SimpleRpcScore(peerMetadataStore);
+
+    const peerManager = new PeerManager(
+      libp2p,
+      reqRespFake,
+      logger,
+      metrics,
+      chain,
+      config,
+      controller.signal,
+      peerMetadataStore,
+      peerScoreStore,
+      {targetPeers: 30, maxPeers: 50}
+    );
+
+    return {chain, libp2p, controller, reqRespFake, peerMetadataStore, peerManager};
   }
 
   // Create a real event emitter with stubbed methods
@@ -106,28 +104,10 @@ describe("network / peers / PeerManager", function () {
   }
 
   it("Should request metadata on receivedPing of unknown peer", async () => {
-    const {chain, libp2p, controller} = await mockModules();
+    const {reqRespFake, controller} = await mockModules();
 
     const seqNumber = BigInt(2);
     const metadata: Metadata = {seqNumber, attnets: []};
-
-    const reqRespFake = new ReqRespFake();
-    const peerMetadataStore = new Libp2pPeerMetadataStore(config, libp2p.peerStore.metadataBook);
-    const peerScoreStore = new SimpleRpcScore(peerMetadataStore);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const peerManager = new PeerManager(
-      libp2p,
-      reqRespFake,
-      logger,
-      metrics,
-      chain,
-      config,
-      controller.signal,
-      peerMetadataStore,
-      peerScoreStore,
-      {targetPeers: 30, maxPeers: 50}
-    );
 
     // Simulate peer1 responding with its metadata
     reqRespFake.metadata.resolves(metadata);
@@ -146,5 +126,64 @@ describe("network / peers / PeerManager", function () {
     reqRespFake.emit(ReqRespEvent.receivedPing, peerId1, seqNumber);
 
     expect(reqRespFake.metadata.callCount).to.equal(0, "reqResp.metadata must not be called again");
+  });
+
+  it("Should emit peer connected event on relevant peer status", async () => {
+    const {chain, reqRespFake, peerMetadataStore, peerManager} = await mockModules();
+
+    // Subscribe to `peerConnected` event, which must fire after checking peer relevance
+    const peerConnectedPromise = new Promise((resolve) => {
+      peerManager.on(PeerManagerEvent.peerConnected, resolve);
+    });
+
+    // Send the local status and remote status, which always passes the assertPeerRelevance function
+    const remoteStatus = chain.getStatus();
+    reqRespFake.emit(ReqRespEvent.receivedStatus, peerId1, remoteStatus);
+
+    await peerConnectedPromise;
+
+    expect(peerMetadataStore.status.get(peerId1)).to.deep.equal(remoteStatus, "Wrong stored status");
+  });
+
+  it("On peerConnect handshake flow", async () => {
+    const {chain, libp2p, reqRespFake, peerMetadataStore, controller, peerManager} = await mockModules();
+
+    // Subscribe to `peerConnected` event, which must fire after checking peer relevance
+    const peerConnectedPromise = new Promise((resolve) => {
+      peerManager.on(PeerManagerEvent.peerConnected, resolve);
+    });
+
+    // Simulate peer1 returning a PING and STATUS message
+    const remoteStatus = chain.getStatus();
+    const remoteMetadata: Metadata = {seqNumber: BigInt(1), attnets: getAttnets()};
+    reqRespFake.ping.resolves(remoteMetadata.seqNumber);
+    reqRespFake.status.resolves(remoteStatus);
+    reqRespFake.metadata.resolves(remoteMetadata);
+
+    const libp2pConnection = {
+      stat: {
+        direction: "inbound",
+        status: "open",
+      },
+      remotePeer: peerId1,
+    } as LibP2pConnection;
+    ((libp2p.connectionManager as any) as EventEmitter).emit("peer:connect", libp2pConnection);
+
+    await peerConnectedPromise;
+
+    // Allow requestMetadata promise to resolve
+    await sleep(0, controller.signal);
+
+    // After receiving the "peer:connect" event, the PeerManager must
+    // 1. Call reqResp.ping
+    // 2. Call reqResp.status
+    // 3. Receive ping result (1) and call reqResp.metadata
+    // 4. Receive status result (2) assert peer relevance and emit `PeerManagerEvent.peerConnected`
+    expect(reqRespFake.ping.callCount).to.equal(1, "reqResp.ping must be called");
+    expect(reqRespFake.status.callCount).to.equal(1, "reqResp.status must be called");
+    expect(reqRespFake.metadata.callCount).to.equal(1, "reqResp.metadata must be called");
+
+    expect(peerMetadataStore.status.get(peerId1)).to.deep.equal(remoteStatus, "Wrong stored status");
+    expect(peerMetadataStore.metadata.get(peerId1)).to.deep.equal(remoteMetadata, "Wrong stored metadata");
   });
 });

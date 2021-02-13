@@ -123,8 +123,7 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
   }
 
   public async ping(peerId: PeerId): Promise<Ping> {
-    const seqNumber = this.metadataController.seqNumber;
-    return await this.sendRequest<Ping>(peerId, Method.Ping, seqNumber);
+    return await this.sendRequest<Ping>(peerId, Method.Ping, this.metadataController.seqNumber);
   }
 
   public async metadata(peerId: PeerId): Promise<Metadata> {
@@ -176,7 +175,6 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
   private async *onRequest(method: Method, requestBody: RequestBody, peerId: PeerId): AsyncIterable<ResponseBody> {
     switch (method) {
       case Method.Ping:
-        this.emit(ReqRespEvent.receivedPing, peerId, requestBody as Ping);
         yield this.metadataController.seqNumber;
         break;
 
@@ -185,24 +183,36 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
         break;
 
       case Method.Goodbye:
-        this.emit(ReqRespEvent.receivedGoodbye, peerId, requestBody as Goodbye);
         yield BigInt(0);
         break;
 
       // Don't bubble Ping, Metadata, and, Goodbye requests to the app layer
 
       case Method.Status:
-        this.emit(ReqRespEvent.receivedStatus, peerId, requestBody as Status);
-        yield* this.reqRespHandler.onRequest(method, requestBody);
-        break;
-
       case Method.BeaconBlocksByRange:
       case Method.BeaconBlocksByRoot:
+        // TODO: Consider just moving the handlers here
         yield* this.reqRespHandler.onRequest(method, requestBody);
         break;
 
       default:
         throw Error(`Unsupported method ${method}`);
+    }
+
+    try {
+      switch (method) {
+        case Method.Ping:
+          this.emit(ReqRespEvent.receivedPing, peerId, requestBody as Ping);
+          break;
+        case Method.Goodbye:
+          this.emit(ReqRespEvent.receivedGoodbye, peerId, requestBody as Goodbye);
+          break;
+        case Method.Status:
+          this.emit(ReqRespEvent.receivedStatus, peerId, requestBody as Status);
+          break;
+      }
+    } catch (e) {
+      this.logger.error("Error emitting onRequest event", {}, e);
     }
   }
 }

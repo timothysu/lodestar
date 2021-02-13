@@ -3,6 +3,7 @@ import {expect} from "chai";
 import PeerId from "peer-id";
 import {Discv5Query} from "../../../../src/network/peers/interface";
 import {prioritizePeers} from "../../../../src/network/peers/priorization";
+import {getAttnets} from "../../../utils/network";
 
 type Result = {peersToDisconnect: PeerId[]; peersToConnect: number; discv5Queries: Discv5Query[]};
 
@@ -34,7 +35,7 @@ describe("network / peers / priorization", () => {
     },
     {
       id: "Don't request a subnet query when enough peers are connected to it",
-      connectedPeers: [{id: peers[0], attnets: attnets([3]), score: 0}],
+      connectedPeers: [{id: peers[0], attnets: getAttnets([3]), score: 0}],
       activeSubnetIds: [3],
       opts: {targetPeers: 1, maxPeers: 1},
       expectedResult: {
@@ -46,7 +47,7 @@ describe("network / peers / priorization", () => {
     {
       id: "Disconnect worst peers without duty",
       connectedPeers: [
-        {id: peers[0], attnets: attnets([3]), score: 0},
+        {id: peers[0], attnets: getAttnets([3]), score: 0},
         {id: peers[1], attnets: [], score: 0},
         {id: peers[2], attnets: [], score: -20},
         {id: peers[3], attnets: [], score: -40},
@@ -63,14 +64,14 @@ describe("network / peers / priorization", () => {
     {
       id: "Complete example: Disconnect peers and request a subnet query",
       connectedPeers: [
-        {id: peers[0], attnets: attnets([0, 1, 2]), score: 0},
-        {id: peers[1], attnets: attnets([0, 1, 2]), score: -10},
-        {id: peers[2], attnets: attnets([0, 1]), score: 0},
-        {id: peers[3], attnets: attnets([0]), score: -10},
-        {id: peers[4], attnets: attnets([2]), score: 0},
-        {id: peers[5], attnets: attnets([0, 2]), score: -20},
-        {id: peers[6], attnets: attnets([1, 2, 3]), score: 0},
-        {id: peers[7], attnets: attnets([1, 2]), score: -10},
+        {id: peers[0], attnets: getAttnets([0, 1, 2]), score: 0},
+        {id: peers[1], attnets: getAttnets([0, 1, 2]), score: -10},
+        {id: peers[2], attnets: getAttnets([0, 1]), score: 0},
+        {id: peers[3], attnets: getAttnets([0]), score: -10},
+        {id: peers[4], attnets: getAttnets([2]), score: 0},
+        {id: peers[5], attnets: getAttnets([0, 2]), score: -20},
+        {id: peers[6], attnets: getAttnets([1, 2, 3]), score: 0},
+        {id: peers[7], attnets: getAttnets([1, 2]), score: -10},
       ],
       activeSubnetIds: [1, 3],
       opts: {targetPeers: 6, maxPeers: 6},
@@ -97,11 +98,5 @@ describe("network / peers / priorization", () => {
       ...res,
       peersToDisconnect: res.peersToDisconnect.map((peer) => peer.toB58String()),
     };
-  }
-
-  function attnets(subnetIds: number[]): AttestationSubnets {
-    const arr: boolean[] = [];
-    for (const subnetId of subnetIds) arr[subnetId] = true;
-    return arr;
   }
 });

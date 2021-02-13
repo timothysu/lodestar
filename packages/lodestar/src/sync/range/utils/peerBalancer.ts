@@ -2,7 +2,7 @@ import PeerId from "peer-id";
 import {shuffle} from "../../../util/shuffle";
 import {sortBy} from "../../../util/sortBy";
 import {Batch, BatchStatus} from "../batch";
-import {PeerMap} from "./peerMap";
+import {PeerMap} from "../../../util/peerMap";
 
 /**
  * Balance and organize peers to perform requests with a SyncChain

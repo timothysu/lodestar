@@ -54,7 +54,7 @@ export async function sendRequest<T extends ResponseBody | ResponseBody[]>(
     throw new ErrorAborted("sendRequest");
   }
 
-  logger.verbose("Req dialing peer", logCtx);
+  logger.debug("Req  dialing peer", logCtx);
 
   try {
     // As of October 2020 we can't rely on libp2p.dialProtocol timeout to work so
@@ -84,7 +84,7 @@ export async function sendRequest<T extends ResponseBody | ResponseBody[]>(
       }
     });
 
-    logger.verbose("Req sending request", {...logCtx, requestBody} as Context);
+    logger.debug("Req  sending request", {...logCtx, requestBody} as Context);
 
     // Spec: The requester MUST close the write side of the stream once it finishes writing the request message
     // Impl: stream.sink should be closed automatically by js-libp2p-mplex when piped source returns
@@ -109,7 +109,7 @@ export async function sendRequest<T extends ResponseBody | ResponseBody[]>(
       }
     });
 
-    logger.verbose("Req request sent", logCtx);
+    logger.debug("Req  request sent", logCtx);
 
     const responses = await pipe(
       abortSource(stream.source, signal),
@@ -118,14 +118,16 @@ export async function sendRequest<T extends ResponseBody | ResponseBody[]>(
     );
 
     // TODO: Should log the response? Logs get extremely cluttered
-    logger.verbose("Req received response", logCtx);
+    // Only log once to verbose per request, intermediate steps to debug
+    // NOTE: add double space after "Req  " to match "Resp "
+    logger.verbose("Req  done", logCtx);
 
     return responses as T;
 
     // No need to call `stream.close()` here on finally {} to handle stream.source,
     // libp2p-mplex will .end() the source (it-pushable instance) for errors and returns
   } catch (e) {
-    logger.verbose("Req error", logCtx, e);
+    logger.verbose("Req  error", logCtx, e);
 
     const metadata: IRequestErrorMetadata = {method, encoding, peer};
 

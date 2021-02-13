@@ -22,7 +22,7 @@ export enum NetworkEvent {
 }
 
 export interface INetworkEvents {
-  [NetworkEvent.peerConnect]: (peerId: PeerId, direction: "inbound" | "outbound") => void;
+  [NetworkEvent.peerConnect]: (peerId: PeerId, direction: PeerDirection) => void;
   [NetworkEvent.peerDisconnect]: (peerId: PeerId) => void;
 }
 export type NetworkEventEmitter = StrictEventEmitter<EventEmitter, INetworkEvents>;

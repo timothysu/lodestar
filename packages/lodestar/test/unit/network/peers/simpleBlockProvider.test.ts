@@ -1,6 +1,6 @@
 import PeerId from "peer-id";
 import {PeerAction, ScoreState, SimpleRpcScore} from "../../../../src/network/peers/score";
-import {PeerMap} from "../../../../src/sync/range/utils/peerMap";
+import {PeerMap} from "../../../../src/util/peerMap";
 import {IPeerMetadataStore} from "../../../../src/network/peers";
 import {expect} from "chai";
 

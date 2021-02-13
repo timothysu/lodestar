@@ -7,6 +7,7 @@ import {Libp2pNetwork} from "../../src/network";
 import {NodejsNode} from "../../src/network/nodejs";
 import {createPeerId} from "../../src/network";
 import {defaultDiscv5Options} from "../../src/network/options";
+import {ATTESTATION_SUBNET_COUNT} from "../../src/constants";
 
 export async function createNode(
   multiaddr: string,
@@ -43,4 +44,15 @@ export function onPeerConnect(network: Libp2pNetwork): Promise<void> {
 
 export function onPeerDisconnect(network: Libp2pNetwork): Promise<void> {
   return new Promise<void>((resolve) => network["libp2p"].connectionManager.on("peer:disconnect", () => resolve()));
+}
+
+/**
+ * Generate valid filled attnets BitVector
+ */
+export function getAttnets(subnetIds: number[] = []): boolean[] {
+  const attnets = new Array(ATTESTATION_SUBNET_COUNT).fill(false);
+  for (const subnetId of subnetIds) {
+    attnets[subnetId] = true;
+  }
+  return attnets;
 }

@@ -1,8 +1,8 @@
 import {expect} from "chai";
 import PeerId from "peer-id";
-import {PeerMap, PeerSet} from "../../../../src/sync/range/utils/peerMap";
+import {PeerMap, PeerSet} from "../../../src/util/peerMap";
 
-describe("sync / range / peerMap", () => {
+describe("util / peerMap", () => {
   const peer1 = new PeerId(Buffer.from([0])); // Offset by one, PeerId encodes to B58String 0 as "1"
 
   describe("PeerMap", () => {

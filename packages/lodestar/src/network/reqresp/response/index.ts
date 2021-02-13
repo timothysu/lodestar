@@ -50,12 +50,12 @@ export async function handleRequest(
           throw new ResponseError(RpcResponseStatus.INVALID_REQUEST, e.message);
         });
 
-        logger.verbose("Resp received request", {...logCtx, requestBody} as Context);
+        logger.debug("Resp received request", {...logCtx, requestBody} as Context);
 
         yield* pipe(
           performRequestHandler(method, requestBody, peerId),
           // TODO: Should log the resp chunk? Logs get extremely cluttered
-          onChunk(() => logger.verbose("Resp sending chunk", logCtx)),
+          onChunk(() => logger.debug("Resp sending chunk", logCtx)),
           responseEncodeSuccess(config, method, encoding)
         );
       } catch (e) {
@@ -70,10 +70,17 @@ export async function handleRequest(
     stream.sink
   );
 
+  // TODO: It may happen that stream.sink returns before returning stream.source first,
+  // so you never see "Resp received request" in the logs and the response ends without
+  // sending any chunk, triggering EMPTY_RESPONSE error on the requesting side
+  // It has only happened when doing a request too fast upon immediate connection on inbound peer
+  // investigate a potential race condition there
+
   if (responseError) {
     logger.verbose("Resp error", logCtx, responseError);
     throw responseError;
   } else {
+    // Only log once to verbose per request, intermediate steps to debug
     logger.verbose("Resp done", logCtx);
   }
 
