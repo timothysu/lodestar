@@ -38,47 +38,47 @@ describe("gossip handler", function () {
 
   it("should handle new block", async function () {
     gossipStub.subscribeToBlock.callsFake(async (digest, callback) => {
-      await callback(generateEmptySignedBlock());
+      callback(generateEmptySignedBlock());
     });
     const handler = new BeaconGossipHandler(chainStub, networkStub, dbStub, logger);
-    await handler.start();
+    handler.start();
     expect(chainStub.receiveBlock.calledOnce).to.be.true;
   });
 
   it("should handle new aggregate and proof", async function () {
     const aggregateAndProof = generateEmptySignedAggregateAndProof();
     gossipStub.subscribeToAggregateAndProof.callsFake(async (digest, callback) => {
-      await callback(aggregateAndProof);
+      callback(aggregateAndProof);
     });
     const handler = new BeaconGossipHandler(chainStub, networkStub, dbStub, logger);
-    await handler.start();
+    handler.start();
     expect(dbStub.aggregateAndProof.add.withArgs(aggregateAndProof.message).calledOnce).to.be.true;
   });
 
   it("should handle new attester slashing", async function () {
     gossipStub.subscribeToAttesterSlashing.callsFake(async (digest, callback) => {
-      await callback(generateEmptyAttesterSlashing());
+      callback(generateEmptyAttesterSlashing());
     });
     const handler = new BeaconGossipHandler(chainStub, networkStub, dbStub, logger);
-    await handler.handleSyncCompleted();
+    handler.start();
     expect(dbStub.attesterSlashing.add.calledOnce).to.be.true;
   });
 
   it("should handle new proposer slashing", async function () {
     gossipStub.subscribeToProposerSlashing.callsFake(async (digest, callback) => {
-      await callback(generateEmptyProposerSlashing());
+      callback(generateEmptyProposerSlashing());
     });
     const handler = new BeaconGossipHandler(chainStub, networkStub, dbStub, logger);
-    await handler.handleSyncCompleted();
+    handler.start();
     expect(dbStub.proposerSlashing.add.calledOnce).to.be.true;
   });
 
   it("should handle new voluntary exit", async function () {
     gossipStub.subscribeToVoluntaryExit.callsFake(async (digest, callback) => {
-      await callback(generateEmptySignedVoluntaryExit());
+      callback(generateEmptySignedVoluntaryExit());
     });
     const handler = new BeaconGossipHandler(chainStub, networkStub, dbStub, logger);
-    await handler.handleSyncCompleted();
+    handler.start();
     expect(dbStub.voluntaryExit.add.calledOnce).to.be.true;
   });
 
@@ -94,7 +94,7 @@ describe("gossip handler", function () {
     });
     const oldForkDigest = chain.getForkDigest();
     const handler = new BeaconGossipHandler(chain, networkStub, dbStub, logger);
-    await handler.start();
+    handler.start();
     expect(gossipStub.subscribeToBlock.callCount).to.be.equal(1);
     // fork digest changed due to current version changed
     state.fork.currentVersion = Buffer.from([100, 0, 0, 0]);
@@ -104,6 +104,6 @@ describe("gossip handler", function () {
     await sleep(1);
     expect(gossipStub.unsubscribe.callCount).to.be.equal(5);
     expect(gossipStub.subscribeToBlock.callCount).to.be.equal(2);
-    await chain.close();
+    chain.close();
   });
 });
