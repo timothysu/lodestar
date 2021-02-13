@@ -55,7 +55,6 @@ const logger = debugMode ? new WinstonLogger({level: LogLevel.debug}) : silentLo
 
 describe("network / peers / PeerManager", function () {
   const peerId1 = new PeerId(Buffer.from("lodestar-1"));
-  const peerId2 = new PeerId(Buffer.from("lodestar-2"));
 
   const metrics = new BeaconMetrics({enabled: true, timeout: 5000, pushGateway: false}, {logger});
 
@@ -116,6 +115,7 @@ describe("network / peers / PeerManager", function () {
     const peerMetadataStore = new Libp2pPeerMetadataStore(config, libp2p.peerStore.metadataBook);
     const peerScoreStore = new SimpleRpcScore(peerMetadataStore);
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const peerManager = new PeerManager(
       libp2p,
       reqRespFake,

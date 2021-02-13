@@ -4,7 +4,6 @@ import PeerId from "peer-id";
 import StrictEventEmitter from "strict-event-emitter-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {
-  RequestId,
   RequestBody,
   ResponseBody,
   Ping,
@@ -15,7 +14,7 @@ import {
   Metadata,
   SignedBeaconBlock,
 } from "@chainsafe/lodestar-types";
-import {Method, Methods, ReqRespEncoding} from "../../constants";
+import {Method, Methods} from "../../constants";
 import {IPeerMetadataStore, IPeerRpcScoreStore} from "../peers";
 
 export enum ReqRespEvent {
@@ -24,7 +23,7 @@ export enum ReqRespEvent {
   receivedStatus = "ReqResp-receivedStatus",
 }
 
-type ReqRespEvents = {
+export type ReqRespEvents = {
   [ReqRespEvent.receivedPing]: (peer: PeerId, seqNumber: Ping) => void;
   [ReqRespEvent.receivedGoodbye]: (peer: PeerId, goodbye: Goodbye) => void;
   [ReqRespEvent.receivedStatus]: (peer: PeerId, status: Status) => void;
@@ -48,13 +47,6 @@ export interface IReqRespModules {
   peerMetadata: IPeerMetadataStore;
   peerRpcScores: IPeerRpcScoreStore;
 }
-
-export type ReqRespRequest<Body extends RequestBody | null = null> = {
-  method: Method;
-  id: RequestId;
-  body: Body;
-  encoding: ReqRespEncoding;
-};
 
 export type RequestOrResponseType = Exclude<
   ReturnType<typeof Methods[Method]["responseSSZType"]> | ReturnType<typeof Methods[Method]["requestSSZType"]>,

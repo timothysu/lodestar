@@ -3,39 +3,36 @@ import chaiAsPromised from "chai-as-promised";
 import {config} from "@chainsafe/lodestar-config/minimal";
 import {Status} from "@chainsafe/lodestar-types";
 import {MockBeaconChain} from "../../../utils/mocks/chain/chain";
-import {generateEmptySignedBlock} from "../../../utils/block";
-import {generateState} from "../../../utils/state";
 import {
   assertPeerRelevance,
   IrrelevantPeerError,
   IrrelevantPeerErrorCode,
 } from "../../../../src/network/peers/assertPeerRelevance";
+import {IBeaconClock} from "../../../../src/chain/clock";
 import {expectRejectedWithLodestarError} from "../../../utils/errors";
 import {toHexString} from "@chainsafe/ssz";
 
 chai.use(chaiAsPromised);
 
 describe("network / peers / assertPeerRelevance", () => {
-  const block = generateEmptySignedBlock();
-  const state = generateState({
-    finalizedCheckpoint: {
-      epoch: 0,
-      root: config.types.BeaconBlock.hashTreeRoot(block.message),
-    },
-  });
-
-  const chain = new MockBeaconChain({
-    genesisTime: 0,
-    chainId: 0,
-    networkId: BigInt(0),
-    state,
-    config,
-  });
-
-  const correctForkDigest = chain.getForkDigest();
+  const correctForkDigest = Buffer.alloc(4, 0);
   const differentForkDigest = Buffer.alloc(4, 1);
   const ZERO_HASH = Buffer.alloc(32, 0);
   const differedRoot = Buffer.alloc(32, 1);
+
+  // Partial instance with only the methods needed for the test
+  const chain = ({
+    getStatus: () => ({
+      forkDigest: correctForkDigest,
+      finalizedRoot: ZERO_HASH,
+      finalizedEpoch: 0,
+      headRoot: ZERO_HASH,
+      headSlot: 0,
+    }),
+    clock: {
+      currentSlot: 0,
+    } as Partial<IBeaconClock>,
+  } as Partial<MockBeaconChain>) as MockBeaconChain;
 
   const testCases: {id: string; remote: Status; error?: IrrelevantPeerError}[] = [
     {

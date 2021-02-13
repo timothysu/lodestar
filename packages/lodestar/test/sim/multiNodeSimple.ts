@@ -1,7 +1,9 @@
 import {IBeaconParams} from "@chainsafe/lodestar-params";
 import {WinstonLogger} from "@chainsafe/lodestar-utils";
-import {getDevBeaconNode} from "../utils/node/beacon";
+import {Libp2pNetwork} from "../../src/network";
 import {BeaconNode} from "../../src/node";
+import {getDevBeaconNode} from "../utils/node/beacon";
+import {connect} from "../utils/network";
 
 describe("Run multi node single thread", function () {
   const beaconParams: Pick<IBeaconParams, "SECONDS_PER_SLOT" | "SLOTS_PER_EPOCH"> = {
@@ -45,7 +47,7 @@ describe("Run multi node single thread", function () {
     for (let i = 0; i < nodeCount; i++) {
       for (let j = 0; j < nodeCount; j++) {
         if (i !== j) {
-          await nodes[i].network.connect(nodes[j].network.peerId, nodes[j].network.localMultiaddrs);
+          await connect(nodes[i].network as Libp2pNetwork, nodes[j].network.peerId, nodes[j].network.localMultiaddrs);
         }
       }
     }

@@ -1,3 +1,3 @@
-export * from "./reqResp";
-export * from "./handlers";
+export {ReqResp, IReqRespOptions} from "./reqResp";
+export {IReqRespHandler, ReqRespHandler} from "./handlers";
 export * from "./interface";
