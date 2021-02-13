@@ -2,9 +2,10 @@ import PeerId from "peer-id";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {Discv5, Discv5Discovery} from "@chainsafe/discv5";
+import {shuffle} from "../../util/shuffle";
 import {getConnectedPeerIds} from "./utils";
 import {Discv5Query} from "./interface";
-import {shuffle} from "../../util/shuffle";
+import {IPeerRpcScoreStore, ScoreState} from "./score";
 
 export type PeerDiscoveryOpts = {
   maxPeers: number;
@@ -12,14 +13,22 @@ export type PeerDiscoveryOpts = {
 
 export class PeerDiscovery {
   private libp2p: LibP2p;
+  private peerRpcScores: IPeerRpcScoreStore;
   private logger: ILogger;
   private config: IBeaconConfig;
 
   /** The maximum number of peers we allow (exceptions for subnet peers) */
   private maxPeers: number;
 
-  constructor(libp2p: LibP2p, logger: ILogger, config: IBeaconConfig, opts: PeerDiscoveryOpts) {
+  constructor(
+    libp2p: LibP2p,
+    peerRpcScores: IPeerRpcScoreStore,
+    logger: ILogger,
+    config: IBeaconConfig,
+    opts: PeerDiscoveryOpts
+  ) {
     this.libp2p = libp2p;
+    this.peerRpcScores = peerRpcScores;
     this.logger = logger;
     this.config = config;
     this.maxPeers = opts.maxPeers;
@@ -133,9 +142,9 @@ export class PeerDiscovery {
     for (const peer of discoveredPeers) {
       if (
         connectedPeersCount + toDialPeers.length < this.maxPeers &&
-        !this.libp2p.connectionManager.get(peer)
-        // TODO:
-        // && !this.peers.isBannedOrDisconnected(peer)
+        !this.libp2p.connectionManager.get(peer) &&
+        // Ensure peer is not banner or disconnected. New peers are healthy by default
+        this.peerRpcScores.getScoreState(peer) === ScoreState.Healthy
       ) {
         // we attempt a connection if this peer is a subnet peer or if the max peer count
         // is not yet filled (including dialing peers)

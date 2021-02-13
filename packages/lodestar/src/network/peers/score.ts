@@ -89,7 +89,7 @@ export class SimpleRpcScore implements IPeerRpcScoreStore {
   applyAction(peer: PeerId, action: PeerAction, actionName?: string): void {
     this.add(peer, peerActionScore[action]);
 
-    // TODO: Log action to debug
+    // TODO: Log action to debug + do metrics
     actionName;
   }
 

@@ -15,7 +15,6 @@ import {AttestationCollector} from "./utils";
 import {fetchUnknownBlockRoot} from "./utils/unknownRoot";
 import {PeerManagerEvent} from "../network/peers/peerManager";
 import {getPeerSyncType, PeerSyncType} from "./utils/remoteSyncType";
-import {SLOT_IMPORT_TOLERANCE} from "./constants";
 import {SyncState} from "./interface";
 
 export class BeaconSync implements IBeaconSync {
@@ -31,7 +30,17 @@ export class BeaconSync implements IBeaconSync {
   private readonly attestationCollector: AttestationCollector;
 
   // avoid finding same root at the same time
-  private readonly processingRoots: Set<string>;
+  private readonly processingRoots = new Set<string>();
+
+  /**
+   * The number of slots ahead of us that is allowed before starting a RangeSync
+   * If a peer is within this tolerance (forwards or backwards), it is treated as a fully sync'd peer.
+   *
+   * This means that we consider ourselves synced (and hence subscribe to all subnets and block
+   * gossip if no peers are further than this range ahead of us that we have not already downloaded
+   * blocks for.
+   */
+  private readonly slotImportTolerance: Slot;
 
   private controller = new AbortController();
 
@@ -45,15 +54,11 @@ export class BeaconSync implements IBeaconSync {
     this.gossip =
       modules.gossipHandler || new BeaconGossipHandler(modules.chain, modules.network, modules.db, this.logger);
     this.attestationCollector = modules.attestationCollector || new AttestationCollector(modules.config, modules);
-    this.processingRoots = new Set();
+    this.slotImportTolerance = modules.config.params.SLOTS_PER_EPOCH;
 
     this.rangeSync.on(RangeSyncEvent.completedChain, this.updateSyncState);
   }
 
-  // TODO: Log peer count every interval, currently it was done every 3 * SECONDS_PER_SLOT * 1000
-  //   activePeers: this.network.getPeers().length,
-  //   syncPeers: getSyncPeers2(this.network).length,
-  //   unknownRootPeers: getUnknownRootPeers(this.network).length,
   public async start(): Promise<void> {
     this.network.peerManager.on(PeerManagerEvent.peerConnected, this.addPeer);
     this.network.peerManager.on(PeerManagerEvent.peerDisconnected, this.removePeer);
@@ -107,7 +112,7 @@ export class BeaconSync implements IBeaconSync {
   get state(): SyncState {
     const currentSlot = this.chain.clock.currentSlot;
     const headSlot = this.chain.forkChoice.getHead().slot;
-    if (currentSlot >= headSlot && headSlot >= currentSlot - SLOT_IMPORT_TOLERANCE && headSlot > 0) {
+    if (currentSlot >= headSlot && headSlot >= currentSlot - this.slotImportTolerance && headSlot > 0) {
       return SyncState.Synced;
     }
 
@@ -142,11 +147,9 @@ export class BeaconSync implements IBeaconSync {
    */
   private addPeer = (peerId: PeerId, peerStatus: Status): void => {
     const localStatus = this.chain.getStatus();
-    const syncType = getPeerSyncType(localStatus, peerStatus, this.chain);
+    const syncType = getPeerSyncType(localStatus, peerStatus, this.chain, this.slotImportTolerance);
 
     if (syncType === PeerSyncType.Advanced) {
-      // TODO: Consider that the peer may not be connected anymore at this point
-      // This is a potential race condition
       this.rangeSync.addPeer(peerId, localStatus, peerStatus);
     }
 

@@ -3,7 +3,6 @@ import {toHexString} from "@chainsafe/ssz";
 import {expect} from "chai";
 import {IBeaconChain} from "../../../../src/chain";
 import {ZERO_HASH} from "../../../../src/constants";
-import {SLOT_IMPORT_TOLERANCE} from "../../../../src/sync/constants";
 import {
   getPeerSyncType,
   getRangeSyncType,
@@ -12,6 +11,7 @@ import {
 } from "../../../../src/sync/utils/remoteSyncType";
 
 describe("network / peers / remoteSyncType", () => {
+  const slotImportTolerance = 32;
   const knownRoot = Buffer.alloc(32, 1);
   const status: Status = {
     finalizedEpoch: 0,
@@ -44,13 +44,13 @@ describe("network / peers / remoteSyncType", () => {
       {
         id: "Remote has same finalizedEpoch and far head",
         local: {finalizedEpoch: 10, headSlot: 10},
-        remote: {finalizedEpoch: 10, headSlot: 10 + 1 + SLOT_IMPORT_TOLERANCE},
+        remote: {finalizedEpoch: 10, headSlot: 10 + 1 + slotImportTolerance},
         syncType: PeerSyncType.Advanced,
       },
       {
         id: "Remote has same finalizedEpoch and far head with known block",
         local: {finalizedEpoch: 10, headSlot: 10},
-        remote: {finalizedEpoch: 10, headSlot: 10 + 1 + SLOT_IMPORT_TOLERANCE, headRoot: knownRoot},
+        remote: {finalizedEpoch: 10, headSlot: 10 + 1 + slotImportTolerance, headRoot: knownRoot},
         blocks: [knownRoot],
         syncType: PeerSyncType.FullySynced,
       },
@@ -73,7 +73,7 @@ describe("network / peers / remoteSyncType", () => {
         const local = {...status, ...localPartial};
         const remote = {...status, ...remotePartial};
         const chain = chainHasBlocks(blocks || []);
-        expect(getPeerSyncType(local, remote, chain)).to.equal(syncType);
+        expect(getPeerSyncType(local, remote, chain, slotImportTolerance)).to.equal(syncType);
       });
     }
   });

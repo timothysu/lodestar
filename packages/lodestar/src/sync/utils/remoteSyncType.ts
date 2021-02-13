@@ -1,6 +1,5 @@
 import {Status} from "@chainsafe/lodestar-types";
 import {IBeaconChain} from "../../chain";
-import {SLOT_IMPORT_TOLERANCE} from "../constants";
 
 /** The type of peer relative to our current state */
 export enum PeerSyncType {
@@ -12,10 +11,15 @@ export enum PeerSyncType {
   Behind = "Behind",
 }
 
-export function getPeerSyncType(local: Status, remote: Status, chain: IBeaconChain): PeerSyncType {
+export function getPeerSyncType(
+  local: Status,
+  remote: Status,
+  chain: IBeaconChain,
+  slotImportTolerance: number
+): PeerSyncType {
   // Aux vars: Inclusive boundaries of the range to consider a peer's head synced to ours.
-  const nearRangeStart = local.headSlot - SLOT_IMPORT_TOLERANCE;
-  const nearRangeEnd = local.headSlot + SLOT_IMPORT_TOLERANCE;
+  const nearRangeStart = local.headSlot - slotImportTolerance;
+  const nearRangeEnd = local.headSlot + slotImportTolerance;
 
   if (remote.finalizedEpoch < local.finalizedEpoch) {
     // The node has a lower finalized epoch, their chain is not useful to us. There are two

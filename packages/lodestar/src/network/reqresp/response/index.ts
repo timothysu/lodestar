@@ -54,7 +54,7 @@ export async function handleRequest(
 
         yield* pipe(
           performRequestHandler(method, requestBody, peerId),
-          // TODO: Should log the resp chunk? Logs get extremely cluttered
+          // NOTE: Do not log the resp chunk contents, logs get extremely cluttered
           onChunk(() => logger.debug("Resp sending chunk", logCtx)),
           responseEncodeSuccess(config, method, encoding)
         );
@@ -80,7 +80,7 @@ export async function handleRequest(
     logger.verbose("Resp error", logCtx, responseError);
     throw responseError;
   } else {
-    // Only log once to verbose per request, intermediate steps to debug
+    // NOTE: Only log once per request to verbose, intermediate steps to debug
     logger.verbose("Resp done", logCtx);
   }
 

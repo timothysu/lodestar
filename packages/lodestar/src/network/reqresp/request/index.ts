@@ -117,8 +117,8 @@ export async function sendRequest<T extends ResponseBody | ResponseBody[]>(
       collectResponses(method, maxResponses)
     );
 
-    // TODO: Should log the response? Logs get extremely cluttered
-    // Only log once to verbose per request, intermediate steps to debug
+    // NOTE: Only log once per request to verbose, intermediate steps to debug
+    // NOTE: Do not log the response, logs get extremely cluttered
     // NOTE: add double space after "Req  " to match "Resp "
     logger.verbose("Req  done", logCtx);
 

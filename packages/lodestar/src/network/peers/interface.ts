@@ -4,7 +4,14 @@ import {ReqRespEncoding} from "../../constants";
 
 export type Discv5Query = {subnetId: number; maxPeersToDiscover: number};
 
-export type RequestedSubnet = {subnetId: number; toSlot: Slot};
+export type RequestedSubnet = {
+  subnetId: number;
+  /**
+   * Slot after which the network will stop to mantain a min number of peers
+   *  connected to `subnetId`
+   */
+  toSlot: Slot;
+};
 
 export type PeerMetadataStoreItem<T> = {
   set: (peer: PeerId, value: T) => void;

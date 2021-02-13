@@ -17,6 +17,7 @@ import {generateEmptySignedBlock} from "../../../utils/block";
 import {generateState} from "../../../utils/state";
 import {Metadata} from "@chainsafe/lodestar-types";
 import {LogLevel, sleep, WinstonLogger} from "@chainsafe/lodestar-utils";
+import {waitForEvent} from "../../../utils/events/resolver";
 
 // Run tests with `DEBUG=true mocha ...` to get detailed logs of ReqResp exchanges
 const debugMode = process.env.DEBUG;
@@ -116,13 +117,19 @@ describe("network / peers / PeerManager", function () {
     expect(reqRespFake.metadata.callCount).to.equal(0, "reqResp.metadata must not be called again");
   });
 
-  it("Should emit peer connected event on relevant peer status", async () => {
-    const {chain, reqRespFake, peerMetadataStore, peerManager} = await mockModules();
+  const libp2pConnectionOutboud = {
+    stat: {direction: "outbound", status: "open"},
+    remotePeer: peerId1,
+  } as LibP2pConnection;
+
+  it("Should emit peer connected event on relevant peer status", async function () {
+    const {chain, libp2p, reqRespFake, peerMetadataStore, peerManager} = await mockModules();
+
+    // Simualate a peer connection, get() should return truthy
+    libp2p.connectionManager.connections.set(peerId1.toB58String(), [libp2pConnectionOutboud]);
 
     // Subscribe to `peerConnected` event, which must fire after checking peer relevance
-    const peerConnectedPromise = new Promise((resolve) => {
-      peerManager.on(PeerManagerEvent.peerConnected, resolve);
-    });
+    const peerConnectedPromise = waitForEvent(peerManager, PeerManagerEvent.peerConnected, this.timeout() / 2);
 
     // Send the local status and remote status, which always passes the assertPeerRelevance function
     const remoteStatus = chain.getStatus();
@@ -133,13 +140,14 @@ describe("network / peers / PeerManager", function () {
     expect(peerMetadataStore.status.get(peerId1)).to.deep.equal(remoteStatus, "Wrong stored status");
   });
 
-  it("On peerConnect handshake flow", async () => {
+  it("On peerConnect handshake flow", async function () {
     const {chain, libp2p, reqRespFake, peerMetadataStore, controller, peerManager} = await mockModules();
 
+    // Simualate a peer connection, get() should return truthy
+    libp2p.connectionManager.get = sinon.stub().returns({});
+
     // Subscribe to `peerConnected` event, which must fire after checking peer relevance
-    const peerConnectedPromise = new Promise((resolve) => {
-      peerManager.on(PeerManagerEvent.peerConnected, resolve);
-    });
+    const peerConnectedPromise = waitForEvent(peerManager, PeerManagerEvent.peerConnected, this.timeout() / 2);
 
     // Simulate peer1 returning a PING and STATUS message
     const remoteStatus = chain.getStatus();
@@ -148,14 +156,9 @@ describe("network / peers / PeerManager", function () {
     reqRespFake.status.resolves(remoteStatus);
     reqRespFake.metadata.resolves(remoteMetadata);
 
-    const libp2pConnection = {
-      stat: {
-        direction: "inbound",
-        status: "open",
-      },
-      remotePeer: peerId1,
-    } as LibP2pConnection;
-    ((libp2p.connectionManager as any) as EventEmitter).emit("peer:connect", libp2pConnection);
+    // Simualate a peer connection, get() should return truthy
+    libp2p.connectionManager.connections.set(peerId1.toB58String(), [libp2pConnectionOutboud]);
+    ((libp2p.connectionManager as any) as EventEmitter).emit("peer:connect", libp2pConnectionOutboud);
 
     await peerConnectedPromise;
 

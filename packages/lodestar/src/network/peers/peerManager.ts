@@ -17,8 +17,10 @@ import {PeerDiscovery} from "./discover";
 import {prioritizePeers} from "./priorization";
 import {RequestedSubnet} from "./interface";
 import {IPeerRpcScoreStore, ScoreState} from "./score";
+import {getConnectedPeerIds} from "./utils";
 
 export enum PeerManagerEvent {
+  /** A relevant peer has connected or has been re-STATUS'd */
   peerConnected = "PeerManager-peerConnected",
   peerDisconnected = "PeerManager-peerDisconnected",
 }
@@ -54,13 +56,6 @@ type PeerManagerOpts = {
 const requestImmediately = 0;
 /** Helper for `peersToPing` Map, value to set to trigger a request some interval */
 const requestLatter = (): number => Date.now();
-
-// min_ttl is computed from the subnet highest slot
-// if the slot is more than epoch away, add an event to start looking for peers
-// add one slot to ensure we keep the peer for the subscription slot
-// min_ttl = chain.clock.timeAtSlot(subnet.slot + 1)
-// min_ttl is the timestamp at which the subnet can be unsubscribed
-// The subnets are request by validators through the API
 
 /**
  * Tasks:
@@ -121,7 +116,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
 
     this.STATUS_INTERVAL_MS = config.params.SLOTS_PER_EPOCH * config.params.SECONDS_PER_SLOT * 1000;
 
-    this.discovery = new PeerDiscovery(libp2p, logger, config, opts);
+    this.discovery = new PeerDiscovery(libp2p, peerRpcScores, logger, config, opts);
 
     // TODO: Connect to peers in the peerstore. Is this done automatically by libp2p?
 
@@ -225,7 +220,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private onStatus = async (peer: PeerId, status: Status): Promise<void> => {
     this.peersToStatus.set(peer, requestLatter());
 
-    // TODO: Handle rejections
     try {
       await assertPeerRelevance(status, this.chain, this.config);
     } catch (e) {
@@ -242,7 +236,11 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.peerMetadataStore.status.set(peer, status);
 
     // Peer is usable, send it to the rangeSync
-    this.emit(PeerManagerEvent.peerConnected, peer, status);
+    // NOTE: Peer may not be connected anymore at this point, potential race condition
+    // libp2p.connectionManager.get() returns not null if there's +1 open connections with `peer`
+    if (this.libp2p.connectionManager.get(peer)) {
+      this.emit(PeerManagerEvent.peerConnected, peer, status);
+    }
   };
 
   private async requestMetadata(peer: PeerId): Promise<void> {
@@ -392,11 +390,9 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     const {direction, status} = libp2pConnection.stat;
     const peer = libp2pConnection.remotePeer;
 
-    // TODO: store peer in DB
-
     this.metrics.peers.set(this.getConnectedPeerIds().length);
     this.logger.verbose("peer connected", {peerId: peer.toB58String(), direction, status});
-    // Don't emit the peerConnect event here, but after validating the status
+    // NOTE: The peerConnect event is not emitted here here, but after asserting peer relevance
 
     // On connection:
     // - Outbound connections: send a STATUS and PING request
@@ -423,8 +419,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     const {direction, status} = libp2pConnection.stat;
     const peer = libp2pConnection.remotePeer;
 
-    // TODO: Remove peer from DB
-
     // remove the ping and status timer for the peer
     this.peersToPing.delete(peer);
     this.peersToStatus.delete(peer);
@@ -441,14 +435,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    * Return peers with at least one connection in status "open"
    */
   private getConnectedPeerIds(): PeerId[] {
-    const peerIds: PeerId[] = [];
-    for (const connections of this.libp2p.connectionManager.connections.values()) {
-      const openConnection = connections.find((connection) => connection.stat.status === "open");
-      if (openConnection) {
-        peerIds.push(openConnection.remotePeer);
-      }
-    }
-    return peerIds;
+    return getConnectedPeerIds(this.libp2p);
   }
 
   private async disconnect(peerId: PeerId): Promise<void> {

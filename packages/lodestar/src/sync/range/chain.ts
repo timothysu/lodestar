@@ -57,8 +57,11 @@ const EPOCHS_PER_BATCH = 2;
 
 /**
  * The maximum number of batches to queue before requesting more.
+ * In good network conditions downloading batches is much faster than processing them
+ * A number > 5 results in wasted progress when the chain completes syncing
+ *
+ * TODO: When switching branches usually all batches in AwaitingProcessing are dropped, could it be optimized?
  */
-// TODO: When switching branches usually all batches in AwaitingProcessing are dropped, could it be optimized?
 const BATCH_BUFFER_SIZE = 5;
 
 enum SyncState {
@@ -182,9 +185,9 @@ export class SyncChain {
 
   /**
    * Returns true if the peer existed and has been removed
+   * NOTE: The RangeSync will take care of deleting the SyncChain if peers = 0
    */
   removePeer(peerId: PeerId): boolean {
-    // TODO: What to do when peer count is zero?
     return this.peerset.delete(peerId);
   }
 
