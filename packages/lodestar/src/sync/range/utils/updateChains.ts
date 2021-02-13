@@ -27,15 +27,10 @@ export function updateChains(chains: SyncChain[]): {toStart: SyncChain[]; toStop
 }
 
 function updateFinalizedChains(finalizedChains: SyncChain[]): {toStart: SyncChain[]; toStop: SyncChain[]} | null {
-  // Find the chain with most peers and check if it is already syncing
-  const preferredSyncChains = sortBy(
-    finalizedChains,
-    (syncChain) => syncChain.peers,
-    (syncChain) => (syncChain.isSyncing ? 1 : 0)
-  );
+  // Pick first only
+  const [newSyncChain] = prioritizeSyncChains(finalizedChains);
 
   // Should sync on finalized chain
-  const newSyncChain = preferredSyncChains[0];
   if (!newSyncChain) {
     // No finalized chain to sync
     return null;
@@ -62,18 +57,10 @@ function updateFinalizedChains(finalizedChains: SyncChain[]): {toStart: SyncChai
 }
 
 function updateHeadChains(headChains: SyncChain[]): {toStart: SyncChain[]; toStop: SyncChain[]} {
-  // Order chains by available peers, if two chains have the same number of peers, prefer one
-  // that is already syncing
-  const preferredSyncChains = sortBy(
-    headChains,
-    (syncChain) => syncChain.peers,
-    (syncChain) => (syncChain.isSyncing ? 1 : 0)
-  );
-
   const toStart: SyncChain[] = [];
   const toStop: SyncChain[] = [];
 
-  for (const syncChain of preferredSyncChains) {
+  for (const syncChain of prioritizeSyncChains(headChains)) {
     if (toStart.length < PARALLEL_HEAD_CHAINS) {
       toStart.push(syncChain);
     } else {
@@ -82,4 +69,16 @@ function updateHeadChains(headChains: SyncChain[]): {toStart: SyncChain[]; toSto
   }
 
   return {toStart, toStop};
+}
+
+/**
+ * Order `syncChains` by most peers and already syncing first
+ * If two chains have the same number of peers, prefer the already syncing to not drop progress
+ */
+function prioritizeSyncChains(syncChains: SyncChain[]): SyncChain[] {
+  return sortBy(
+    syncChains,
+    (syncChain) => -syncChain.peers, // Sort from high peer count to low: negative to reverse
+    (syncChain) => (syncChain.isSyncing ? 0 : 1) // Sort by isSyncing first = 0
+  );
 }

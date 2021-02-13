@@ -70,6 +70,7 @@ export function prioritizePeers(
     // reduce their probability of being disconected, mantaining `targetPeersPerSubnet`
 
     const connectedPeersWithoutDuty = connectedPeers.filter((peer) => !peerHasDuty.get(peer.id.toB58String()));
+    // sort from least score to high
     const worstPeers = sortBy(shuffle(connectedPeersWithoutDuty), (peer) => peer.score);
     for (const peer of worstPeers.slice(0, peerCount - targetPeers)) {
       peersToDisconnect.push(peer.id);
