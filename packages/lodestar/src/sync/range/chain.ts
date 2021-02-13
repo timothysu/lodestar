@@ -45,6 +45,8 @@ export type ChainTarget = {
   root: Root;
 };
 
+export class SyncChainStartError extends Error {}
+
 /**
  * Blocks are downloaded in batches from peers. This constant specifies how many epochs worth of
  * blocks per batch are requested _at most_. A batch may request less blocks to account for
@@ -73,7 +75,7 @@ enum SyncState {
 
 export class SyncChain {
   /** Short string id to identify this SyncChain in logs */
-  readonly id: string;
+  readonly logId: string;
   /** Should sync up until this slot, then stop */
   readonly target: ChainTarget;
   readonly syncType: RangeSyncType;
@@ -118,7 +120,7 @@ export class SyncChain {
     this.config = config;
     this.logger = logger;
     this.opts = {epochsPerBatch: opts?.epochsPerBatch ?? EPOCHS_PER_BATCH};
-    this.id = `${syncType}-${target.slot}-${toHexString(target.root).slice(0, 6)}`;
+    this.logId = `${syncType}-${target.slot}-${toHexString(target.root).slice(0, 6)}`;
   }
 
   /**
@@ -127,7 +129,7 @@ export class SyncChain {
    */
   async startSyncing(localFinalizedEpoch: Epoch): Promise<void> {
     if (this.state !== SyncState.Stopped) {
-      throw Error(`Attempting to start a SyncChain with state ${this.state}`);
+      throw new SyncChainStartError(`Attempted to start SyncChain with state ${this.state}`);
     }
 
     // to avoid dropping local progress, we advance the chain with its batch boundaries.
@@ -200,6 +202,10 @@ export class SyncChain {
 
   get isSyncing(): boolean {
     return this.state === SyncState.Syncing;
+  }
+
+  get isStopped(): boolean {
+    return this.state === SyncState.Stopped;
   }
 
   get isRemovable(): boolean {
@@ -322,7 +328,7 @@ export class SyncChain {
     }
 
     if (this.batches.has(startEpoch)) {
-      this.logger.error("Attempting to add existing Batch to SyncChain", {id: this.id, startEpoch});
+      this.logger.error("Attempting to add existing Batch to SyncChain", {id: this.logId, startEpoch});
       return null;
     }
 
@@ -345,7 +351,7 @@ export class SyncChain {
         batch.downloadingSuccess(res.result);
         this.triggerBatchProcessor();
       } else {
-        this.logger.verbose("Batch download error", {id: this.id, ...batch.getMetadata()}, res.err);
+        this.logger.verbose("Batch download error", {id: this.logId, ...batch.getMetadata()}, res.err);
         batch.downloadingError(); // Throws after MAX_DOWNLOAD_ATTEMPTS
       }
 
@@ -377,7 +383,7 @@ export class SyncChain {
       // Potentially process next AwaitingProcessing batch
       this.triggerBatchProcessor();
     } else {
-      this.logger.verbose("Batch process error", {id: this.id, ...batch.getMetadata()}, res.err);
+      this.logger.verbose("Batch process error", {id: this.logId, ...batch.getMetadata()}, res.err);
       batch.processingError(); // Throws after MAX_BATCH_PROCESSING_ATTEMPTS
 
       // At least one block was successfully verified and imported, so we can be sure all
@@ -391,7 +397,7 @@ export class SyncChain {
       // Progress will be drop back to `this.startEpoch`
       for (const pendingBatch of this.batches.values()) {
         if (pendingBatch.startEpoch < batch.startEpoch) {
-          this.logger.verbose("Batch validation error", {id: this.id, ...pendingBatch.getMetadata()});
+          this.logger.verbose("Batch validation error", {id: this.logId, ...pendingBatch.getMetadata()});
           pendingBatch.validationError(); // Throws after MAX_BATCH_PROCESSING_ATTEMPTS
         }
       }

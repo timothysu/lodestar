@@ -14,7 +14,14 @@ import {RangeSyncType, getRangeSyncType} from "../utils/remoteSyncType";
 import {assertSequentialBlocksInRange} from "../utils";
 import {updateChains} from "./utils/updateChains";
 import {shouldRemoveChain} from "./utils/shouldRemoveChain";
-import {ChainTarget, DownloadBeaconBlocksByRange, ProcessChainSegment, SyncChain, SyncChainOpts} from "./chain";
+import {
+  ChainTarget,
+  DownloadBeaconBlocksByRange,
+  ProcessChainSegment,
+  SyncChain,
+  SyncChainOpts,
+  SyncChainStartError,
+} from "./chain";
 
 export enum RangeSyncEvent {
   completedChain = "RangeSync-completedChain",
@@ -209,7 +216,6 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
 
     let syncChain = this.chains.get(id);
     if (!syncChain) {
-      this.logger.debug("New syncChain", {slot: target.slot, root: toHexString(target.root), startEpoch});
       syncChain = new SyncChain(
         startEpoch,
         target,
@@ -222,6 +228,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
         this.opts
       );
       this.chains.set(id, syncChain);
+      this.logger.verbose("New syncChain", {id: syncChain.logId});
     }
 
     syncChain.addPeer(peer);
@@ -237,7 +244,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
       if (shouldRemoveChain(syncChain, localFinalizedSlot, this.chain)) {
         syncChain.remove();
         this.chains.delete(id);
-        this.logger.debug("Removed chain", {id});
+        this.logger.debug("Removed syncChain", {id: syncChain.logId});
 
         // Re-status peers from successful chain. Potentially trigger a Head sync
         this.network.reStatusPeers(syncChain.getPeers());
@@ -247,24 +254,31 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     const {toStop, toStart} = updateChains(Array.from(this.chains.values()));
 
     for (const syncChain of toStop) {
-      syncChain.stopSyncing();
+      if (syncChain.isSyncing) {
+        syncChain.stopSyncing();
+      }
     }
 
     for (const syncChain of toStart) {
-      void this.runChain(syncChain, localFinalizedEpoch);
+      if (syncChain.isStopped) {
+        void this.runChain(syncChain, localFinalizedEpoch);
+      }
     }
   }
 
   private async runChain(syncChain: SyncChain, localFinalizedEpoch: Epoch): Promise<void> {
     try {
       await syncChain.startSyncing(localFinalizedEpoch);
-      this.logger.verbose("SyncChain reached target", {id: syncChain.id});
+      this.logger.verbose("SyncChain reached target", {id: syncChain.logId});
       this.emit(RangeSyncEvent.completedChain);
     } catch (e) {
       if (e instanceof ErrorAborted) {
         return; // Ignore
+      } else if (e instanceof SyncChainStartError) {
+        this.logger.error("Error starting SyncChain", {id: syncChain.logId}, e);
+        return; // Do not call this.update() to prevent a potential recursive loop
       } else {
-        this.logger.error("SyncChain error", {id: syncChain.id}, e);
+        this.logger.error("SyncChain error", {id: syncChain.logId}, e);
       }
     }
 
@@ -273,7 +287,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   }
 
   private runSyncChainMetrics(syncChain: SyncChain): void {
-    this.metrics.peersPerSyncChain.set({id: syncChain.id}, syncChain.peers);
+    this.metrics.peersPerSyncChain.set({id: syncChain.logId}, syncChain.peers);
   }
 }
 
