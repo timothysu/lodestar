@@ -15,7 +15,7 @@ import {AttestationCollector} from "./utils";
 import {fetchUnknownBlockRoot} from "./utils/unknownRoot";
 import {PeerManagerEvent} from "../network/peers/peerManager";
 import {getPeerSyncType, PeerSyncType} from "./utils/remoteSyncType";
-import {SyncState} from "./interface";
+import {SyncState, SyncChainDebugState} from "./interface";
 
 export class BeaconSync implements IBeaconSync {
   private readonly opts: ISyncOptions;
@@ -137,6 +137,11 @@ export class BeaconSync implements IBeaconSync {
       throw new Error("Cannot collect attestations before regular sync");
     }
     await this.attestationCollector.subscribeToCommitteeAttestations(slot, committeeIndex);
+  }
+
+  /** Full debug state for lodestar API */
+  getSyncChainsDebugState(): SyncChainDebugState[] {
+    return this.rangeSync.getSyncChainsDebugState();
   }
 
   /**

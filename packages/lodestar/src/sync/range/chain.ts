@@ -47,6 +47,16 @@ export type ChainTarget = {
 
 export class SyncChainStartError extends Error {}
 
+export type SyncChainDebugState = {
+  targetRoot: string;
+  targetSlot: number;
+  syncType: RangeSyncType;
+  status: SyncChainStatus;
+  startEpoch: number;
+  peers: number;
+  batches: BatchMetadata[];
+};
+
 /**
  * Blocks are downloaded in batches from peers. This constant specifies how many epochs worth of
  * blocks per batch are requested _at most_. A batch may request less blocks to account for
@@ -66,7 +76,7 @@ const EPOCHS_PER_BATCH = 2;
  */
 const BATCH_BUFFER_SIZE = 5;
 
-enum SyncState {
+export enum SyncChainStatus {
   Stopped = "Stopped",
   Syncing = "Syncing",
   Synced = "Synced",
@@ -85,7 +95,7 @@ export class SyncChain {
 
   /** The start of the chain segment. Any epoch previous to this one has been validated. */
   private startEpoch: Epoch;
-  private state = SyncState.Stopped;
+  private status = SyncChainStatus.Stopped;
 
   private readonly processChainSegment: ProcessChainSegment;
   private readonly downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange;
@@ -128,8 +138,8 @@ export class SyncChain {
    * In the same call, advance the chain if localFinalizedEpoch >
    */
   async startSyncing(localFinalizedEpoch: Epoch): Promise<void> {
-    if (this.state !== SyncState.Stopped) {
-      throw new SyncChainStartError(`Attempted to start SyncChain with state ${this.state}`);
+    if (this.status !== SyncChainStatus.Stopped) {
+      throw new SyncChainStartError(`Attempted to start SyncChain with state ${this.status}`);
     }
 
     // to avoid dropping local progress, we advance the chain with its batch boundaries.
@@ -139,11 +149,11 @@ export class SyncChain {
     this.advanceChain(localFinalizedEpochAligned);
 
     try {
-      this.state = SyncState.Syncing;
+      this.status = SyncChainStatus.Syncing;
       await this.sync();
-      this.state = SyncState.Synced;
+      this.status = SyncChainStatus.Synced;
     } catch (e) {
-      this.state = SyncState.Error;
+      this.status = SyncChainStatus.Error;
 
       // A batch could not be processed after max retry limit. It's likely that all peers
       // in this chain are sending invalid batches repeatedly so are either malicious or faulty.
@@ -165,7 +175,7 @@ export class SyncChain {
    * Temporarily stop the chain. Will prevent batches from being processed
    */
   stopSyncing(): void {
-    this.state = SyncState.Stopped;
+    this.status = SyncChainStatus.Stopped;
   }
 
   /**
@@ -201,15 +211,15 @@ export class SyncChain {
   }
 
   get isSyncing(): boolean {
-    return this.state === SyncState.Syncing;
+    return this.status === SyncChainStatus.Syncing;
   }
 
   get isStopped(): boolean {
-    return this.state === SyncState.Stopped;
+    return this.status === SyncChainStatus.Stopped;
   }
 
   get isRemovable(): boolean {
-    return this.state === SyncState.Error || this.state === SyncState.Synced;
+    return this.status === SyncChainStatus.Error || this.status === SyncChainStatus.Synced;
   }
 
   get peers(): number {
@@ -218,6 +228,19 @@ export class SyncChain {
 
   getPeers(): PeerId[] {
     return this.peerset.values();
+  }
+
+  /** Full debug state for lodestar API */
+  getDebugState(): SyncChainDebugState {
+    return {
+      targetRoot: toHexString(this.target.root),
+      targetSlot: this.target.slot,
+      syncType: this.syncType,
+      status: this.status,
+      startEpoch: this.startEpoch,
+      peers: this.peers,
+      batches: this.getBatchesState(),
+    };
   }
 
   /**
@@ -230,7 +253,7 @@ export class SyncChain {
 
     // Start processing batches on demand in strict sequence
     for await (const _ of this.batchProcessor) {
-      if (this.state !== SyncState.Syncing) {
+      if (this.status !== SyncChainStatus.Syncing) {
         continue;
       }
 
@@ -274,7 +297,7 @@ export class SyncChain {
    * It will exhaust the peer pool and left over batches until the batch buffer is reached.
    */
   private requestBatches(peers: PeerId[]): void {
-    if (this.state !== SyncState.Syncing) {
+    if (this.status !== SyncChainStatus.Syncing) {
       return;
     }
 

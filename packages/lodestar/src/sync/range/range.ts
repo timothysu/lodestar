@@ -21,6 +21,7 @@ import {
   SyncChain,
   SyncChainOpts,
   SyncChainStartError,
+  SyncChainDebugState,
 } from "./chain";
 
 export enum RangeSyncEvent {
@@ -185,6 +186,13 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     } else {
       return {status: RangeSyncStatus.Idle};
     }
+  }
+
+  /** Full debug state for lodestar API */
+  getSyncChainsDebugState(): SyncChainDebugState[] {
+    return Array.from(this.chains.values())
+      .map((syncChain) => syncChain.getDebugState())
+      .reverse(); // Newest additions first
   }
 
   /**

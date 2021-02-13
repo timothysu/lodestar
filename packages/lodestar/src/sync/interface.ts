@@ -7,6 +7,8 @@ import {IBeaconChain} from "../chain";
 import {IBeaconMetrics} from "../metrics";
 import {IBeaconDb} from "../db/api";
 import {AttestationCollector} from "./utils";
+import {SyncChainDebugState} from "./range/chain";
+export {SyncChainDebugState};
 
 export interface IBeaconSync {
   state: SyncState;
@@ -14,6 +16,7 @@ export interface IBeaconSync {
   isSynced(): boolean;
   isSyncing(): boolean;
   collectAttestations(slot: Slot, committeeIndex: CommitteeIndex): Promise<void>;
+  getSyncChainsDebugState(): SyncChainDebugState[];
 }
 
 export enum SyncState {
