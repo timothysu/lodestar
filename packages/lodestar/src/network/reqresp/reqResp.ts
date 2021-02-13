@@ -115,7 +115,7 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
   }
 
   public async status(peerId: PeerId, request: Status): Promise<Status> {
-    return notNull(await this.sendRequest<Status>(peerId, Method.Status, request));
+    return await this.sendRequest<Status>(peerId, Method.Status, request);
   }
 
   public async goodbye(peerId: PeerId, request: Goodbye): Promise<void> {
@@ -124,11 +124,11 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
 
   public async ping(peerId: PeerId): Promise<Ping> {
     const seqNumber = this.metadataController.seqNumber;
-    return notNull(await this.sendRequest<Ping>(peerId, Method.Ping, seqNumber));
+    return await this.sendRequest<Ping>(peerId, Method.Ping, seqNumber);
   }
 
   public async metadata(peerId: PeerId): Promise<Metadata> {
-    return notNull(await this.sendRequest<Metadata>(peerId, Method.Metadata, null));
+    return await this.sendRequest<Metadata>(peerId, Method.Metadata, null);
   }
 
   public async beaconBlocksByRange(peerId: PeerId, request: BeaconBlocksByRangeRequest): Promise<SignedBeaconBlock[]> {
@@ -149,7 +149,7 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
     method: Method,
     body: RequestBody,
     maxResponses?: number
-  ): Promise<T | null> {
+  ): Promise<T> {
     try {
       const encoding = this.peerMetadata.encoding.get(peerId) ?? ReqRespEncoding.SSZ_SNAPPY;
       const result = await sendRequest<T>(
@@ -205,12 +205,4 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
         throw Error(`Unsupported method ${method}`);
     }
   }
-}
-
-/**
- * Require a ReqResp response to not be null
- */
-function notNull<T>(res: T | null): T {
-  if (res === null) throw Error("Empty response");
-  return res;
 }
