@@ -119,6 +119,8 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
   }
 
   public async goodbye(peerId: PeerId, request: Goodbye): Promise<void> {
+    // NOTE: Responding node may terminate the stream before completing the ReqResp protocol
+    // TODO: Consider doing error handling here for `SSZ_SNAPPY_ERROR_SOURCE_ABORTED`
     await this.sendRequest<Goodbye>(peerId, Method.Goodbye, request);
   }
 
@@ -199,20 +201,25 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
         throw Error(`Unsupported method ${method}`);
     }
 
-    try {
-      switch (method) {
-        case Method.Ping:
-          this.emit(ReqRespEvent.receivedPing, peerId, requestBody as Ping);
-          break;
-        case Method.Goodbye:
-          this.emit(ReqRespEvent.receivedGoodbye, peerId, requestBody as Goodbye);
-          break;
-        case Method.Status:
-          this.emit(ReqRespEvent.receivedStatus, peerId, requestBody as Status);
-          break;
+    // Allow onRequest to return and close the stream
+    // For Goodbye there may be a race condition where the listener of `receivedGoodbye`
+    // disconnects in the same syncronous call, preventing the stream from ending cleanly
+    setTimeout(() => {
+      try {
+        switch (method) {
+          case Method.Ping:
+            this.emit(ReqRespEvent.receivedPing, peerId, requestBody as Ping);
+            break;
+          case Method.Goodbye:
+            this.emit(ReqRespEvent.receivedGoodbye, peerId, requestBody as Goodbye);
+            break;
+          case Method.Status:
+            this.emit(ReqRespEvent.receivedStatus, peerId, requestBody as Status);
+            break;
+        }
+      } catch (e) {
+        this.logger.error("Error emitting onRequest event", {}, e);
       }
-    } catch (e) {
-      this.logger.error("Error emitting onRequest event", {}, e);
-    }
+    }, 0);
   }
 }
