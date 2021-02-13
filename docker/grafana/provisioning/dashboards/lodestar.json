@@ -46,7 +46,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 3,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -83,7 +83,7 @@
         {
           "expr": "nodejs_heap_space_size_used_bytes",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{space}}",
           "refId": "A"
         }
       ],
@@ -107,7 +107,7 @@
       },
       "yaxes": [
         {
-          "format": "short",
+          "format": "decbytes",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -142,7 +142,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 3,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -179,7 +179,7 @@
         {
           "expr": "nodejs_active_handles",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{type}}",
           "refId": "A"
         }
       ],
@@ -238,7 +238,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 3,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -275,7 +275,7 @@
         {
           "expr": "nodejs_eventloop_lag_seconds",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "nodejs_eventloop_lag_seconds",
           "refId": "A"
         }
       ],
@@ -334,7 +334,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 3,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -371,7 +371,7 @@
         {
           "expr": "nodejs_external_memory_bytes",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "nodejs_external_memory_bytes",
           "refId": "A"
         }
       ],
@@ -395,7 +395,7 @@
       },
       "yaxes": [
         {
-          "format": "short",
+          "format": "decbytes",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -444,7 +444,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 2,
       "gridPos": {
         "h": 11,
         "w": 12,
@@ -746,7 +746,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 3,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -842,7 +842,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 2,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -941,7 +941,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 3,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1038,7 +1038,7 @@
         "overrides": []
       },
       "fill": 1,
-      "fillGradient": 0,
+      "fillGradient": 3,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1072,7 +1072,7 @@
       "seriesOverrides": [],
       "spaceLength": 10,
       "stack": false,
-      "steppedLine": true,
+      "steppedLine": false,
       "targets": [
         {
           "expr": "rate(lodestar_process_chain_segment_time[1m])",
@@ -1131,7 +1131,7 @@
     "list": []
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
@@ -1140,5 +1140,5 @@
   "timezone": "",
   "title": "Simple Lodestar",
   "uid": "bikvONDGz",
-  "version": 3
+  "version": 4
 }
