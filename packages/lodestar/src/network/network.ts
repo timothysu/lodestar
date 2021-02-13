@@ -147,10 +147,10 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
   /**
    * Request att subnets up `toSlot`. Network will ensure to mantain some peers for each
    */
-  public async requestAttSubnets(requestedSubnets: RequestedSubnet[]): Promise<void> {
+  public requestAttSubnets(requestedSubnets: RequestedSubnet[]): void {
     // TODO: Attach min_ttl to the requested subnets and connect to them
     // this.peerManager.discoverSubnetPeers(subnets);
-    await this.peerManager.requestAttSubnets(requestedSubnets);
+    this.peerManager.requestAttSubnets(requestedSubnets);
   }
 
   /**

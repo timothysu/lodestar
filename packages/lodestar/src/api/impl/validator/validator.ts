@@ -206,7 +206,7 @@ export class ValidatorApi implements IValidatorApi {
       }
     }
 
-    await this.network.requestAttSubnets(
+    this.network.requestAttSubnets(
       subscriptions.map(({slot, committeesAtSlot, committeeIndex}) => ({
         subnetId: computeSubnetForCommitteesAtSlot(this.config, slot, committeesAtSlot, committeeIndex),
         // Network should keep finding peers for this subnet until `toSlot`

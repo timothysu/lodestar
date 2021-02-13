@@ -46,7 +46,7 @@ export interface INetwork extends NetworkEventEmitter {
   getConnectionsByPeer(): Map<string, LibP2pConnection[]>;
   getPeerFromPeerStore(peer: PeerId): LibP2p.Peer | null;
   /** Search peers joining subnets */
-  requestAttSubnets(requestedSubnets: RequestedSubnet[]): Promise<void>;
+  requestAttSubnets(requestedSubnets: RequestedSubnet[]): void;
   reStatusPeers(peers: PeerId[]): void;
   subscribeCoreTopics(): void;
   // Service

@@ -145,7 +145,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   /**
    * Request to find peers on a given subnet.
    */
-  async requestAttSubnets(requestedSubnets: RequestedSubnet[]): Promise<void> {
+  requestAttSubnets(requestedSubnets: RequestedSubnet[]): void {
     // Prune expired subnets
     for (const [subnetId, toSlot] of this.subnets.entries()) {
       if (toSlot < this.chain.clock.currentSlot) {
