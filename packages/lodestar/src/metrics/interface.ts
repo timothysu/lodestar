@@ -127,6 +127,10 @@ export interface IBeaconMetrics extends IMetrics {
    * Track number of peers on each SyncChain
    */
   peersPerSyncChain: Gauge;
+  /** Peers labeled by direction */
+  peersByDirection: Gauge;
+  /** Total async time spent in the sycn processChainSegment */
+  processChainSegmentTime: Gauge;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface

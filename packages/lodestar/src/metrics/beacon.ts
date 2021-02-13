@@ -37,6 +37,8 @@ export class BeaconMetrics extends Metrics implements IBeaconMetrics {
   public observedEpochAttesters: Gauge;
   public observedEpochAggregators: Gauge;
   public peersPerSyncChain: Gauge;
+  public peersByDirection: Gauge;
+  public processChainSegmentTime: Gauge;
 
   private logger: ILogger;
 
@@ -188,6 +190,20 @@ export class BeaconMetrics extends Metrics implements IBeaconMetrics {
       name: "lodestar_peers_per_sync_chain",
       help: "number of peers per sync chain, labeled by target",
       labelNames: ["id"],
+      registers,
+    });
+
+    // TODO: is it okay to add labels to the default metrics?
+    this.peersByDirection = new Gauge({
+      name: "lodestar_peers",
+      help: "number of peers, labeled by direction",
+      labelNames: ["direction"],
+      registers,
+    });
+
+    this.processChainSegmentTime = new Gauge({
+      name: "lodestar_process_chain_segment_time",
+      help: "Total async time spent in the sycn processChainSegment",
       registers,
     });
   }

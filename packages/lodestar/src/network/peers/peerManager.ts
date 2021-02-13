@@ -390,10 +390,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     const {direction, status} = libp2pConnection.stat;
     const peer = libp2pConnection.remotePeer;
 
-    this.metrics.peers.set(this.getConnectedPeerIds().length);
-    this.logger.verbose("peer connected", {peerId: peer.toB58String(), direction, status});
-    // NOTE: The peerConnect event is not emitted here here, but after asserting peer relevance
-
     // On connection:
     // - Outbound connections: send a STATUS and PING request
     // - Inbound connections: expect to be STATUS'd, schedule STATUS and PING for latter
@@ -410,6 +406,10 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.peersToPing.set(peer, timeToReqPing);
     this.peersToStatus.set(peer, timeToReqStatus);
     this.pingAndStatusTimeouts();
+
+    this.logger.verbose("peer connected", {peerId: peer.toB58String(), direction, status});
+    // NOTE: The peerConnect event is not emitted here here, but after asserting peer relevance
+    this.runPeersMetrics();
   };
 
   /**
@@ -426,9 +426,9 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
 
     this.libp2p.connectionManager.connections;
 
-    this.metrics.peers.set(this.getConnectedPeerIds().length);
     this.logger.verbose("peer disconnected", {peerId: peer.toB58String(), direction, status});
     this.emit(PeerManagerEvent.peerDisconnected, peer);
+    this.runPeersMetrics(); // Last in case it throws
   };
 
   /**
@@ -453,5 +453,30 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
       this.logger.verbose("Failed to send goodbye", {error: e.message});
       await this.disconnect(peer);
     }
+  }
+
+  /** Register peer count metrics */
+  private runPeersMetrics(): void {
+    let total = 0;
+    const peersByDirection = new Map<string, number>();
+    for (const connections of this.libp2p.connectionManager.connections.values()) {
+      const directions: PeerDirection[] = [];
+      for (const cnx of connections) {
+        if (cnx.stat.status === "open") {
+          directions.push(cnx.stat.direction);
+        }
+      }
+      if (directions.length > 0) {
+        const direction = directions.sort().join("-");
+        peersByDirection.set(direction, 1 + (peersByDirection.get(direction) ?? 0));
+        total++;
+      }
+    }
+
+    for (const [direction, peers] of peersByDirection.entries()) {
+      this.metrics.peersByDirection.set({direction}, peers);
+    }
+
+    this.metrics.peers.set(total);
   }
 }

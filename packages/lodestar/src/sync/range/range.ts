@@ -192,7 +192,11 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
    */
   private processChainSegment: ProcessChainSegment = async (blocks) => {
     const trusted = true; // TODO: Verify signatures
+    const start = process.hrtime.bigint();
     await this.chain.processChainSegment(blocks, trusted);
+    const end = process.hrtime.bigint();
+    // NOTE: MAX_SAFE_INTEGER nano seconds equals 104 days
+    this.metrics.processChainSegmentTime.inc(Number(end - start) / 1e9);
   };
 
   /**
