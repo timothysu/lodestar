@@ -5,7 +5,7 @@ import PeerId from "peer-id";
 import {computeEpochAtSlot, computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Epoch, Slot, Status} from "@chainsafe/lodestar-types";
-import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
+import {ILogger} from "@chainsafe/lodestar-utils";
 import {toHexString} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../chain";
 import {INetwork, PeerAction} from "../../network";
@@ -20,7 +20,6 @@ import {
   ProcessChainSegment,
   SyncChain,
   SyncChainOpts,
-  SyncChainStartError,
   SyncChainDebugState,
 } from "./chain";
 
@@ -42,8 +41,6 @@ export enum RangeSyncStatus {
   /** There are no head or finalized chains and no long range sync is in progress */
   Idle,
 }
-
-type SyncChainId = string;
 
 type RangeSyncState =
   | {status: RangeSyncStatus.Finalized; target: ChainTarget}
@@ -90,7 +87,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   private readonly metrics: IBeaconMetrics;
   private readonly config: IBeaconConfig;
   private readonly logger: ILogger;
-  private readonly chains = new Map<SyncChainId, SyncChain>();
+  private readonly chains = new Map<string, SyncChain>();
 
   private opts?: SyncChainOpts;
 
@@ -195,9 +192,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
       .reverse(); // Newest additions first
   }
 
-  /**
-   * Convenience method for `SyncChain`
-   */
+  /** Convenience method for `SyncChain` */
   private processChainSegment: ProcessChainSegment = async (blocks) => {
     const trusted = true; // TODO: Verify signatures
     const start = process.hrtime.bigint();
@@ -207,24 +202,27 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     this.metrics.processChainSegmentTime.inc(Number(end - start) / 1e9);
   };
 
-  /**
-   * Convenience method for `SyncChain`
-   */
+  /** Convenience method for `SyncChain` */
   private downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange = async (peerId, request) => {
     const blocks = await this.network.reqResp.beaconBlocksByRange(peerId, request);
     assertSequentialBlocksInRange(blocks, request);
     return blocks;
   };
 
-  /**
-   * Convenience method for `SyncChain`
-   */
+  /** Convenience method for `SyncChain` */
   private reportPeer = (peer: PeerId, action: PeerAction, actionName: string): void => {
     this.network.peerRpcScores.applyAction(peer, action, actionName);
   };
 
+  /** Convenience method for `SyncChain` */
+  private onSyncChainEnd = (): void => {
+    const localStatus = this.chain.getStatus();
+    this.update(localStatus.finalizedEpoch);
+    this.emit(RangeSyncEvent.completedChain);
+  };
+
   private addPeerOrCreateChain(startEpoch: Epoch, target: ChainTarget, peer: PeerId, syncType: RangeSyncType): void {
-    const id = getSyncChainId(syncType, target);
+    const id = `${syncType}-${target.slot}-${toHexString(target.root)}`;
 
     let syncChain = this.chains.get(id);
     if (!syncChain) {
@@ -235,6 +233,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
         this.processChainSegment,
         this.downloadBeaconBlocksByRange,
         this.reportPeer,
+        this.onSyncChainEnd,
         this.config,
         this.logger,
         this.opts
@@ -266,43 +265,15 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     const {toStop, toStart} = updateChains(Array.from(this.chains.values()));
 
     for (const syncChain of toStop) {
-      if (syncChain.isSyncing) {
-        syncChain.stopSyncing();
-      }
+      syncChain.stopSyncing();
     }
 
     for (const syncChain of toStart) {
-      if (syncChain.isStopped) {
-        void this.runChain(syncChain, localFinalizedEpoch);
-      }
+      syncChain.startSyncing(localFinalizedEpoch);
     }
-  }
-
-  private async runChain(syncChain: SyncChain, localFinalizedEpoch: Epoch): Promise<void> {
-    try {
-      await syncChain.startSyncing(localFinalizedEpoch);
-      this.logger.verbose("SyncChain reached target", {id: syncChain.logId});
-      this.emit(RangeSyncEvent.completedChain);
-    } catch (e) {
-      if (e instanceof ErrorAborted) {
-        return; // Ignore
-      } else if (e instanceof SyncChainStartError) {
-        this.logger.error("Error starting SyncChain", {id: syncChain.logId}, e);
-        return; // Do not call this.update() to prevent a potential recursive loop
-      } else {
-        this.logger.error("SyncChain error", {id: syncChain.logId}, e);
-      }
-    }
-
-    const localStatus = this.chain.getStatus();
-    this.update(localStatus.finalizedEpoch);
   }
 
   private runSyncChainMetrics(syncChain: SyncChain): void {
     this.metrics.peersPerSyncChain.set({id: syncChain.logId}, syncChain.peers);
   }
-}
-
-function getSyncChainId(syncType: RangeSyncType, target: ChainTarget): SyncChainId {
-  return `${syncType}-${target.slot}-${toHexString(target.root)}`;
 }

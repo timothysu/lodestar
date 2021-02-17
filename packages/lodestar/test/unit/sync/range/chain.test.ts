@@ -113,21 +113,25 @@ describe("sync / range / chain", () => {
 
       const target: ChainTarget = {slot: computeStartSlotAtEpoch(config, targetEpoch), root: ZERO_HASH};
       const syncType = RangeSyncType.Finalized;
-      const initialSync = new SyncChain(
-        startEpoch,
-        target,
-        syncType,
-        processChainSegment,
-        downloadBeaconBlocksByRange,
-        reportPeer,
-        config,
-        logger
-      );
 
-      const peers = [new PeerId(Buffer.from("lodestar"))];
-      for (const peer of peers) initialSync.addPeer(peer);
+      await new Promise<void>((resolve, reject) => {
+        const initialSync = new SyncChain(
+          startEpoch,
+          target,
+          syncType,
+          processChainSegment,
+          downloadBeaconBlocksByRange,
+          reportPeer,
+          (err) => (err ? reject(err) : resolve()), // onEnd
+          config,
+          logger
+        );
 
-      await initialSync.startSyncing(startEpoch);
+        const peers = [new PeerId(Buffer.from("lodestar"))];
+        for (const peer of peers) initialSync.addPeer(peer);
+
+        initialSync.startSyncing(startEpoch);
+      });
     });
   }
 
@@ -142,22 +146,26 @@ describe("sync / range / chain", () => {
 
     const target: ChainTarget = {slot: computeStartSlotAtEpoch(config, targetEpoch), root: ZERO_HASH};
     const syncType = RangeSyncType.Finalized;
-    const initialSync = new SyncChain(
-      startEpoch,
-      target,
-      syncType,
-      processChainSegment,
-      downloadBeaconBlocksByRange,
-      reportPeer,
-      config,
-      logger
-    );
 
-    // Add peers after some time
-    setTimeout(() => {
-      for (const peer of peers) initialSync.addPeer(peer);
-    }, 20);
+    await new Promise<void>((resolve, reject) => {
+      const initialSync = new SyncChain(
+        startEpoch,
+        target,
+        syncType,
+        processChainSegment,
+        downloadBeaconBlocksByRange,
+        reportPeer,
+        (err) => (err ? reject(err) : resolve()), // onEnd
+        config,
+        logger
+      );
 
-    await initialSync.startSyncing(startEpoch);
+      // Add peers after some time
+      setTimeout(() => {
+        for (const peer of peers) initialSync.addPeer(peer);
+      }, 20);
+
+      initialSync.startSyncing(startEpoch);
+    });
   });
 });

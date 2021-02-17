@@ -117,6 +117,7 @@ export class SyncChain {
     processChainSegment: ProcessChainSegment,
     downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange,
     reportPeer: ReportPeerFn,
+    onEnd: (err?: Error) => void,
     config: IBeaconConfig,
     logger: ILogger,
     opts?: SyncChainOpts
@@ -131,16 +132,30 @@ export class SyncChain {
     this.logger = logger;
     this.opts = {epochsPerBatch: opts?.epochsPerBatch ?? EPOCHS_PER_BATCH};
     this.logId = `${syncType}-${target.slot}-${toHexString(target.root).slice(0, 6)}`;
+
+    // Trigger event on parent class
+    this.sync().then(
+      () => onEnd(),
+      (e) => onEnd(e)
+    );
   }
 
   /**
    * Start syncing a new chain or an old one with an existing peer list
    * In the same call, advance the chain if localFinalizedEpoch >
    */
-  async startSyncing(localFinalizedEpoch: Epoch): Promise<void> {
-    if (this.status !== SyncChainStatus.Stopped) {
-      throw new SyncChainStartError(`Attempted to start SyncChain with state ${this.status}`);
+  startSyncing(localFinalizedEpoch: Epoch): void {
+    switch (this.status) {
+      case SyncChainStatus.Stopped:
+        break; // Ok, continue
+      case SyncChainStatus.Syncing:
+        return; // Skip, already started
+      case SyncChainStatus.Error:
+      case SyncChainStatus.Synced:
+        throw new SyncChainStartError(`Attempted to start an ended SyncChain ${this.status}`);
     }
+
+    this.status = SyncChainStatus.Syncing;
 
     // to avoid dropping local progress, we advance the chain with its batch boundaries.
     // get the aligned epoch that produces a batch containing the `localFinalizedEpoch`
@@ -148,27 +163,9 @@ export class SyncChain {
       this.startEpoch + Math.floor((localFinalizedEpoch - this.startEpoch) / EPOCHS_PER_BATCH) * EPOCHS_PER_BATCH;
     this.advanceChain(localFinalizedEpochAligned);
 
-    try {
-      this.status = SyncChainStatus.Syncing;
-      await this.sync();
-      this.status = SyncChainStatus.Synced;
-    } catch (e) {
-      this.status = SyncChainStatus.Error;
-
-      // A batch could not be processed after max retry limit. It's likely that all peers
-      // in this chain are sending invalid batches repeatedly so are either malicious or faulty.
-      // We drop the chain and report all peers.
-      // There are some edge cases with forks that could cause this situation, but it's unlikely.
-      if (e instanceof BatchError && e.type.code === BatchErrorCode.MAX_PROCESSING_ATTEMPTS) {
-        for (const peer of this.peerset.values()) {
-          this.reportPeer(peer, PeerAction.LowToleranceError, "SyncChainMaxProcessingAttempts");
-        }
-      }
-
-      // TODO: Should peers be reported for MAX_DOWNLOAD_ATTEMPTS?
-
-      throw e;
-    }
+    // Potentially download new batches and process pending
+    this.triggerBatchDownloader();
+    this.triggerBatchProcessor();
   }
 
   /**
@@ -214,10 +211,6 @@ export class SyncChain {
     return this.status === SyncChainStatus.Syncing;
   }
 
-  get isStopped(): boolean {
-    return this.status === SyncChainStatus.Stopped;
-  }
-
   get isRemovable(): boolean {
     return this.status === SyncChainStatus.Error || this.status === SyncChainStatus.Synced;
   }
@@ -248,27 +241,50 @@ export class SyncChain {
    * i.e. when it successfully processes a epoch >= than this chain `targetEpoch`
    */
   private async sync(): Promise<void> {
-    this.triggerBatchDownloader();
-    this.triggerBatchProcessor();
+    try {
+      // Start processing batches on demand in strict sequence
+      for await (const _ of this.batchProcessor) {
+        if (this.status !== SyncChainStatus.Syncing) {
+          continue;
+        }
 
-    // Start processing batches on demand in strict sequence
-    for await (const _ of this.batchProcessor) {
-      if (this.status !== SyncChainStatus.Syncing) {
-        continue;
+        // TODO: Consider running this check less often after the sync is well tested
+        validateBatchesStatus(toArr(this.batches));
+
+        // If startEpoch of the next batch to be processed > targetEpoch -> Done
+        const toBeProcessedEpoch = toBeProcessedStartEpoch(toArr(this.batches), this.startEpoch, this.opts);
+        if (computeStartSlotAtEpoch(this.config, toBeProcessedEpoch) >= this.target.slot) {
+          break;
+        }
+
+        // Processes the next batch if ready
+        const batch = getNextBatchToProcess(toArr(this.batches));
+        if (batch) await this.processBatch(batch);
       }
 
-      // TODO: Consider running this check less often after the sync is well tested
-      validateBatchesStatus(toArr(this.batches));
-
-      // If startEpoch of the next batch to be processed > targetEpoch -> Done
-      const toBeProcessedEpoch = toBeProcessedStartEpoch(toArr(this.batches), this.startEpoch, this.opts);
-      if (computeStartSlotAtEpoch(this.config, toBeProcessedEpoch) >= this.target.slot) {
-        break;
+      this.status = SyncChainStatus.Synced;
+      this.logger.verbose("SyncChain Synced", {id: this.logId});
+    } catch (e) {
+      if (e instanceof ErrorAborted) {
+        return; // Ignore
       }
 
-      // Processes the next batch if ready
-      const batch = getNextBatchToProcess(toArr(this.batches));
-      if (batch) await this.processBatch(batch);
+      this.status = SyncChainStatus.Error;
+      this.logger.verbose("SyncChain Error", {id: this.logId}, e);
+
+      // A batch could not be processed after max retry limit. It's likely that all peers
+      // in this chain are sending invalid batches repeatedly so are either malicious or faulty.
+      // We drop the chain and report all peers.
+      // There are some edge cases with forks that could cause this situation, but it's unlikely.
+      if (e instanceof BatchError && e.type.code === BatchErrorCode.MAX_PROCESSING_ATTEMPTS) {
+        for (const peer of this.peerset.values()) {
+          this.reportPeer(peer, PeerAction.LowToleranceError, "SyncChainMaxProcessingAttempts");
+        }
+      }
+
+      // TODO: Should peers be reported for MAX_DOWNLOAD_ATTEMPTS?
+
+      throw e;
     }
   }
 
@@ -288,7 +304,7 @@ export class SyncChain {
       this.requestBatches(this.peerset.values());
     } catch (e) {
       // bubble the error up to the main async iterable loop
-      void this.batchProcessor.throw(e);
+      this.batchProcessor.end(e);
     }
   }
 
@@ -382,7 +398,7 @@ export class SyncChain {
       this.triggerBatchDownloader();
     } catch (e) {
       // bubble the error up to the main async iterable loop
-      void this.batchProcessor.throw(e);
+      this.batchProcessor.end(e);
     }
   }
 
