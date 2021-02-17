@@ -57,8 +57,7 @@ export async function getDevBeaconNode({
       minPeers: 25,
       maxPeers: 25,
     },
-    undefined,
-    true
+    undefined
   );
 
   options = deepmerge(

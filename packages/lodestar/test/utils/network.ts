@@ -21,7 +21,6 @@ export async function createNode(
   return new NodejsNode({
     peerId,
     addresses: {listen: [multiaddr]},
-    autoDial: false,
     discv5: {...defaultDiscv5Options, enr, bindAddr},
     peerDiscovery,
   });
