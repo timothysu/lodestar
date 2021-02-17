@@ -23,13 +23,13 @@ export function prioritizePeers(
   let peersToConnect = 0;
   const discv5Queries: Discv5Query[] = [];
 
-  // Dynamically compute TARGET_PEERS_PER_SUBNET
+  // Dynamically compute 1 >= TARGET_PEERS_PER_SUBNET <= MAX_TARGET_SUBNET_PEERS
   const targetPeersPerSubnet = Math.min(
     MAX_TARGET_SUBNET_PEERS,
     Math.max(1, Math.floor(maxPeers / activeSubnetIds.length))
   );
 
-  // We want `targetPeersPerSubnet` for each `activeSubnets`
+  // To filter out peers that are part of 1+ attnets of interest
   const peerHasDuty = new Map<string, boolean>();
 
   if (activeSubnetIds.length > 0) {
@@ -37,9 +37,8 @@ export function prioritizePeers(
     const peersPerSubnet = new Map<number, number>();
 
     for (const peer of connectedPeers) {
-      const attnets = peer.attnets;
       for (const subnetId of activeSubnetIds) {
-        if (attnets && attnets[subnetId]) {
+        if (peer.attnets[subnetId]) {
           peerHasDuty.set(peer.id.toB58String(), true);
           peersPerSubnet.set(subnetId, 1 + (peersPerSubnet.get(subnetId) || 0));
         }
@@ -47,20 +46,20 @@ export function prioritizePeers(
     }
 
     for (const subnetId of activeSubnetIds) {
-      const peers = peersPerSubnet.get(subnetId) ?? 0;
-      if (peers < targetPeersPerSubnet) {
+      const peersInSubnet = peersPerSubnet.get(subnetId) ?? 0;
+      if (peersInSubnet < targetPeersPerSubnet) {
         // We need more peers
-        discv5Queries.push({subnetId, maxPeersToDiscover: targetPeersPerSubnet - peers});
+        discv5Queries.push({subnetId, maxPeersToDiscover: targetPeersPerSubnet - peersInSubnet});
       }
     }
   }
 
-  const peerCount = connectedPeers.length;
+  const connectedPeerCount = connectedPeers.length;
 
-  if (peerCount < targetPeers) {
+  if (connectedPeerCount < targetPeers) {
     // Need more peers,
-    peersToConnect = targetPeers - peerCount;
-  } else if (peerCount > targetPeers) {
+    peersToConnect = targetPeers - connectedPeerCount;
+  } else if (connectedPeerCount > targetPeers) {
     // Too much peers, disconnect worst
 
     // Current peer sorting:
@@ -72,7 +71,7 @@ export function prioritizePeers(
     const connectedPeersWithoutDuty = connectedPeers.filter((peer) => !peerHasDuty.get(peer.id.toB58String()));
     // sort from least score to high
     const worstPeers = sortBy(shuffle(connectedPeersWithoutDuty), (peer) => peer.score);
-    for (const peer of worstPeers.slice(0, peerCount - targetPeers)) {
+    for (const peer of worstPeers.slice(0, connectedPeerCount - targetPeers)) {
       peersToDisconnect.push(peer.id);
     }
   }

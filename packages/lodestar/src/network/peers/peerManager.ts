@@ -1,7 +1,7 @@
 import {EventEmitter} from "events";
 import StrictEventEmitter from "strict-event-emitter-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {Metadata, Ping, Slot, Status} from "@chainsafe/lodestar-types";
+import {Metadata, Ping, Status} from "@chainsafe/lodestar-types";
 import {Goodbye} from "@chainsafe/lodestar-types/src";
 import {ILogger, LodestarError} from "@chainsafe/lodestar-utils";
 import PeerId from "peer-id";
@@ -17,7 +17,7 @@ import {PeerDiscovery} from "./discover";
 import {prioritizePeers} from "./priorization";
 import {RequestedSubnet} from "./interface";
 import {IPeerRpcScoreStore, ScoreState} from "./score";
-import {getConnectedPeerIds} from "./utils";
+import {getConnectedPeerIds, SubnetMap} from "./utils";
 
 export enum PeerManagerEvent {
   /** A relevant peer has connected or has been re-STATUS'd */
@@ -85,7 +85,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private opts: PeerManagerOpts;
 
   /** Map of subnets and the slot until they are needed */
-  private subnets = new Map<number, Slot>();
+  private subnets = new SubnetMap();
 
   /** The time in seconds between re-status's peers. */
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -152,20 +152,10 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    * Request to find peers on a given subnet.
    */
   requestAttSubnets(requestedSubnets: RequestedSubnet[]): void {
-    // Prune expired subnets
-    for (const [subnetId, toSlot] of this.subnets.entries()) {
-      if (toSlot < this.chain.clock.currentSlot) {
-        this.subnets.delete(subnetId);
-      }
-    }
+    this.subnets.request(requestedSubnets);
 
     // TODO:
     // Only if the slot is more than epoch away, add an event to start looking for peers
-
-    // Register requested subnets
-    for (const {subnetId, toSlot} of requestedSubnets) {
-      this.subnets.set(subnetId, toSlot);
-    }
 
     // Request to run heartbeat fn
     this.heartbeat();
@@ -186,7 +176,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     // reset the to-ping timer for this peer
     this.peersToPing.set(peer, requestLatter());
 
-    // if the sequence number is unknown send an update the meta data of the peer.
+    // if the sequence number is unknown update the peer's metadata
     const metadata = this.peerMetadataStore.metadata.get(peer);
     if (!metadata || metadata.seqNumber < seqNumber) {
       void this.requestMetadata(peer);
@@ -209,7 +199,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     const description = GOODBYE_KNOWN_CODES[goodbyeReason.toString()] || "";
     this.logger.verbose("Received goodbye request", {peer: peer.toB58String(), reason: goodbyeReason, description});
 
-    // TODO: Register if we are banned
+    // TODO: Consider register that we are banned, if discovery keeps attempting to connect to the same peers
 
     void this.disconnect(peer);
   };
@@ -245,40 +235,34 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
 
   private async requestMetadata(peer: PeerId): Promise<void> {
     try {
-      const metadata = await this.reqResp.metadata(peer);
-      this.onMetadata(peer, metadata);
+      this.onMetadata(peer, await this.reqResp.metadata(peer));
     } catch (e) {
-      this.logger.verbose("Error requesting new metadata to peer", {peer: peer.toB58String()}, e);
-      // TODO: What to do on error? Should we downvote the peer?
-    }
-  }
-
-  private async requestStatus(peers: PeerId[]): Promise<void> {
-    try {
-      const localStatus = this.chain.getStatus();
-      await Promise.all(
-        peers.map(async (peer) => {
-          try {
-            const peerStatus = await this.reqResp.status(peer, localStatus);
-            await this.onStatus(peer, peerStatus);
-          } catch (e) {
-            // Failed to get peer latest status
-            // TODO: Downvote but don't disconnect
-          }
-        })
-      );
-    } catch (e) {
-      this.logger.verbose("Error requesting new status to peers", {}, e);
+      // TODO: Downvote peer here or in the reqResp layer
     }
   }
 
   private async requestPing(peer: PeerId): Promise<void> {
     try {
-      const pong = await this.reqResp.ping(peer);
-      this.onPing(peer, pong);
+      this.onPing(peer, await this.reqResp.ping(peer));
     } catch (e) {
-      this.logger.verbose("Error pinging peer", {peer: peer.toB58String()}, e);
-      // TODO: What to do on error? Should we downvote the peer?
+      // TODO: Downvote peer here or in the reqResp layer
+    }
+  }
+
+  private async requestStatus(peer: PeerId, localStatus: Status): Promise<void> {
+    try {
+      await this.onStatus(peer, await this.reqResp.status(peer, localStatus));
+    } catch (e) {
+      // TODO: Failed to get peer latest status: downvote but don't disconnect
+    }
+  }
+
+  private async requestStatusMany(peers: PeerId[]): Promise<void> {
+    try {
+      const localStatus = this.chain.getStatus();
+      await Promise.all(peers.map(async (peer) => this.requestStatus(peer, localStatus)));
+    } catch (e) {
+      this.logger.verbose("Error requesting new status to peers", {}, e);
     }
   }
 
@@ -290,18 +274,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private heartbeat(): void {
     const connectedPeers = this.getConnectedPeerIds();
 
-    // libp2p autodial
-    // (A) on _maybeConnect(), when a peer is discovered
-    //  if minConnections > opts.minConnections
-    //    await this.dialer.connectToPeer(peerId)
-    //
-    // (B) every interval, if under minConnections iterate peerStore
-    //  and connect to some peers
-
-    // ban and disconnect peers with excesive bad score
-    // if score < MIN_SCORE_BEFORE_BAN -> Banned
-    // if score < MIN_SCORE_BEFORE_DISCONNECT -> Disconnected
-    // else -> Healthy
+    // ban and disconnect peers with bad score, collect rest of healthy peers
     const connectedHealthPeers: PeerId[] = [];
     for (const peer of connectedPeers) {
       switch (this.peerRpcScores.getScoreState(peer)) {
@@ -316,21 +289,14 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
       }
     }
 
-    // Collect subnets which we need peers for in the current slot
-    const activeSubnetIds: number[] = [];
-    for (const [subnetId, toSlot] of this.subnets.entries()) {
-      if (toSlot >= this.chain.clock.currentSlot) {
-        activeSubnetIds.push(subnetId);
-      }
-    }
-
     const {peersToDisconnect, discv5Queries, peersToConnect} = prioritizePeers(
       connectedPeers.map((peer) => ({
         id: peer,
-        attnets: this.peerMetadataStore.metadata.get(peer)?.attnets || [],
-        score: this.peerMetadataStore.rpcScore.get(peer) || 0,
+        attnets: this.peerMetadataStore.metadata.get(peer)?.attnets ?? [],
+        score: this.peerRpcScores.getScore(peer),
       })),
-      activeSubnetIds,
+      // Collect subnets which we need peers for in the current slot
+      this.subnets.getActive(this.chain.clock.currentSlot),
       this.opts
     );
 
@@ -352,8 +318,8 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     // Every interval request to send some peers our seqNumber and process theirs
     // If the seqNumber is different it must request the new metadata
     for (const [peer, lastMs] of this.peersToPing.entries()) {
-      const direction = this.peersDirection.get(peer) ?? "inbound";
-      const intervalMs = direction === "inbound" ? PING_INTERVAL_INBOUND_MS : PING_INTERVAL_OUTBOUND_MS;
+      const intervalMs =
+        this.peersDirection.get(peer) === "outbound" ? PING_INTERVAL_INBOUND_MS : PING_INTERVAL_OUTBOUND_MS;
       if (Date.now() - lastMs > intervalMs) {
         this.peersToPing.set(peer, requestLatter());
         void this.requestPing(peer);
@@ -375,7 +341,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     }
 
     if (peersToStatus.length > 0) {
-      void this.requestStatus(peersToStatus);
+      void this.requestStatusMany(peersToStatus);
     }
   }
 
@@ -460,14 +426,9 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     let total = 0;
     const peersByDirection = new Map<string, number>();
     for (const connections of this.libp2p.connectionManager.connections.values()) {
-      const directions: PeerDirection[] = [];
-      for (const cnx of connections) {
-        if (cnx.stat.status === "open") {
-          directions.push(cnx.stat.direction);
-        }
-      }
-      if (directions.length > 0) {
-        const direction = directions.sort().join("-");
+      const cnx = connections.find((cnx) => cnx.stat.status === "open");
+      if (cnx) {
+        const direction = cnx.stat.direction;
         peersByDirection.set(direction, 1 + (peersByDirection.get(direction) ?? 0));
         total++;
       }

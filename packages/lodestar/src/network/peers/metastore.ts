@@ -41,24 +41,21 @@ export class Libp2pPeerMetadataStore implements IPeerMetadataStore {
   }
 
   private typedStore<T>(key: MetadataKey, type: BasicType<T> | ContainerType<T>): Item<T> {
-    const set = (peer: PeerId, value: T): void => this.set(peer, key, type, value);
-    const get = (peer: PeerId): T | undefined => this.get(peer, key, type);
-    return {set, get};
-  }
-
-  private set<T>(peer: PeerId, key: MetadataKey, type: BasicType<T> | ContainerType<T>, value: T | null): void {
-    if (notNullish(value)) {
-      this.metabook.set(peer, key, Buffer.from(type.serialize(value)));
-    } else {
-      this.metabook.deleteValue(peer, key);
-    }
-  }
-
-  private get<T>(peer: PeerId, key: MetadataKey, type: BasicType<T> | ContainerType<T>): T | undefined {
-    const value = this.metabook.getValue(peer, key);
-    if (value) {
-      return type.deserialize(value);
-    }
+    return {
+      set: (peer: PeerId, value: T): void => {
+        if (notNullish(value)) {
+          this.metabook.set(peer, key, Buffer.from(type.serialize(value)));
+        } else {
+          this.metabook.deleteValue(peer, key);
+        }
+      },
+      get: (peer: PeerId): T | undefined => {
+        const value = this.metabook.getValue(peer, key);
+        if (value) {
+          return type.deserialize(value);
+        }
+      },
+    };
   }
 }
 

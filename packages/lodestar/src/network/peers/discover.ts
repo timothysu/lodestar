@@ -3,7 +3,7 @@ import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {Discv5, Discv5Discovery} from "@chainsafe/discv5";
 import {shuffle} from "../../util/shuffle";
-import {getConnectedPeerIds} from "./utils";
+import {getConnectedPeerIds} from "./utils/getConnectedPeerIds";
 import {Discv5Query} from "./interface";
 import {IPeerRpcScoreStore, ScoreState} from "./score";
 
@@ -85,25 +85,11 @@ export class PeerDiscovery {
 
     const peersOnSubnet: PeerId[] = [];
 
+    // TODO: Should kadValues() be shuffle'd?
     for (const enr of discv5.kadValues()) {
       if (peersOnSubnet.length >= maxPeersToDiscover) {
         break;
       }
-
-      // Regular peer flow: discv5 and libp2p add the multiaddr for TCP to the address book and ignore peers without
-      // ````
-      // const multiaddrTCP = enr.getLocationMultiaddr("tcp");
-      // if (!multiaddrTCP) return;
-      // this.emit("peer", { id: await enr.peerId(), multiaddrs: [multiaddrTCP] });
-      // ```
-      // https://github.com/ChainSafe/discv5/blob/671a9ac8ec59ba9ad6dcce566036ce4758fe50a7/src/libp2p/discv5.ts
-      //
-      // ```
-      // this("peer", peer => {
-      //   if (peer.multiaddrs) this.peerStore.addressBook.add(peer.id, peer.multiaddrs)
-      // })
-      // ```
-      // https://github.com/libp2p/js-libp2p/blob/aec8e3d3bb1b245051b60c2a890550d262d5b062/src/index.js#L638
 
       try {
         const attnets = enr.get("attnets");
@@ -111,8 +97,13 @@ export class PeerDiscovery {
           // async because peerId runs some crypto lib
           const peerId = await enr.peerId();
 
+          // Mimic the regular discv5 + js-libp2p
+          // Must get the tcp multiaddr and add it the addressBook. Ignore peers without
+          // https://github.com/ChainSafe/discv5/blob/671a9ac8ec59ba9ad6dcce566036ce4758fe50a7/src/libp2p/discv5.ts#L92
           const multiaddrTCP = enr.getLocationMultiaddr("tcp");
           if (multiaddrTCP) {
+            // Must add the multiaddrs array to the address book before dialing
+            // https://github.com/libp2p/js-libp2p/blob/aec8e3d3bb1b245051b60c2a890550d262d5b062/src/index.js#L638
             this.libp2p.peerStore.addressBook.add(peerId, [multiaddrTCP]);
             peersOnSubnet.push(peerId);
           }

@@ -30,6 +30,8 @@ function updateFinalizedChains(finalizedChains: SyncChain[]): {toStart: SyncChai
   // Pick first only
   const [newSyncChain] = prioritizeSyncChains(finalizedChains);
 
+  // TODO: Should it stop all HEAD chains if going from a head sync to a finalized sync?
+
   // Should sync on finalized chain
   if (!newSyncChain) {
     // No finalized chain to sync
