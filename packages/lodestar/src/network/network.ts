@@ -140,10 +140,6 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     return this.libp2p.peerStore.get(peer) ?? null;
   }
 
-  public subscribeCoreTopics(): void {
-    // TODO:
-  }
-
   /**
    * Request att subnets up `toSlot`. Network will ensure to mantain some peers for each
    */

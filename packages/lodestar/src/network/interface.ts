@@ -48,7 +48,6 @@ export interface INetwork extends NetworkEventEmitter {
   /** Search peers joining subnets */
   requestAttSubnets(requestedSubnets: RequestedSubnet[]): void;
   reStatusPeers(peers: PeerId[]): void;
-  subscribeCoreTopics(): void;
   // Service
   start(): Promise<void>;
   stop(): Promise<void>;
