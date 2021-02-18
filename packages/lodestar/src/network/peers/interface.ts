@@ -1,5 +1,5 @@
 import PeerId from "peer-id";
-import {Metadata, Slot, Status} from "@chainsafe/lodestar-types";
+import {Metadata, Slot} from "@chainsafe/lodestar-types";
 import {ReqRespEncoding} from "../../constants";
 
 export type Discv5Query = {subnetId: number; maxPeersToDiscover: number};
@@ -24,7 +24,6 @@ export type PeerMetadataStoreItem<T> = {
 export interface IPeerMetadataStore {
   encoding: PeerMetadataStoreItem<ReqRespEncoding>;
   metadata: PeerMetadataStoreItem<Metadata>;
-  status: PeerMetadataStoreItem<Status>;
   rpcScore: PeerMetadataStoreItem<number>;
   rpcScoreLastUpdate: PeerMetadataStoreItem<number>;
 }

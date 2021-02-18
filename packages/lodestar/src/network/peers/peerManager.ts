@@ -216,10 +216,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
       return;
     }
 
-    // set status on peer
-    // TODO: TEMP code from before
-    this.peerMetadata.status.set(peer, status);
-
     // Peer is usable, send it to the rangeSync
     // NOTE: Peer may not be connected anymore at this point, potential race condition
     // libp2p.connectionManager.get() returns not null if there's +1 open connections with `peer`

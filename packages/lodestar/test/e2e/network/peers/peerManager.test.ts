@@ -116,7 +116,7 @@ describe("network / peers / PeerManager", function () {
   } as LibP2pConnection;
 
   it("Should emit peer connected event on relevant peer status", async function () {
-    const {chain, libp2p, reqResp, peerMetadata, peerManager} = await mockModules();
+    const {chain, libp2p, reqResp, peerManager} = await mockModules();
 
     // Simualate a peer connection, get() should return truthy
     libp2p.connectionManager.connections.set(peerId1.toB58String(), [libp2pConnectionOutboud]);
@@ -129,8 +129,6 @@ describe("network / peers / PeerManager", function () {
     reqResp.emit(ReqRespEvent.receivedStatus, peerId1, remoteStatus);
 
     await peerConnectedPromise;
-
-    expect(peerMetadata.status.get(peerId1)).to.deep.equal(remoteStatus, "Wrong stored status");
   });
 
   it("On peerConnect handshake flow", async function () {
@@ -167,7 +165,6 @@ describe("network / peers / PeerManager", function () {
     expect(reqResp.status.callCount).to.equal(1, "reqResp.status must be called");
     expect(reqResp.metadata.callCount).to.equal(1, "reqResp.metadata must be called");
 
-    expect(peerMetadata.status.get(peerId1)).to.deep.equal(remoteStatus, "Wrong stored status");
     expect(peerMetadata.metadata.get(peerId1)).to.deep.equal(remoteMetadata, "Wrong stored metadata");
   });
 });

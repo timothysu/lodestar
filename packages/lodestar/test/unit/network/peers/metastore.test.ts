@@ -4,7 +4,7 @@ import sinon, {SinonStub, SinonStubbedInstance} from "sinon";
 import {ReqRespEncoding} from "../../../../src/constants";
 import {expect} from "chai";
 import PeerId from "peer-id";
-import {Metadata, Status} from "@chainsafe/lodestar-types";
+import {Metadata} from "@chainsafe/lodestar-types";
 
 describe("Libp2pPeerMetadataStore", function () {
   let metabookStub: SinonStubbedInstance<MetadataBook>;
@@ -37,21 +37,6 @@ describe("Libp2pPeerMetadataStore", function () {
     const result = store.encoding.get(peerId);
 
     expect(result).to.be.equal(value);
-  });
-
-  it("can store and retrieve status", function () {
-    const store = new Libp2pPeerMetadataStore(config, metabookStub);
-    const value: Status = {
-      finalizedEpoch: 1,
-      finalizedRoot: Buffer.alloc(32, 1),
-      forkDigest: Buffer.alloc(4),
-      headRoot: Buffer.alloc(32, 2),
-      headSlot: 10,
-    };
-    store.status.set(peerId, value);
-    const result = store.status.get(peerId);
-
-    expect(config.types.Status.equals(result as Status, value)).to.be.true;
   });
 
   it("can store and retrieve metadata", function () {

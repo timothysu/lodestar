@@ -13,7 +13,6 @@ describe("simple block provider score tracking", function () {
     const store: IPeerMetadataStore = {
       encoding: new PeerMap<any>(),
       metadata: new PeerMap<any>(),
-      status: new PeerMap<any>(),
       rpcScore: new PeerMap<number>(),
       rpcScoreLastUpdate: new PeerMap<number>(),
     };

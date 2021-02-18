@@ -1,7 +1,7 @@
 import {IPeerMetadataStore, PeerMetadataStoreItem} from "./interface";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import PeerId from "peer-id";
-import {Metadata, Status} from "@chainsafe/lodestar-types";
+import {Metadata} from "@chainsafe/lodestar-types";
 import {BasicType, ContainerType} from "@chainsafe/ssz";
 import {notNullish} from "../../util/notNullish";
 import {ReqRespEncoding} from "../../constants";
@@ -23,7 +23,6 @@ type Item<T> = PeerMetadataStoreItem<T>; // shorter alias for readability
 export class Libp2pPeerMetadataStore implements IPeerMetadataStore {
   encoding: Item<ReqRespEncoding>;
   metadata: Item<Metadata>;
-  status: Item<Status>;
   rpcScore: Item<number>;
   rpcScoreLastUpdate: Item<number>;
 
@@ -35,7 +34,6 @@ export class Libp2pPeerMetadataStore implements IPeerMetadataStore {
     this.metabook = metabook;
     this.encoding = this.typedStore(MetadataKey.ENCODING, new StringType());
     this.metadata = this.typedStore(MetadataKey.METADATA, this.config.types.Metadata);
-    this.status = this.typedStore(MetadataKey.STATUS, this.config.types.Status);
     this.rpcScore = this.typedStore(MetadataKey.SCORE, this.config.types.Number64);
     this.rpcScoreLastUpdate = this.typedStore(MetadataKey.SCORE_LAST_UPDATE, this.config.types.Number64);
   }
