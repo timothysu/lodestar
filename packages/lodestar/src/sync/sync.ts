@@ -202,24 +202,24 @@ export class BeaconSync implements IBeaconSync {
       return;
     }
 
-    const blockRoot = this.config.types.BeaconBlock.hashTreeRoot(err.job.signedBlock.message);
-    const unknownAncestorRoot = this.chain.pendingBlocks.getMissingAncestor(blockRoot);
-    const unknownAncestorRootHex = toHexString(unknownAncestorRoot);
+    const parentRoot = err.type.parentRoot;
+    const parentRootHex = toHexString(parentRoot);
 
-    if (this.processingRoots.has(unknownAncestorRootHex)) {
+    if (this.processingRoots.has(parentRootHex)) {
       return;
     }
 
-    this.processingRoots.add(unknownAncestorRootHex);
-    this.logger.verbose("Finding block for unknown ancestor root", {blockRoot: unknownAncestorRootHex});
+    this.processingRoots.add(parentRootHex);
+    this.logger.verbose("Finding block for unknown ancestor root", {parentRootHex});
 
     try {
-      const block = await fetchUnknownBlockRoot(unknownAncestorRoot, this.network);
+      const block = await fetchUnknownBlockRoot(parentRoot, this.network);
       await this.chain.receiveBlock(block);
-      this.processingRoots.delete(unknownAncestorRootHex);
-      this.logger.verbose("Found UnknownBlockRoot", {unknownAncestorRootHex});
+      this.logger.verbose("Found UnknownBlockRoot", {parentRootHex});
     } catch (e) {
-      this.logger.verbose("Error fetching UnknownBlockRoot", {unknownAncestorRootHex, error: e.message});
+      this.logger.verbose("Error fetching UnknownBlockRoot", {parentRootHex}, e);
+    } finally {
+      this.processingRoots.delete(parentRootHex);
     }
   };
 }

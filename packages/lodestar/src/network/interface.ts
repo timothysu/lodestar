@@ -44,7 +44,7 @@ export interface INetwork extends NetworkEventEmitter {
   localMultiaddrs: Multiaddr[];
   getEnr(): ENR | undefined;
   getConnectionsByPeer(): Map<string, LibP2pConnection[]>;
-  getPeerFromPeerStore(peer: PeerId): LibP2p.Peer | null;
+  getConnectedPeers(): PeerId[];
   /** Search peers joining subnets */
   requestAttSubnets(requestedSubnets: RequestedSubnet[]): void;
   reStatusPeers(peers: PeerId[]): void;

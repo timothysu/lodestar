@@ -130,6 +130,13 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     });
   }
 
+  /**
+   * Return peers with at least one connection in status "open"
+   */
+  getConnectedPeerIds(): PeerId[] {
+    return getConnectedPeerIds(this.libp2p);
+  }
+
   async goodbyeAndDisconnectAllPeers(): Promise<void> {
     await Promise.all(
       // Filter by peers that support the goodbye protocol: {supportsProtocols: [goodbyeProtocol]}
@@ -372,13 +379,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.emit(PeerManagerEvent.peerDisconnected, peer);
     this.runPeersMetrics(); // Last in case it throws
   };
-
-  /**
-   * Return peers with at least one connection in status "open"
-   */
-  private getConnectedPeerIds(): PeerId[] {
-    return getConnectedPeerIds(this.libp2p);
-  }
 
   private async disconnect(peerId: PeerId): Promise<void> {
     try {

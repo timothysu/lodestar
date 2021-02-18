@@ -136,8 +136,8 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     return this.libp2p.connectionManager.connections;
   }
 
-  public getPeerFromPeerStore(peer: PeerId): LibP2p.Peer | null {
-    return this.libp2p.peerStore.get(peer) ?? null;
+  public getConnectedPeers(): PeerId[] {
+    return this.peerManager.getConnectedPeerIds();
   }
 
   /**
