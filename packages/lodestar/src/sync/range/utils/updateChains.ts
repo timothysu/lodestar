@@ -18,55 +18,35 @@ export function updateChains(chains: SyncChain[]): {toStart: SyncChain[]; toStop
     }
   }
 
-  return (
-    // Choose the best finalized chain if one needs to be selected.
-    updateFinalizedChains(finalizedChains) ||
-    // Handle head syncing chains if there are no finalized chains left.
-    updateHeadChains(headChains)
-  );
-}
-
-function updateFinalizedChains(finalizedChains: SyncChain[]): {toStart: SyncChain[]; toStop: SyncChain[]} | null {
-  // Pick first only
-  const [newSyncChain] = prioritizeSyncChains(finalizedChains);
-
-  // TODO: Should it stop all HEAD chains if going from a head sync to a finalized sync?
-
-  // Should sync on finalized chain
-  if (!newSyncChain) {
-    // No finalized chain to sync
-    return null;
-  }
-
-  const currentSyncChain = finalizedChains.find((syncChain) => syncChain.isSyncing);
-  if (!currentSyncChain) {
-    return {toStart: [newSyncChain], toStop: []};
-  }
-
-  if (
-    newSyncChain !== currentSyncChain &&
-    newSyncChain.peers > currentSyncChain.peers &&
-    currentSyncChain.validatedEpochs > MIN_FINALIZED_CHAIN_VALIDATED_EPOCHS
-  ) {
-    // Switch from currentSyncChain to newSyncChain
-    return {toStart: [newSyncChain], toStop: [currentSyncChain]};
-  } else {
-    // Keep syncing currentSyncChains
-    // chains have the same number of peers, pick the currently syncing
-    // chain to avoid unnecesary switchings and try to advance it
-    return {toStart: [], toStop: []};
-  }
-}
-
-function updateHeadChains(headChains: SyncChain[]): {toStart: SyncChain[]; toStop: SyncChain[]} {
   const toStart: SyncChain[] = [];
   const toStop: SyncChain[] = [];
 
-  for (const syncChain of prioritizeSyncChains(headChains)) {
-    if (toStart.length < PARALLEL_HEAD_CHAINS) {
-      toStart.push(syncChain);
-    } else {
-      toStop.push(syncChain);
+  if (finalizedChains.length > 0) {
+    // Pick first only
+    const [newSyncChain] = prioritizeSyncChains(finalizedChains);
+
+    // TODO: Should it stop all HEAD chains if going from a head sync to a finalized sync?
+
+    const currentSyncChain = finalizedChains.find((syncChain) => syncChain.isSyncing);
+
+    // Only switch from currentSyncChain to newSyncChain if necessary
+    // Avoid unnecesary switchings and try to advance it
+    if (
+      !currentSyncChain ||
+      (newSyncChain !== currentSyncChain &&
+        newSyncChain.peers > currentSyncChain.peers &&
+        currentSyncChain.validatedEpochs > MIN_FINALIZED_CHAIN_VALIDATED_EPOCHS)
+    ) {
+      toStart.push(newSyncChain);
+      if (currentSyncChain) toStop.push(currentSyncChain);
+    }
+  } else {
+    for (const syncChain of prioritizeSyncChains(headChains)) {
+      if (toStart.length < PARALLEL_HEAD_CHAINS) {
+        toStart.push(syncChain);
+      } else {
+        toStop.push(syncChain);
+      }
     }
   }
 
