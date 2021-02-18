@@ -3,9 +3,10 @@ import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {Discv5, Discv5Discovery} from "@chainsafe/discv5";
 import {shuffle} from "../../util/shuffle";
-import {getConnectedPeerIds} from "./utils/getConnectedPeerIds";
-import {Discv5Query} from "./interface";
+import {getConnectedPeerIds} from "./utils";
 import {IPeerRpcScoreStore, ScoreState} from "./score";
+
+export type Discv5Query = {subnetId: number; maxPeersToDiscover: number};
 
 export type PeerDiscoveryOpts = {
   maxPeers: number;

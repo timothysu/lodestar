@@ -3,8 +3,8 @@ import {BeaconBlocksByRangeRequest, Epoch, SignedBeaconBlock} from "@chainsafe/l
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {LodestarError} from "@chainsafe/lodestar-utils";
 import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
-import {MAX_BATCH_DOWNLOAD_ATTEMPTS, MAX_BATCH_PROCESSING_ATTEMPTS} from "../constants";
-import {hashBlocks} from "./utils/hashBlocks";
+import {BATCH_SLOT_OFFSET, MAX_BATCH_DOWNLOAD_ATTEMPTS, MAX_BATCH_PROCESSING_ATTEMPTS} from "../constants";
+import {hashBlocks} from "./utils";
 
 export type BatchOpts = {
   epochsPerBatch: Epoch;
@@ -51,9 +51,6 @@ export type BatchMetadata = {
   startEpoch: Epoch;
   status: BatchStatus;
 };
-
-/** Batch range excludes the first block of the epoch. @see Batch */
-export const BATCH_SLOT_OFFSET = 1;
 
 /**
  * Batches are downloaded excluding the first block of the epoch assuming it has already been

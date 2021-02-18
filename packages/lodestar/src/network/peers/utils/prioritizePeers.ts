@@ -1,8 +1,8 @@
 import PeerId from "peer-id";
 import {AttestationSubnets} from "@chainsafe/lodestar-types";
-import {shuffle} from "../../util/shuffle";
-import {sortBy} from "../../util/sortBy";
-import {Discv5Query} from "./interface";
+import {shuffle} from "../../../util/shuffle";
+import {sortBy} from "../../../util/sortBy";
+import {Discv5Query} from "../discover";
 
 /** Target number of peers we'd like to have connected to a given long-lived subnet */
 const MAX_TARGET_SUBNET_PEERS = 6;

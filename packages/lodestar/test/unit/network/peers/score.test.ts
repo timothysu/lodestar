@@ -1,5 +1,5 @@
 import PeerId from "peer-id";
-import {PeerAction, ScoreState, SimpleRpcScore} from "../../../../src/network/peers/score";
+import {PeerAction, ScoreState, PeerRpcScoreStore} from "../../../../src/network/peers/score";
 import {PeerMap} from "../../../../src/util/peerMap";
 import {IPeerMetadataStore} from "../../../../src/network/peers";
 import {expect} from "chai";
@@ -16,7 +16,7 @@ describe("simple block provider score tracking", function () {
       rpcScore: new PeerMap<number>(),
       rpcScoreLastUpdate: new PeerMap<number>(),
     };
-    return {store, scoreStore: new SimpleRpcScore(store)};
+    return {store, scoreStore: new PeerRpcScoreStore(store)};
   }
 
   it("Should return default score, without any previous action", function () {

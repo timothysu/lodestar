@@ -9,13 +9,17 @@ import {IBeaconChain} from "../../chain";
 import {GoodByeReasonCode, GOODBYE_KNOWN_CODES} from "../../constants";
 import {IBeaconMetrics} from "../../metrics";
 import {IReqResp, ReqRespEvent} from "../reqresp";
-import {assertPeerRelevance} from "./assertPeerRelevance";
 import {Libp2pPeerMetadataStore} from "./metastore";
 import {PeerDiscovery} from "./discover";
-import {prioritizePeers} from "./priorization";
-import {RequestedSubnet} from "./interface";
 import {IPeerRpcScoreStore, ScoreState} from "./score";
-import {getConnectedPeerIds, PeerMapDelay, SubnetMap} from "./utils";
+import {
+  getConnectedPeerIds,
+  PeerMapDelay,
+  SubnetMap,
+  RequestedSubnet,
+  assertPeerRelevance,
+  prioritizePeers,
+} from "./utils";
 
 export enum PeerManagerEvent {
   /** A relevant peer has connected or has been re-STATUS'd */
@@ -29,6 +33,13 @@ type PeerManagerEvents = {
 };
 
 type PeerManagerEmitter = StrictEventEmitter<EventEmitter, PeerManagerEvents>;
+
+export interface IPeerManager extends PeerManagerEmitter {
+  getConnectedPeerIds(): PeerId[];
+  goodbyeAndDisconnectAllPeers(): Promise<void>;
+  requestAttSubnets(requestedSubnets: RequestedSubnet[]): void;
+  reStatusPeers(peers: PeerId[]): void;
+}
 
 /** heartbeat performs regular updates such as updating reputations and performing discovery requests */
 const HEARTBEAT_INTERVAL_MS = 30 * 1000;
@@ -45,7 +56,7 @@ const STATUS_INBOUND_GRACE_PERIOD = 15 * 1000;
 // The Node should compute a recomended value every interval and log a warning
 // to terminal if it deviates significantly from the user's settings
 
-type PeerManagerOpts = {
+export type PeerManagerOpts = {
   /** The target number of peers we would like to connect to. */
   targetPeers: number;
   /** The maximum number of peers we allow (exceptions for subnet peers) */
@@ -71,7 +82,7 @@ export type PeerManagerModules = {
  * - Execute discovery query if need peers on some subnet: TODO
  * - Disconnect peers if over target peers
  */
-export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) {
+export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) implements IPeerManager {
   // TODO: Reorg - TEMP
   private libp2p: LibP2p;
   private reqResp: IReqResp;

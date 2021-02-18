@@ -1,8 +1,8 @@
 import {AttestationSubnets} from "@chainsafe/lodestar-types";
 import {expect} from "chai";
 import PeerId from "peer-id";
-import {Discv5Query} from "../../../../src/network/peers/interface";
-import {prioritizePeers} from "../../../../src/network/peers/priorization";
+import {Discv5Query} from "../../../../src/network/peers/discover";
+import {prioritizePeers} from "../../../../src/network/peers/utils/prioritizePeers";
 import {getAttnets} from "../../../utils/network";
 
 type Result = {peersToDisconnect: PeerId[]; peersToConnect: number; discv5Queries: Discv5Query[]};

@@ -65,7 +65,6 @@ export async function getDevBeaconNode({
     deepmerge(
       {
         db: {name: tmpDir.name},
-        sync: {minPeers: 1},
         eth1: {enabled: false},
         metrics: {enabled: false},
         logger: {},
@@ -79,7 +78,6 @@ export async function getDevBeaconNode({
     opts: deepmerge(
       {
         db: {name: tmpDir.name},
-        sync: {minPeers: 1},
         eth1: {enabled: false},
         metrics: {enabled: false},
       } as Partial<IBeaconNodeOptions>,

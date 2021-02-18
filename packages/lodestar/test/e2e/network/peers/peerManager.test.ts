@@ -6,10 +6,7 @@ import {expect} from "chai";
 import {AbortController} from "abort-controller";
 import {config} from "@chainsafe/lodestar-config/mainnet";
 import {silentLogger} from "../../../utils/logger";
-import {Libp2pPeerMetadataStore} from "../../../../src/network/peers/metastore";
 import {IReqResp, ReqRespEvent} from "../../../../src/network/reqresp";
-import {SimpleRpcScore} from "../../../../src/network/peers";
-import {PeerManager, PeerManagerEvent} from "../../../../src/network/peers/peerManager";
 import {BeaconMetrics} from "../../../../src/metrics";
 import {createNode, getAttnets} from "../../../utils/network";
 import {MockBeaconChain} from "../../../utils/mocks/chain/chain";
@@ -18,6 +15,7 @@ import {generateState} from "../../../utils/state";
 import {Metadata} from "@chainsafe/lodestar-types";
 import {LogLevel, sleep, WinstonLogger} from "@chainsafe/lodestar-utils";
 import {waitForEvent} from "../../../utils/events/resolver";
+import {PeerRpcScoreStore, PeerManager, PeerManagerEvent, Libp2pPeerMetadataStore} from "../../../../src/network/peers";
 
 // Run tests with `DEBUG=true mocha ...` to get detailed logs of ReqResp exchanges
 const debugMode = process.env.DEBUG;
@@ -64,7 +62,7 @@ describe("network / peers / PeerManager", function () {
 
     const reqResp = new ReqRespFake();
     const peerMetadata = new Libp2pPeerMetadataStore(config, libp2p.peerStore.metadataBook);
-    const peerRpcScores = new SimpleRpcScore(peerMetadata);
+    const peerRpcScores = new PeerRpcScoreStore(peerMetadata);
 
     const peerManager = new PeerManager(
       {libp2p, reqResp, logger, metrics, chain, config, peerMetadata, peerRpcScores},

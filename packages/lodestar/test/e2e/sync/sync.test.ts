@@ -31,7 +31,6 @@ describe("syncing", function () {
 
     const bn = await getDevBeaconNode({
       params: beaconParams,
-      options: {sync: {minPeers: 0}},
       validatorCount,
       logger: loggerNodeA,
     });

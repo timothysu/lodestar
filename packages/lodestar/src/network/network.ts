@@ -18,10 +18,10 @@ import {IGossip, IGossipMessageValidator} from "./gossip/interface";
 import {IBeaconChain} from "../chain";
 import {MetadataController} from "./metadata";
 import {Discv5Discovery, ENR} from "@chainsafe/discv5";
-import {IPeerMetadataStore, RequestedSubnet} from "./peers";
+import {RequestedSubnet} from "./peers";
 import {Libp2pPeerMetadataStore} from "./peers/metastore";
 import {PeerManager} from "./peers/peerManager";
-import {IPeerRpcScoreStore, SimpleRpcScore} from "./peers/score";
+import {IPeerRpcScoreStore, PeerRpcScoreStore} from "./peers";
 import {IReqRespHandler} from "./reqresp/handlers";
 
 interface ILibp2pModules {
@@ -38,10 +38,9 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
   public reqResp: ReqResp;
   public gossip: IGossip;
   public metadata: MetadataController;
-  public peerMetadata: IPeerMetadataStore;
   public peerRpcScores: IPeerRpcScoreStore;
-
   public peerManager: PeerManager;
+
   private libp2p: LibP2p;
   private logger: ILogger;
   private controller = new AbortController();
@@ -55,9 +54,8 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     this.libp2p = libp2p;
     const metadata = new MetadataController({}, {config, chain, logger});
     const peerMetadata = new Libp2pPeerMetadataStore(config, libp2p.peerStore.metadataBook);
-    const peerRpcScores = new SimpleRpcScore(peerMetadata);
+    const peerRpcScores = new PeerRpcScoreStore(peerMetadata);
     this.metadata = metadata;
-    this.peerMetadata = peerMetadata;
     this.peerRpcScores = peerRpcScores;
     this.reqResp = new ReqResp({config, libp2p, reqRespHandler, peerMetadata, metadata, peerRpcScores, logger}, opts);
     this.gossip = (new Gossip(opts, {config, libp2p, logger, validator, chain}) as unknown) as IGossip;

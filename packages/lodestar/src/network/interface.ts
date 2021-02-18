@@ -8,9 +8,7 @@ import PeerId from "peer-id";
 import StrictEventEmitter from "strict-event-emitter-types";
 import {IGossip} from "./gossip/interface";
 import {MetadataController} from "./metadata";
-import {IPeerMetadataStore, RequestedSubnet} from "./peers/interface";
-import {PeerManager} from "./peers/peerManager";
-import {IPeerRpcScoreStore} from "./peers/score";
+import {RequestedSubnet, IPeerManager, IPeerRpcScoreStore} from "./peers";
 import {IReqResp} from "./reqresp";
 
 export enum NetworkEvent {
@@ -36,9 +34,8 @@ export interface INetwork extends NetworkEventEmitter {
   reqResp: IReqResp;
   gossip: IGossip;
   metadata: MetadataController;
-  peerMetadata: IPeerMetadataStore;
   peerRpcScores: IPeerRpcScoreStore;
-  peerManager: PeerManager;
+  peerManager: IPeerManager;
   /** Our network identity */
   peerId: PeerId;
   localMultiaddrs: Multiaddr[];

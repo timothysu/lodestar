@@ -1,12 +1,5 @@
 import PeerId from "peer-id";
-import {IPeerMetadataStore} from "./interface";
-
-export interface IPeerRpcScoreStore {
-  getScore(peer: PeerId): number;
-  getScoreState(peer: PeerId): ScoreState;
-  applyAction(peer: PeerId, action: PeerAction, actionName?: string): void;
-  update(peer: PeerId): void;
-}
+import {IPeerMetadataStore} from "./metastore";
 
 /** The default score for new peers */
 const DEFAULT_SCORE = 0;
@@ -66,12 +59,19 @@ function scoreToState(score: number): ScoreState {
   return ScoreState.Healthy;
 }
 
+export interface IPeerRpcScoreStore {
+  getScore(peer: PeerId): number;
+  getScoreState(peer: PeerId): ScoreState;
+  applyAction(peer: PeerId, action: PeerAction, actionName?: string): void;
+  update(peer: PeerId): void;
+}
+
 /**
  * A peer's score (perceived potential usefulness).
  * This simplistic version consists of a global score per peer which decays to 0 over time.
  * The decay rate applies equally to positive and negative scores.
  */
-export class SimpleRpcScore implements IPeerRpcScoreStore {
+export class PeerRpcScoreStore implements IPeerRpcScoreStore {
   private readonly store: IPeerMetadataStore;
 
   constructor(store: IPeerMetadataStore) {

@@ -1,25 +1,21 @@
 import PeerId from "peer-id";
 import {AbortController} from "abort-controller";
-import {IBeaconSync, ISyncModules} from "./interface";
-import {ISyncOptions} from "./options";
-import {INetwork} from "../network";
-import {ILogger} from "@chainsafe/lodestar-utils";
-import {CommitteeIndex, Slot, Status, SyncingStatus} from "@chainsafe/lodestar-types";
-import {BeaconGossipHandler, IGossipHandler} from "./gossip";
-import {ChainEvent, IBeaconChain} from "../chain";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {toHexString} from "@chainsafe/ssz";
+import {ILogger} from "@chainsafe/lodestar-utils";
+import {IBeaconSync, ISyncModules} from "./interface";
+import {INetwork} from "../network";
+import {CommitteeIndex, Slot, Status, SyncingStatus} from "@chainsafe/lodestar-types";
+import {ChainEvent, IBeaconChain} from "../chain";
 import {BlockError, BlockErrorCode} from "../chain/errors";
-import {RangeSync, RangeSyncStatus, RangeSyncEvent} from "./range/range";
-import {AttestationCollector} from "./utils";
-import {fetchUnknownBlockRoot} from "./utils/unknownRoot";
 import {PeerManagerEvent} from "../network/peers/peerManager";
-import {getPeerSyncType, PeerSyncType} from "./utils/remoteSyncType";
+import {BeaconGossipHandler, IGossipHandler} from "./gossip";
+import {RangeSync, RangeSyncStatus, RangeSyncEvent} from "./range/range";
+import {AttestationCollector, fetchUnknownBlockRoot, getPeerSyncType, PeerSyncType} from "./utils";
 import {SyncState, SyncChainDebugState} from "./interface";
 
+export type SyncOptions = Record<string, never>;
+
 export class BeaconSync implements IBeaconSync {
-  private readonly opts: ISyncOptions;
-  private readonly config: IBeaconConfig;
   private readonly logger: ILogger;
   private readonly network: INetwork;
   private readonly chain: IBeaconChain;
@@ -44,9 +40,7 @@ export class BeaconSync implements IBeaconSync {
 
   private controller = new AbortController();
 
-  constructor(opts: ISyncOptions, modules: ISyncModules) {
-    this.opts = opts;
-    this.config = modules.config;
+  constructor(opts: SyncOptions, modules: ISyncModules) {
     this.network = modules.network;
     this.chain = modules.chain;
     this.logger = modules.logger;

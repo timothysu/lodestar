@@ -7,7 +7,7 @@ import {
   assertPeerRelevance,
   IrrelevantPeerError,
   IrrelevantPeerErrorCode,
-} from "../../../../src/network/peers/assertPeerRelevance";
+} from "../../../../src/network/peers/utils/assertPeerRelevance";
 import {IBeaconClock} from "../../../../src/chain/clock";
 import {expectRejectedWithLodestarError} from "../../../utils/errors";
 import {toHexString} from "@chainsafe/ssz";

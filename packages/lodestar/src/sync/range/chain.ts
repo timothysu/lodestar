@@ -8,18 +8,19 @@ import {PeerAction} from "../../network";
 import {ChainSegmentError} from "../../chain/errors";
 import {ItTrigger} from "../../util/itTrigger";
 import {byteArrayEquals} from "../../util/bytes";
-import {RangeSyncType} from "../utils/remoteSyncType";
-import {ChainPeersBalancer} from "./utils/peerBalancer";
+import {RangeSyncType} from "../utils";
 import {PeerSet} from "../../util/peerMap";
-import {wrapError} from "./utils/wrapError";
-import {Batch, BatchError, BatchErrorCode, BatchMetadata, BatchOpts, BatchStatus, BATCH_SLOT_OFFSET} from "./batch";
+import {BATCH_BUFFER_SIZE, EPOCHS_PER_BATCH, BATCH_SLOT_OFFSET} from "../constants";
+import {Batch, BatchError, BatchErrorCode, BatchMetadata, BatchOpts, BatchStatus} from "./batch";
 import {
   validateBatchesStatus,
   getNextBatchToProcess,
   toBeProcessedStartEpoch,
   toBeDownloadedStartEpoch,
   toArr,
-} from "./utils/batches";
+  wrapError,
+  ChainPeersBalancer,
+} from "./utils";
 
 export type SyncChainOpts = BatchOpts;
 
@@ -62,25 +63,6 @@ export type SyncChainDebugState = {
   peers: number;
   batches: BatchMetadata[];
 };
-
-/**
- * Blocks are downloaded in batches from peers. This constant specifies how many epochs worth of
- * blocks per batch are requested _at most_. A batch may request less blocks to account for
- * already requested slots. There is a timeout for each batch request. If this value is too high,
- * we will negatively report peers with poor bandwidth. This can be set arbitrarily high, in which
- * case the responder will fill the response up to the max request size, assuming they have the
- * bandwidth to do so.
- */
-const EPOCHS_PER_BATCH = 2;
-
-/**
- * The maximum number of batches to queue before requesting more.
- * In good network conditions downloading batches is much faster than processing them
- * A number > 5 results in wasted progress when the chain completes syncing
- *
- * TODO: When switching branches usually all batches in AwaitingProcessing are dropped, could it be optimized?
- */
-const BATCH_BUFFER_SIZE = 5;
 
 export enum SyncChainStatus {
   Stopped = "Stopped",

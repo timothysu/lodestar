@@ -1,5 +1,13 @@
 import {Slot} from "@chainsafe/lodestar-types";
-import {RequestedSubnet} from "../interface";
+
+export type RequestedSubnet = {
+  subnetId: number;
+  /**
+   * Slot after which the network will stop to mantain a min number of peers
+   *  connected to `subnetId`
+   */
+  toSlot: Slot;
+};
 
 /**
  * Track request subnets by `toSlot`

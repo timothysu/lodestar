@@ -1,4 +1,3 @@
-import {IPeerMetadataStore, PeerMetadataStoreItem} from "./interface";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import PeerId from "peer-id";
 import {Metadata} from "@chainsafe/lodestar-types";
@@ -6,15 +5,20 @@ import {BasicType, ContainerType} from "@chainsafe/ssz";
 import {notNullish} from "../../util/notNullish";
 import {ReqRespEncoding} from "../../constants";
 
-enum MetadataKey {
-  ENCODING = "encoding",
-  METADATA = "metadata",
-  STATUS = "status",
-  SCORE = "score",
-  SCORE_LAST_UPDATE = "score-last-update",
+/**
+ * Get/set data about peers.
+ */
+export interface IPeerMetadataStore {
+  encoding: Item<ReqRespEncoding>;
+  metadata: Item<Metadata>;
+  rpcScore: Item<number>;
+  rpcScoreLastUpdate: Item<number>;
 }
 
-type Item<T> = PeerMetadataStoreItem<T>; // shorter alias for readability
+type Item<T> = {
+  set: (peer: PeerId, value: T) => void;
+  get: (peer: PeerId) => T | undefined;
+};
 
 /**
  * Wrapper around Libp2p.peerstore.metabook
@@ -32,13 +36,13 @@ export class Libp2pPeerMetadataStore implements IPeerMetadataStore {
   constructor(config: IBeaconConfig, metabook: MetadataBook) {
     this.config = config;
     this.metabook = metabook;
-    this.encoding = this.typedStore(MetadataKey.ENCODING, new StringType());
-    this.metadata = this.typedStore(MetadataKey.METADATA, this.config.types.Metadata);
-    this.rpcScore = this.typedStore(MetadataKey.SCORE, this.config.types.Number64);
-    this.rpcScoreLastUpdate = this.typedStore(MetadataKey.SCORE_LAST_UPDATE, this.config.types.Number64);
+    this.encoding = this.typedStore("encoding", new StringType());
+    this.metadata = this.typedStore("metadata", this.config.types.Metadata);
+    this.rpcScore = this.typedStore("score", this.config.types.Number64);
+    this.rpcScoreLastUpdate = this.typedStore("score-last-update", this.config.types.Number64);
   }
 
-  private typedStore<T>(key: MetadataKey, type: BasicType<T> | ContainerType<T>): Item<T> {
+  private typedStore<T>(key: string, type: BasicType<T> | ContainerType<T>): Item<T> {
     return {
       set: (peer: PeerId, value: T): void => {
         if (notNullish(value)) {

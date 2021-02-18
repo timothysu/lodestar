@@ -29,7 +29,6 @@ describe("Run multi node single thread", function () {
     for (let i = 0; i < nodeCount; i++) {
       const node = await getDevBeaconNode({
         params: beaconParams,
-        options: {sync: {minPeers: 1}},
         genesisTime,
         logger: logger.child({module: `Node ${i}`}),
       });

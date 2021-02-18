@@ -10,10 +10,8 @@ import {toHexString} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../chain";
 import {INetwork} from "../../network";
 import {IBeaconMetrics} from "../../metrics";
-import {RangeSyncType, getRangeSyncType} from "../utils/remoteSyncType";
-import {assertSequentialBlocksInRange} from "../utils";
-import {updateChains} from "./utils/updateChains";
-import {shouldRemoveChain} from "./utils/shouldRemoveChain";
+import {assertSequentialBlocksInRange, RangeSyncType, getRangeSyncType} from "../utils";
+import {updateChains, shouldRemoveChain} from "./utils";
 import {ChainTarget, SyncChainFns, SyncChain, SyncChainOpts, SyncChainDebugState} from "./chain";
 
 export enum RangeSyncEvent {
