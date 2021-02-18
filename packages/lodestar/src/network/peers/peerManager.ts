@@ -8,16 +8,14 @@ import PeerId from "peer-id";
 import {IBeaconChain} from "../../chain";
 import {GoodByeReasonCode, GOODBYE_KNOWN_CODES} from "../../constants";
 import {IBeaconMetrics} from "../../metrics";
-import {PeerMap} from "../../util/peerMap";
 import {IReqResp, ReqRespEvent} from "../reqresp";
-import {PeerDirection} from "../interface";
 import {assertPeerRelevance} from "./assertPeerRelevance";
 import {Libp2pPeerMetadataStore} from "./metastore";
 import {PeerDiscovery} from "./discover";
 import {prioritizePeers} from "./priorization";
 import {RequestedSubnet} from "./interface";
 import {IPeerRpcScoreStore, ScoreState} from "./score";
-import {getConnectedPeerIds, SubnetMap} from "./utils";
+import {getConnectedPeerIds, PeerMapDelay, SubnetMap} from "./utils";
 
 export enum PeerManagerEvent {
   /** A relevant peer has connected or has been re-STATUS'd */
@@ -36,7 +34,9 @@ type PeerManagerEmitter = StrictEventEmitter<EventEmitter, PeerManagerEvents>;
 const HEARTBEAT_INTERVAL_MS = 30 * 1000;
 /** The time in seconds between PING events. We do not send a ping if the other peer has PING'd us */
 const PING_INTERVAL_INBOUND_MS = 14 * 1000; // 1 second faster than lighthouse
-const PING_INTERVAL_OUTBOUND_MS = 16 * 1000;
+const PING_INTERVAL_OUTBOUND_MS = 17 * 1000;
+/** The time in seconds between re-status's peers. */
+const STATUS_INTERVAL_MS = 5 * 60 * 1000;
 /** Expect a STATUS request from on inbound peer for some time. Afterwards the node does a request */
 const STATUS_INBOUND_GRACE_PERIOD = 15 * 1000;
 
@@ -51,11 +51,6 @@ type PeerManagerOpts = {
   /** The maximum number of peers we allow (exceptions for subnet peers) */
   maxPeers: number;
 };
-
-/** Helper for `peersToPing` Map, value to set to trigger a request immediately */
-const requestImmediately = 0;
-/** Helper for `peersToPing` Map, value to set to trigger a request some interval */
-const requestLatter = (): number => Date.now();
 
 /**
  * Tasks:
@@ -78,18 +73,14 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private discovery: PeerDiscovery;
 
   /** Map of PeerId -> Time of last PING'd request in ms */
-  private peersToPing = new PeerMap<number>();
+  private peersToPingOutbound = new PeerMapDelay(PING_INTERVAL_INBOUND_MS);
+  private peersToPingInbound = new PeerMapDelay(PING_INTERVAL_OUTBOUND_MS);
   /** Map of PeerId -> Time of last STATUS'd request in ms */
-  private peersToStatus = new PeerMap<number>();
-  private peersDirection = new PeerMap<PeerDirection>();
+  private peersToStatus = new PeerMapDelay(STATUS_INTERVAL_MS);
   private opts: PeerManagerOpts;
 
   /** Map of subnets and the slot until they are needed */
   private subnets = new SubnetMap();
-
-  /** The time in seconds between re-status's peers. */
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  private STATUS_INTERVAL_MS: number;
 
   constructor(
     libp2p: LibP2p,
@@ -113,8 +104,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.peerMetadataStore = peerMetadataStore;
     this.peerRpcScores = peerRpcScores;
     this.opts = opts;
-
-    this.STATUS_INTERVAL_MS = config.params.SLOTS_PER_EPOCH * config.params.SECONDS_PER_SLOT * 1000;
 
     this.discovery = new PeerDiscovery(libp2p, peerRpcScores, logger, config, opts);
 
@@ -165,7 +154,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    * The app layer needs to refresh the status of some peers. The sync have reached a target
    */
   reStatusPeers(peers: PeerId[]): void {
-    for (const peer of peers) this.peersToStatus.set(peer, requestImmediately);
+    for (const peer of peers) this.peersToStatus.requestNow(peer);
     this.pingAndStatusTimeouts();
   }
 
@@ -173,9 +162,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    * Handle a PING request + response (rpc handler responds with PONG automatically)
    */
   private onPing = (peer: PeerId, seqNumber: Ping): void => {
-    // reset the to-ping timer for this peer
-    this.peersToPing.set(peer, requestLatter());
-
     // if the sequence number is unknown update the peer's metadata
     const metadata = this.peerMetadataStore.metadata.get(peer);
     if (!metadata || metadata.seqNumber < seqNumber) {
@@ -208,7 +194,8 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    * Handle a STATUS request + response (rpc handler responds with STATUS automatically)
    */
   private onStatus = async (peer: PeerId, status: Status): Promise<void> => {
-    this.peersToStatus.set(peer, requestLatter());
+    // reset the to-status timer for this peer
+    this.peersToStatus.requestAfter(peer);
 
     try {
       await assertPeerRelevance(status, this.chain, this.config);
@@ -317,13 +304,9 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private pingAndStatusTimeouts(): void {
     // Every interval request to send some peers our seqNumber and process theirs
     // If the seqNumber is different it must request the new metadata
-    for (const [peer, lastMs] of this.peersToPing.entries()) {
-      const intervalMs =
-        this.peersDirection.get(peer) === "outbound" ? PING_INTERVAL_INBOUND_MS : PING_INTERVAL_OUTBOUND_MS;
-      if (Date.now() - lastMs > intervalMs) {
-        this.peersToPing.set(peer, requestLatter());
-        void this.requestPing(peer);
-      }
+    const peersToPing = [...this.peersToPingInbound.pollNext(), ...this.peersToPingOutbound.pollNext()];
+    for (const peer of peersToPing) {
+      void this.requestPing(peer);
     }
 
     // TODO: Consider sending status request to peers that do support status protocol
@@ -332,14 +315,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     // Every interval request to send some peers our status, and process theirs
     // Must re-check if this peer is relevant to us and emit an event if the status changes
     // So the sync layer can update things
-    const peersToStatus: PeerId[] = [];
-    for (const [peer, lastMs] of this.peersToStatus.entries()) {
-      if (Date.now() - lastMs > this.STATUS_INTERVAL_MS) {
-        this.peersToStatus.set(peer, requestLatter());
-        peersToStatus.push(peer);
-      }
-    }
-
+    const peersToStatus = this.peersToStatus.pollNext();
     if (peersToStatus.length > 0) {
       void this.requestStatusMany(peersToStatus);
     }
@@ -359,18 +335,18 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     // On connection:
     // - Outbound connections: send a STATUS and PING request
     // - Inbound connections: expect to be STATUS'd, schedule STATUS and PING for latter
-    this.peersDirection.set(peer, direction);
-
-    // timeToReq = 0     -> Request as soon as pingAndStatusTimeouts() is called
-    // timeToReq = now() -> Request after `PING_INTERVAL`
-    const isOutbound = direction === "outbound";
-    const timeToReqPing = isOutbound ? requestImmediately : requestLatter();
-    const timeToReqStatus = isOutbound ? requestImmediately : requestLatter() - STATUS_INBOUND_GRACE_PERIOD;
-
     // NOTE: libp2p may emit two "peer:connect" events: One for inbound, one for outbound
     // If that happens, it's okay. Only the "outbound" connection triggers immediate action
-    this.peersToPing.set(peer, timeToReqPing);
-    this.peersToStatus.set(peer, timeToReqStatus);
+    if (direction === "outbound") {
+      this.peersToStatus.requestNow(peer);
+      this.peersToPingOutbound.requestNow(peer);
+      this.peersToPingInbound.delete(peer);
+    } else {
+      this.peersToStatus.requestAfter(peer, STATUS_INBOUND_GRACE_PERIOD);
+      this.peersToPingInbound.requestAfter(peer);
+      this.peersToPingOutbound.delete(peer);
+    }
+
     this.pingAndStatusTimeouts();
 
     this.logger.verbose("peer connected", {peerId: peer.toB58String(), direction, status});
@@ -386,9 +362,9 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     const peer = libp2pConnection.remotePeer;
 
     // remove the ping and status timer for the peer
-    this.peersToPing.delete(peer);
+    this.peersToPingInbound.delete(peer);
+    this.peersToPingOutbound.delete(peer);
     this.peersToStatus.delete(peer);
-    this.peersDirection.delete(peer);
 
     this.libp2p.connectionManager.connections;
 
