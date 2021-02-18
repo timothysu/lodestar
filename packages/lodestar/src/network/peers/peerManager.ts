@@ -118,8 +118,6 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
 
     this.discovery = new PeerDiscovery(modules, opts);
 
-    // TODO: Connect to peers in the peerstore. Is this done automatically by libp2p?
-
     const {libp2p, reqResp} = modules;
     libp2p.connectionManager.on("peer:connect", this.onLibp2pPeerConnect);
     libp2p.connectionManager.on("peer:disconnect", this.onLibp2pPeerDisconnect);
@@ -140,6 +138,9 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
       clearInterval(intervalPing);
       clearInterval(intervalHeartbeat);
     });
+
+    // On start-up will connected to existing peers in libp2p.peerStore, same as autoDial behaviour
+    this.heartbeat();
   }
 
   /**
