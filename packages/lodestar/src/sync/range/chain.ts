@@ -23,18 +23,24 @@ import {
 
 export type SyncChainOpts = BatchOpts;
 
-/**
- * Should return if ALL blocks are processed successfully
- * If SOME blocks are processed must throw BlockProcessorError()
- */
-export type ProcessChainSegment = (blocks: SignedBeaconBlock[]) => Promise<void>;
+export type SyncChainModules = {
+  config: IBeaconConfig;
+  logger: ILogger;
+};
 
-export type DownloadBeaconBlocksByRange = (
-  peer: PeerId,
-  request: BeaconBlocksByRangeRequest
-) => Promise<SignedBeaconBlock[]>;
-
-export type ReportPeerFn = (peer: PeerId, action: PeerAction, actionName: string) => void;
+export type SyncChainFns = {
+  /**
+   * Must return if ALL blocks are processed successfully
+   * If SOME blocks are processed must throw BlockProcessorError()
+   */
+  processChainSegment: (blocks: SignedBeaconBlock[]) => Promise<void>;
+  /** Must download blocks, and validate their range */
+  downloadBeaconBlocksByRange: (peer: PeerId, request: BeaconBlocksByRangeRequest) => Promise<SignedBeaconBlock[]>;
+  /** Report peer for negative actions. Decouples from the full network instance */
+  reportPeer: (peer: PeerId, action: PeerAction, actionName: string) => void;
+  /** Hook called when Chain state completes */
+  onEnd: (err?: Error) => void;
+};
 
 /**
  * Sync this up to this target. Uses slot instead of epoch to re-use logic for finalized sync
@@ -97,9 +103,9 @@ export class SyncChain {
   private startEpoch: Epoch;
   private status = SyncChainStatus.Stopped;
 
-  private readonly processChainSegment: ProcessChainSegment;
-  private readonly downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange;
-  private readonly reportPeer: ReportPeerFn;
+  private readonly processChainSegment: SyncChainFns["processChainSegment"];
+  private readonly downloadBeaconBlocksByRange: SyncChainFns["downloadBeaconBlocksByRange"];
+  private readonly reportPeer: SyncChainFns["reportPeer"];
   /** AsyncIterable that guarantees processChainSegment is run only at once at anytime */
   private readonly batchProcessor = new ItTrigger();
   /** Sorted map of batches undergoing some kind of processing. */
@@ -114,29 +120,25 @@ export class SyncChain {
     startEpoch: Epoch,
     target: ChainTarget,
     syncType: RangeSyncType,
-    processChainSegment: ProcessChainSegment,
-    downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange,
-    reportPeer: ReportPeerFn,
-    onEnd: (err?: Error) => void,
-    config: IBeaconConfig,
-    logger: ILogger,
+    fns: SyncChainFns,
+    modules: SyncChainModules,
     opts?: SyncChainOpts
   ) {
     this.startEpoch = startEpoch;
     this.target = target;
     this.syncType = syncType;
-    this.processChainSegment = processChainSegment;
-    this.downloadBeaconBlocksByRange = downloadBeaconBlocksByRange;
-    this.reportPeer = reportPeer;
-    this.config = config;
-    this.logger = logger;
+    this.processChainSegment = fns.processChainSegment;
+    this.downloadBeaconBlocksByRange = fns.downloadBeaconBlocksByRange;
+    this.reportPeer = fns.reportPeer;
+    this.config = modules.config;
+    this.logger = modules.logger;
     this.opts = {epochsPerBatch: opts?.epochsPerBatch ?? EPOCHS_PER_BATCH};
     this.logId = `${syncType}-${target.slot}-${toHexString(target.root).slice(0, 6)}`;
 
     // Trigger event on parent class
     this.sync().then(
-      () => onEnd(),
-      (e) => onEnd(e)
+      () => fns.onEnd(),
+      (e) => fns.onEnd(e)
     );
   }
 

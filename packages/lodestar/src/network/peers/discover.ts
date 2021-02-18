@@ -11,6 +11,13 @@ export type PeerDiscoveryOpts = {
   maxPeers: number;
 };
 
+export type PeerDiscoveryModules = {
+  libp2p: LibP2p;
+  peerRpcScores: IPeerRpcScoreStore;
+  logger: ILogger;
+  config: IBeaconConfig;
+};
+
 export class PeerDiscovery {
   private libp2p: LibP2p;
   private peerRpcScores: IPeerRpcScoreStore;
@@ -20,17 +27,11 @@ export class PeerDiscovery {
   /** The maximum number of peers we allow (exceptions for subnet peers) */
   private maxPeers: number;
 
-  constructor(
-    libp2p: LibP2p,
-    peerRpcScores: IPeerRpcScoreStore,
-    logger: ILogger,
-    config: IBeaconConfig,
-    opts: PeerDiscoveryOpts
-  ) {
-    this.libp2p = libp2p;
-    this.peerRpcScores = peerRpcScores;
-    this.logger = logger;
-    this.config = config;
+  constructor(modules: PeerDiscoveryModules, opts: PeerDiscoveryOpts) {
+    this.libp2p = modules.libp2p;
+    this.peerRpcScores = modules.peerRpcScores;
+    this.logger = modules.logger;
+    this.config = modules.config;
     this.maxPeers = opts.maxPeers;
   }
 

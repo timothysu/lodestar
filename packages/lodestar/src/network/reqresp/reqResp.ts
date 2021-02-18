@@ -50,25 +50,17 @@ export class ReqResp extends (EventEmitter as {new (): ReqRespEmitter}) implemen
   private respCount = 0;
 
   public constructor(
-    {
-      config,
-      libp2p,
-      reqRespHandler,
-      peerMetadata,
-      metadata,
-      peerRpcScores,
-      logger,
-    }: IReqRespModules & {metadata: MetadataController; reqRespHandler: IReqRespHandler},
+    modules: IReqRespModules & {metadata: MetadataController; reqRespHandler: IReqRespHandler},
     options?: IReqRespOptions
   ) {
     super();
-    this.config = config;
-    this.libp2p = libp2p;
-    this.reqRespHandler = reqRespHandler;
-    this.peerMetadata = peerMetadata;
-    this.metadataController = metadata;
-    this.logger = logger;
-    this.peerRpcScores = peerRpcScores;
+    this.config = modules.config;
+    this.libp2p = modules.libp2p;
+    this.reqRespHandler = modules.reqRespHandler;
+    this.peerMetadata = modules.peerMetadata;
+    this.metadataController = modules.metadata;
+    this.logger = modules.logger;
+    this.peerRpcScores = modules.peerRpcScores;
     this.options = options;
   }
 

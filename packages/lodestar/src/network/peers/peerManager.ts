@@ -52,6 +52,17 @@ type PeerManagerOpts = {
   maxPeers: number;
 };
 
+export type PeerManagerModules = {
+  libp2p: LibP2p;
+  reqResp: IReqResp;
+  logger: ILogger;
+  metrics: IBeaconMetrics;
+  chain: IBeaconChain;
+  config: IBeaconConfig;
+  peerMetadata: Libp2pPeerMetadataStore;
+  peerRpcScores: IPeerRpcScoreStore;
+};
+
 /**
  * Tasks:
  * - Ping peers every `PING_INTERVAL_MS`
@@ -68,7 +79,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private metrics: IBeaconMetrics;
   private chain: IBeaconChain;
   private config: IBeaconConfig;
-  private peerMetadataStore: Libp2pPeerMetadataStore;
+  private peerMetadata: Libp2pPeerMetadataStore;
   private peerRpcScores: IPeerRpcScoreStore;
   private discovery: PeerDiscovery;
 
@@ -82,33 +93,23 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   /** Map of subnets and the slot until they are needed */
   private subnets = new SubnetMap();
 
-  constructor(
-    libp2p: LibP2p,
-    reqResp: IReqResp,
-    logger: ILogger,
-    metrics: IBeaconMetrics,
-    chain: IBeaconChain,
-    config: IBeaconConfig,
-    signal: AbortSignal,
-    peerMetadataStore: Libp2pPeerMetadataStore,
-    peerRpcScores: IPeerRpcScoreStore,
-    opts: PeerManagerOpts
-  ) {
+  constructor(modules: PeerManagerModules, opts: PeerManagerOpts, signal: AbortSignal) {
     super();
-    this.libp2p = libp2p;
-    this.reqResp = reqResp;
-    this.logger = logger;
-    this.metrics = metrics;
-    this.chain = chain;
-    this.config = config;
-    this.peerMetadataStore = peerMetadataStore;
-    this.peerRpcScores = peerRpcScores;
+    this.libp2p = modules.libp2p;
+    this.reqResp = modules.reqResp;
+    this.logger = modules.logger;
+    this.metrics = modules.metrics;
+    this.chain = modules.chain;
+    this.config = modules.config;
+    this.peerMetadata = modules.peerMetadata;
+    this.peerRpcScores = modules.peerRpcScores;
     this.opts = opts;
 
-    this.discovery = new PeerDiscovery(libp2p, peerRpcScores, logger, config, opts);
+    this.discovery = new PeerDiscovery(modules, opts);
 
     // TODO: Connect to peers in the peerstore. Is this done automatically by libp2p?
 
+    const {libp2p, reqResp} = modules;
     libp2p.connectionManager.on("peer:connect", this.onLibp2pPeerConnect);
     libp2p.connectionManager.on("peer:disconnect", this.onLibp2pPeerDisconnect);
     reqResp.on(ReqRespEvent.receivedPing, this.onPing);
@@ -170,7 +171,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
    */
   private onPing = (peer: PeerId, seqNumber: Ping): void => {
     // if the sequence number is unknown update the peer's metadata
-    const metadata = this.peerMetadataStore.metadata.get(peer);
+    const metadata = this.peerMetadata.metadata.get(peer);
     if (!metadata || metadata.seqNumber < seqNumber) {
       void this.requestMetadata(peer);
     }
@@ -182,7 +183,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   private onMetadata = (peer: PeerId, metadata: Metadata): void => {
     // Store metadata always in case the peer updates attnets but not the sequence number
     // Trust that the peer always sends the latest metadata (From Lighthouse)
-    this.peerMetadataStore.metadata.set(peer, metadata);
+    this.peerMetadata.metadata.set(peer, metadata);
   };
 
   /**
@@ -217,7 +218,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
 
     // set status on peer
     // TODO: TEMP code from before
-    this.peerMetadataStore.status.set(peer, status);
+    this.peerMetadata.status.set(peer, status);
 
     // Peer is usable, send it to the rangeSync
     // NOTE: Peer may not be connected anymore at this point, potential race condition
@@ -286,7 +287,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     const {peersToDisconnect, discv5Queries, peersToConnect} = prioritizePeers(
       connectedPeers.map((peer) => ({
         id: peer,
-        attnets: this.peerMetadataStore.metadata.get(peer)?.attnets ?? [],
+        attnets: this.peerMetadata.metadata.get(peer)?.attnets ?? [],
         score: this.peerRpcScores.getScore(peer),
       })),
       // Collect subnets which we need peers for in the current slot

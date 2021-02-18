@@ -8,20 +8,13 @@ import {Epoch, Slot, Status} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {toHexString} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../chain";
-import {INetwork, PeerAction} from "../../network";
+import {INetwork} from "../../network";
 import {IBeaconMetrics} from "../../metrics";
 import {RangeSyncType, getRangeSyncType} from "../utils/remoteSyncType";
 import {assertSequentialBlocksInRange} from "../utils";
 import {updateChains} from "./utils/updateChains";
 import {shouldRemoveChain} from "./utils/shouldRemoveChain";
-import {
-  ChainTarget,
-  DownloadBeaconBlocksByRange,
-  ProcessChainSegment,
-  SyncChain,
-  SyncChainOpts,
-  SyncChainDebugState,
-} from "./chain";
+import {ChainTarget, SyncChainFns, SyncChain, SyncChainOpts, SyncChainDebugState} from "./chain";
 
 export enum RangeSyncEvent {
   completedChain = "RangeSync-completedChain",
@@ -193,7 +186,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   }
 
   /** Convenience method for `SyncChain` */
-  private processChainSegment: ProcessChainSegment = async (blocks) => {
+  private processChainSegment: SyncChainFns["processChainSegment"] = async (blocks) => {
     const trusted = true; // TODO: Verify signatures
     const start = process.hrtime.bigint();
     await this.chain.processChainSegment(blocks, trusted);
@@ -203,19 +196,19 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   };
 
   /** Convenience method for `SyncChain` */
-  private downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange = async (peerId, request) => {
+  private downloadBeaconBlocksByRange: SyncChainFns["downloadBeaconBlocksByRange"] = async (peerId, request) => {
     const blocks = await this.network.reqResp.beaconBlocksByRange(peerId, request);
     assertSequentialBlocksInRange(blocks, request);
     return blocks;
   };
 
   /** Convenience method for `SyncChain` */
-  private reportPeer = (peer: PeerId, action: PeerAction, actionName: string): void => {
+  private reportPeer: SyncChainFns["reportPeer"] = (peer, action, actionName) => {
     this.network.peerRpcScores.applyAction(peer, action, actionName);
   };
 
   /** Convenience method for `SyncChain` */
-  private onSyncChainEnd = (): void => {
+  private onSyncChainEnd: SyncChainFns["onEnd"] = () => {
     const localStatus = this.chain.getStatus();
     this.update(localStatus.finalizedEpoch);
     this.emit(RangeSyncEvent.completedChain);
@@ -230,12 +223,13 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
         startEpoch,
         target,
         syncType,
-        this.processChainSegment,
-        this.downloadBeaconBlocksByRange,
-        this.reportPeer,
-        this.onSyncChainEnd,
-        this.config,
-        this.logger,
+        {
+          processChainSegment: this.processChainSegment,
+          downloadBeaconBlocksByRange: this.downloadBeaconBlocksByRange,
+          reportPeer: this.reportPeer,
+          onEnd: this.onSyncChainEnd,
+        },
+        {config: this.config, logger: this.logger},
         this.opts
       );
       this.chains.set(id, syncChain);

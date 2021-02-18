@@ -24,23 +24,6 @@ import {PeerManager} from "./peers/peerManager";
 import {IPeerRpcScoreStore, SimpleRpcScore} from "./peers/score";
 import {IReqRespHandler} from "./reqresp/handlers";
 
-// peer connection
-// - If more peers are needed, run a discv5 query
-// - Prioritize the discovered peers and maybe connect to some
-// - On outbound connection:
-//   1. Send STATUS, receive STATUS
-//   2. Check if peer status is relevant:
-//     YES: Register peer as usable by sync
-//     NO: Disconnect peer
-// - On inbound connection:
-//      Expect STATUS message, repeat process above
-// - Every interval:
-//   - Ping pending peers
-//   - Status pending peers
-//   - Run heartbeat:
-//     - Disconnect peers with very bad scores
-//     - Prioritize existing peers and run discv5 query if necessary
-
 interface ILibp2pModules {
   config: IBeaconConfig;
   libp2p: LibP2p;
@@ -59,11 +42,8 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
   public peerRpcScores: IPeerRpcScoreStore;
 
   public peerManager: PeerManager;
-  private opts: INetworkOptions;
-  private config: IBeaconConfig;
   private libp2p: LibP2p;
   private logger: ILogger;
-  private metrics: IBeaconMetrics;
   private controller = new AbortController();
 
   public constructor(
@@ -71,10 +51,7 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     {config, libp2p, logger, metrics, validator, chain, reqRespHandler}: ILibp2pModules
   ) {
     super();
-    this.opts = opts;
-    this.config = config;
     this.logger = logger;
-    this.metrics = metrics;
     this.libp2p = libp2p;
     const metadata = new MetadataController({}, {config, chain, logger});
     const peerMetadata = new Libp2pPeerMetadataStore(config, libp2p.peerStore.metadataBook);
@@ -86,16 +63,9 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     this.gossip = (new Gossip(opts, {config, libp2p, logger, validator, chain}) as unknown) as IGossip;
 
     this.peerManager = new PeerManager(
-      libp2p,
-      this.reqResp,
-      logger,
-      metrics,
-      chain,
-      config,
-      this.controller.signal,
-      peerMetadata,
-      peerRpcScores,
-      {targetPeers: opts.minPeers, maxPeers: opts.maxPeers}
+      {libp2p, reqResp: this.reqResp, logger, metrics, chain, config, peerMetadata, peerRpcScores},
+      {targetPeers: opts.minPeers, maxPeers: opts.maxPeers},
+      this.controller.signal
     );
   }
 

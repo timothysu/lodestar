@@ -5,13 +5,7 @@ import {Epoch, SignedBeaconBlock, Slot} from "@chainsafe/lodestar-types";
 import {linspace} from "../../../../src/util/numpy";
 import {generateEmptyBlock, generateEmptySignedBlock} from "../../../utils/block";
 import {silentLogger} from "../../../utils/logger";
-import {
-  SyncChain,
-  ProcessChainSegment,
-  DownloadBeaconBlocksByRange,
-  ChainTarget,
-  ReportPeerFn,
-} from "../../../../src/sync/range/chain";
+import {SyncChain, SyncChainFns, ChainTarget} from "../../../../src/sync/range/chain";
 import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {RangeSyncType} from "../../../../src/sync/utils/remoteSyncType";
 import {ZERO_HASH} from "../../../../src/constants";
@@ -78,7 +72,7 @@ describe("sync / range / chain", () => {
   const interval: NodeJS.Timeout | null = null;
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  const reportPeer: ReportPeerFn = () => {};
+  const reportPeer: SyncChainFns["reportPeer"] = () => {};
 
   afterEach(() => {
     if (interval) clearInterval(interval);
@@ -86,14 +80,14 @@ describe("sync / range / chain", () => {
 
   for (const {id, startEpoch, targetEpoch, badBlocks, skippedSlots} of testCases) {
     it(id, async () => {
-      const processChainSegment: ProcessChainSegment = async (blocks) => {
+      const processChainSegment: SyncChainFns["processChainSegment"] = async (blocks) => {
         for (const block of blocks) {
           if (block.signature === ACCEPT_BLOCK) continue;
           if (block.signature === REJECT_BLOCK) throw Error("REJECT_BLOCK");
         }
       };
 
-      const downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange = async (peerId, request) => {
+      const downloadBeaconBlocksByRange: SyncChainFns["downloadBeaconBlocksByRange"] = async (peerId, request) => {
         const blocks: SignedBeaconBlock[] = [];
         for (let i = request.startSlot; i < request.startSlot + request.count; i += request.step) {
           if (skippedSlots?.has(i)) {
@@ -115,16 +109,13 @@ describe("sync / range / chain", () => {
       const syncType = RangeSyncType.Finalized;
 
       await new Promise<void>((resolve, reject) => {
+        const onEnd: SyncChainFns["onEnd"] = (err) => (err ? reject(err) : resolve());
         const initialSync = new SyncChain(
           startEpoch,
           target,
           syncType,
-          processChainSegment,
-          downloadBeaconBlocksByRange,
-          reportPeer,
-          (err) => (err ? reject(err) : resolve()), // onEnd
-          config,
-          logger
+          {processChainSegment, downloadBeaconBlocksByRange, reportPeer, onEnd},
+          {config, logger}
         );
 
         const peers = [new PeerId(Buffer.from("lodestar"))];
@@ -141,23 +132,22 @@ describe("sync / range / chain", () => {
     const peers = [new PeerId(Buffer.from("lodestar"))];
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    const processChainSegment: ProcessChainSegment = async () => {};
-    const downloadBeaconBlocksByRange: DownloadBeaconBlocksByRange = async () => [generateEmptySignedBlock()];
+    const processChainSegment: SyncChainFns["processChainSegment"] = async () => {};
+    const downloadBeaconBlocksByRange: SyncChainFns["downloadBeaconBlocksByRange"] = async () => [
+      generateEmptySignedBlock(),
+    ];
 
     const target: ChainTarget = {slot: computeStartSlotAtEpoch(config, targetEpoch), root: ZERO_HASH};
     const syncType = RangeSyncType.Finalized;
 
     await new Promise<void>((resolve, reject) => {
+      const onEnd: SyncChainFns["onEnd"] = (err) => (err ? reject(err) : resolve());
       const initialSync = new SyncChain(
         startEpoch,
         target,
         syncType,
-        processChainSegment,
-        downloadBeaconBlocksByRange,
-        reportPeer,
-        (err) => (err ? reject(err) : resolve()), // onEnd
-        config,
-        logger
+        {processChainSegment, downloadBeaconBlocksByRange, reportPeer, onEnd},
+        {config, logger}
       );
 
       // Add peers after some time
