@@ -129,6 +129,14 @@ export interface IBeaconMetrics extends IMetrics {
   peersPerSyncChain: Gauge;
   /** Peers labeled by direction */
   peersByDirection: Gauge;
+  /** Number of peer:connected event, labeled by direction */
+  peerConnectedEvent: Gauge;
+  /** Number of peer:disconnected event, labeled by direction */
+  peerDisconnectedEvent: Gauge;
+  /** Number of goodbye received, labeled by reason */
+  peerGoodbyeReceived: Gauge;
+  /** Number of goodbye sent, labeled by reason */
+  peerGoodbyeSent: Gauge;
   /** Total async time spent in the sycn processChainSegment */
   processChainSegmentTime: Gauge;
 }

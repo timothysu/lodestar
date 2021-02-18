@@ -201,9 +201,10 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   /**
    * Handle a GOODBYE request (rpc handler responds automatically)
    */
-  private onGoodbye = (peer: PeerId, goodbyeReason: Goodbye): void => {
-    const description = GOODBYE_KNOWN_CODES[goodbyeReason.toString()] || "";
-    this.logger.verbose("Received goodbye request", {peer: peer.toB58String(), reason: goodbyeReason, description});
+  private onGoodbye = (peer: PeerId, goodbye: Goodbye): void => {
+    const reason = GOODBYE_KNOWN_CODES[goodbye.toString()] || "";
+    this.logger.verbose("Received goodbye request", {peer: peer.toB58String(), goodbye, reason});
+    this.metrics.peerGoodbyeReceived.inc({reason});
 
     // TODO: Consider register that we are banned, if discovery keeps attempting to connect to the same peers
 
@@ -362,12 +363,12 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
       this.peersToPingInbound.requestAfter(peer);
       this.peersToPingOutbound.delete(peer);
     }
-
     this.pingAndStatusTimeouts();
 
     this.logger.verbose("peer connected", {peerId: peer.toB58String(), direction, status});
     // NOTE: The peerConnect event is not emitted here here, but after asserting peer relevance
-    this.runPeersMetrics();
+    this.metrics.peerConnectedEvent.inc({direction});
+    this.runPeerCountMetrics();
   };
 
   /**
@@ -382,11 +383,10 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     this.peersToPingOutbound.delete(peer);
     this.peersToStatus.delete(peer);
 
-    this.libp2p.connectionManager.connections;
-
     this.logger.verbose("peer disconnected", {peerId: peer.toB58String(), direction, status});
     this.emit(PeerManagerEvent.peerDisconnected, peer);
-    this.runPeersMetrics(); // Last in case it throws
+    this.metrics.peerDisconnectedEvent.inc({direction});
+    this.runPeerCountMetrics(); // Last in case it throws
   };
 
   private async disconnect(peerId: PeerId): Promise<void> {
@@ -397,9 +397,10 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
     }
   }
 
-  private async goodbyeAndDisconnect(peer: PeerId, reason: GoodByeReasonCode): Promise<void> {
+  private async goodbyeAndDisconnect(peer: PeerId, goodbye: GoodByeReasonCode): Promise<void> {
     try {
-      await this.reqResp.goodbye(peer, BigInt(reason));
+      this.metrics.peerGoodbyeSent.inc({reason: GOODBYE_KNOWN_CODES[goodbye.toString()] || ""});
+      await this.reqResp.goodbye(peer, BigInt(goodbye));
     } catch (e) {
       this.logger.verbose("Failed to send goodbye", {error: e.message});
       await this.disconnect(peer);
@@ -407,7 +408,7 @@ export class PeerManager extends (EventEmitter as {new (): PeerManagerEmitter}) 
   }
 
   /** Register peer count metrics */
-  private runPeersMetrics(): void {
+  private runPeerCountMetrics(): void {
     let total = 0;
     const peersByDirection = new Map<string, number>();
     for (const connections of this.libp2p.connectionManager.connections.values()) {

@@ -36,9 +36,13 @@ export class BeaconMetrics extends Metrics implements IBeaconMetrics {
   public previousEpochTargetGwei: Gauge;
   public observedEpochAttesters: Gauge;
   public observedEpochAggregators: Gauge;
-  public peersPerSyncChain: Gauge;
-  public peersByDirection: Gauge;
-  public processChainSegmentTime: Gauge;
+  peersPerSyncChain: Gauge;
+  peersByDirection: Gauge;
+  peerConnectedEvent: Gauge;
+  peerDisconnectedEvent: Gauge;
+  peerGoodbyeReceived: Gauge;
+  peerGoodbyeSent: Gauge;
+  processChainSegmentTime: Gauge;
 
   private logger: ILogger;
 
@@ -198,6 +202,34 @@ export class BeaconMetrics extends Metrics implements IBeaconMetrics {
       name: "lodestar_peers",
       help: "number of peers, labeled by direction",
       labelNames: ["direction"],
+      registers,
+    });
+
+    this.peerConnectedEvent = new Gauge({
+      name: "lodestar_peer_connected",
+      help: "Number of peer:connected event, labeled by direction",
+      labelNames: ["direction"],
+      registers,
+    });
+
+    this.peerDisconnectedEvent = new Gauge({
+      name: "lodestar_peer_disconnected",
+      help: "Number of peer:disconnected event, labeled by direction",
+      labelNames: ["direction"],
+      registers,
+    });
+
+    this.peerGoodbyeReceived = new Gauge({
+      name: "lodestar_peer_goodbye_received",
+      help: "Number of goodbye received, labeled by reason",
+      labelNames: ["reason"],
+      registers,
+    });
+
+    this.peerGoodbyeSent = new Gauge({
+      name: "lodestar_peer_goodbye_sent",
+      help: "Number of goodbye sent, labeled by reason",
+      labelNames: ["reason"],
       registers,
     });
 
