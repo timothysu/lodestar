@@ -36,7 +36,6 @@ describe.skip("Run multi node single thread interop validators (no eth1) until c
       for (let i = 0; i < nodeCount; i++) {
         const node = await getDevBeaconNode({
           params: beaconParams,
-          options: {sync: {minPeers: 1}},
           validatorCount: nodeCount * validatorsPerNode,
           genesisTime,
           logger: testLogger(`Node ${i}`, LogLevel.info),

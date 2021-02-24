@@ -153,6 +153,7 @@ export class BeaconNode {
       db,
       chain,
       network,
+      metrics,
       logger: logger.child(opts.logger.sync),
     });
     const chores = new TasksService(config, {
@@ -226,7 +227,7 @@ export class BeaconNode {
     if (this.status === BeaconNodeStatus.started) {
       this.status = BeaconNodeStatus.closing;
       await this.chores.stop();
-      await (this.sync as BeaconSync).stop();
+      (this.sync as BeaconSync).close();
       await this.network.stop();
       if (this.metricsServer) await this.metricsServer.stop();
       if (this.restApi) await this.restApi.close();
