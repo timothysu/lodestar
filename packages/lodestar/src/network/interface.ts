@@ -31,11 +31,13 @@ export enum NetworkEvent {
   gossipStart = "gossip:start",
   gossipStop = "gossip:stop",
   gossipHeartbeat = "gossipsub:heartbeat",
+  peerRelevantConnect = "peerRelevantConnect",
 }
 
 export interface INetworkEvents {
   [NetworkEvent.peerConnect]: (peerId: PeerId, direction: "inbound" | "outbound") => void;
   [NetworkEvent.peerDisconnect]: (peerId: PeerId) => void;
+  [NetworkEvent.peerRelevantConnect]: (peerId: PeerId, status: phase0.Status) => void;
 }
 export type NetworkEventEmitter = StrictEventEmitter<EventEmitter, INetworkEvents>;
 
@@ -58,6 +60,8 @@ export interface INetwork extends NetworkEventEmitter {
   getEnr(): ENR | undefined;
   getPeers(opts?: Partial<PeerSearchOptions>): LibP2p.Peer[];
   getAllPeers(): LibP2p.Peer[];
+  getConnectedPeers(): PeerId[];
+  reStatusPeers(peers: PeerId[]): Promise<void>;
   getMaxPeer(): number;
   /**
    * Get the instance of a connection with a given peer.

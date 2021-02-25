@@ -10,7 +10,7 @@ import {toHexString} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../chain";
 import {INetwork} from "../../network";
 import {IBeaconMetrics} from "../../metrics";
-import {assertSequentialBlocksInRange, RangeSyncType, getRangeSyncType} from "../utils";
+import {RangeSyncType, getRangeSyncType} from "../utils";
 import {updateChains, shouldRemoveChain} from "./utils";
 import {ChainTarget, SyncChainFns, SyncChain, SyncChainOpts, SyncChainDebugState} from "./chain";
 
@@ -147,10 +147,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
    */
   removePeer(peerId: PeerId): void {
     for (const syncChain of this.chains.values()) {
-      const hasRemoved = syncChain.removePeer(peerId);
-      if (hasRemoved) {
-        this.runSyncChainMetrics(syncChain);
-      }
+      syncChain.removePeer(peerId);
     }
   }
 
@@ -186,18 +183,12 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   /** Convenience method for `SyncChain` */
   private processChainSegment: SyncChainFns["processChainSegment"] = async (blocks) => {
     const trusted = true; // TODO: Verify signatures
-    const start = process.hrtime.bigint();
     await this.chain.processChainSegment(blocks, trusted);
-    const end = process.hrtime.bigint();
-    // NOTE: MAX_SAFE_INTEGER nano seconds equals 104 days
-    this.metrics.processChainSegmentTime.inc(Number(end - start) / 1e9);
   };
 
   /** Convenience method for `SyncChain` */
   private downloadBeaconBlocksByRange: SyncChainFns["downloadBeaconBlocksByRange"] = async (peerId, request) => {
-    const blocks = await this.network.reqResp.beaconBlocksByRange(peerId, request);
-    assertSequentialBlocksInRange(blocks, request);
-    return blocks;
+    return await this.network.reqResp.beaconBlocksByRange(peerId, request);
   };
 
   /** Convenience method for `SyncChain` */
@@ -235,8 +226,6 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     }
 
     syncChain.addPeer(peer);
-
-    this.runSyncChainMetrics(syncChain);
   }
 
   private update(localFinalizedEpoch: Epoch): void {
@@ -250,7 +239,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
         this.logger.debug("Removed syncChain", {id: syncChain.logId});
 
         // Re-status peers from successful chain. Potentially trigger a Head sync
-        this.network.reStatusPeers(syncChain.getPeers());
+        void this.network.reStatusPeers(syncChain.getPeers());
       }
     }
 
@@ -263,9 +252,5 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     for (const syncChain of toStart) {
       syncChain.startSyncing(localFinalizedEpoch);
     }
-  }
-
-  private runSyncChainMetrics(syncChain: SyncChain): void {
-    this.metrics.peersPerSyncChain.set({id: syncChain.logId}, syncChain.peers);
   }
 }

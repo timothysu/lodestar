@@ -53,7 +53,7 @@ export class BeaconSync implements IBeaconSync {
   }
 
   public async start(): Promise<void> {
-    this.network.on(NetworkEvent.peerConnect, this.addPeer);
+    this.network.on(NetworkEvent.peerRelevantConnect, this.addPeer);
     this.network.on(NetworkEvent.peerDisconnect, this.removePeer);
 
     // TODO: It's okay to start this on initial sync?
@@ -62,7 +62,7 @@ export class BeaconSync implements IBeaconSync {
   }
 
   public close(): void {
-    this.network.off(NetworkEvent.peerConnect, this.addPeer);
+    this.network.off(NetworkEvent.peerRelevantConnect, this.addPeer);
     this.network.off(NetworkEvent.peerDisconnect, this.removePeer);
 
     this.controller.abort();
@@ -124,7 +124,7 @@ export class BeaconSync implements IBeaconSync {
     }
   }
 
-  public async collectAttestations(slot: Slot, committeeIndex: CommitteeIndex): Promise<void> {
+  public collectAttestations(slot: Slot, committeeIndex: CommitteeIndex): void {
     if (!(this.state === SyncState.SyncingHead || this.state === SyncState.Synced)) {
       throw new Error("Cannot collect attestations before regular sync");
     }

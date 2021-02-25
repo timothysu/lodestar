@@ -6,8 +6,6 @@ import assert from "assert";
 import {getDevValidators} from "../../utils/node/validator";
 import {config} from "@chainsafe/lodestar-config/minimal";
 import {ChainEvent} from "../../../src/chain";
-import {Network} from "../../../src/network";
-import {connect} from "../../utils/network";
 import {testLogger, LogLevel} from "../../utils/logger";
 
 describe("sync", function () {
@@ -53,7 +51,7 @@ describe("sync", function () {
     const waitForSynced = waitForEvent<phase0.SignedBeaconBlock>(bn2.chain.emitter, ChainEvent.block, 100000, (block) =>
       config.types.phase0.SignedBeaconBlock.equals(block, head!)
     );
-    await connect(bn2.network as Network, bn.network.peerId, bn.network.localMultiaddrs);
+    await bn2.network.connect(bn.network.peerId, bn.network.localMultiaddrs);
     try {
       await waitForSynced;
     } catch (e) {

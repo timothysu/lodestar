@@ -1,11 +1,11 @@
 import {IPeerMetadataStore} from "./metastore";
 import PeerId from "peer-id";
 import {ATTESTATION_SUBNET_COUNT} from "../../constants";
+import {ScoreState} from "./score";
 import {INetwork} from "../interface";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {getSyncProtocols} from "../util";
 import {notNullish} from "@chainsafe/lodestar-utils";
-import {getSyncPeers} from "../../sync/utils/peers";
 
 /**
  * Return number of peers by subnet.
@@ -191,4 +191,42 @@ export function getImportantPeers(peers: PeerId[], peerMetadata: IPeerMetadataSt
   }
 
   return importantPeers;
+}
+
+export type PeerFilterConditionCallback = (peer: PeerId) => boolean;
+
+export function getSyncPeers(
+  network: INetwork,
+  condition: PeerFilterConditionCallback = () => true,
+  maxPeers = 10
+): PeerId[] {
+  return (
+    network
+      .getPeers({
+        supportsProtocols: getSyncProtocols(),
+      })
+      .map((peer) => peer.id)
+      .filter((peer) => {
+        return network.peerRpcScores.getScoreState(peer) === ScoreState.Healthy && condition(peer);
+      })
+      .sort((p1, p2) => {
+        return network.peerRpcScores.getScore(p2) - network.peerRpcScores.getScore(p1);
+      })
+      // take 10 best peers for sync
+      .slice(0, maxPeers)
+  );
+}
+
+/**
+ * Return peers with at least one connection in status "open"
+ */
+export function getConnectedPeerIds(libp2p: LibP2p): PeerId[] {
+  const peerIds: PeerId[] = [];
+  for (const connections of libp2p.connectionManager.connections.values()) {
+    const openConnection = connections.find((connection) => connection.stat.status === "open");
+    if (openConnection) {
+      peerIds.push(openConnection.remotePeer);
+    }
+  }
+  return peerIds;
 }

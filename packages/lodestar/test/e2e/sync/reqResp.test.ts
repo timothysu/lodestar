@@ -117,7 +117,7 @@ describe("[sync] rpc", function () {
   });
 
   afterEach(async () => {
-    await chain.close();
+    chain.close();
     await Promise.all([rpcA.stop(), rpcB.stop()]);
     await Promise.all([netA.stop(), netB.stop()]);
   });

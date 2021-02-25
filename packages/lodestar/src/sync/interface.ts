@@ -15,7 +15,7 @@ export interface IBeaconSync {
   getSyncStatus(): phase0.SyncingStatus;
   isSynced(): boolean;
   isSyncing(): boolean;
-  collectAttestations(slot: Slot, committeeIndex: CommitteeIndex): Promise<void>;
+  collectAttestations(slot: Slot, committeeIndex: CommitteeIndex): void;
   getSyncChainsDebugState(): SyncChainDebugState[];
 }
 

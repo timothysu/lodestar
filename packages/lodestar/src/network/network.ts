@@ -21,7 +21,7 @@ import {DiversifyPeersBySubnetTask} from "./tasks/diversifyPeersBySubnetTask";
 import {CheckPeerAliveTask} from "./tasks/checkPeerAliveTask";
 import {IPeerMetadataStore} from "./peers";
 import {Libp2pPeerMetadataStore} from "./peers/metastore";
-import {getPeerCountBySubnet} from "./peers/utils";
+import {getPeerCountBySubnet, getConnectedPeerIds} from "./peers/utils";
 import {IPeerRpcScoreStore, PeerRpcScoreStore} from "./peers/score";
 
 interface ILibp2pModules {
@@ -44,6 +44,7 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
 
   private opts: INetworkOptions;
   private config: IBeaconConfig;
+  private chain: IBeaconChain;
   private libp2p: LibP2p;
   private logger: ILogger;
   private metrics: IBeaconMetrics;
@@ -57,6 +58,7 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
     super();
     this.opts = opts;
     this.config = config;
+    this.chain = chain;
     this.logger = logger;
     this.metrics = metrics;
     this.peerId = libp2p.peerId;
@@ -208,6 +210,22 @@ export class Libp2pNetwork extends (EventEmitter as {new (): NetworkEventEmitter
         }
       }
     }
+  }
+
+  public async reStatusPeers(peers: PeerId[]): Promise<void> {
+    const localStatus = this.chain.getStatus();
+    await Promise.all(
+      peers.map(async (peer) => {
+        try {
+          this.peerMetadata.status.set(peer, await this.reqResp.status(peer, localStatus));
+          // eslint-disable-next-line no-empty
+        } catch {}
+      })
+    );
+  }
+
+  public getConnectedPeers(): PeerId[] {
+    return getConnectedPeerIds(this.libp2p);
   }
 
   /**

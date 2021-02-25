@@ -65,7 +65,7 @@ describe("[network] network", function () {
     await connected;
 
     afterEachCallbacks.push(async () => {
-      await chain.close();
+      chain.close();
       await Promise.all([netA.stop(), netB.stop()]);
     });
 

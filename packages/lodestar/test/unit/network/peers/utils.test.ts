@@ -2,6 +2,7 @@ import sinon, {SinonStub, SinonStubbedInstance} from "sinon";
 import {getSyncProtocols, INetwork, IReqResp, Libp2pNetwork} from "../../../../src/network";
 import PeerId from "peer-id";
 import {expect} from "chai";
+import * as peersUtil from "../../../../src/network/peers/utils";
 import {
   findMissingSubnets,
   getImportantPeers,
@@ -9,7 +10,6 @@ import {
   gossipPeersToDisconnect,
   syncPeersToDisconnect,
 } from "../../../../src/network/peers/utils";
-import * as peersUtil from "../../../../src/sync/utils/peers";
 import {testLogger} from "../../../utils/logger";
 import {ReqResp} from "../../../../src/network/reqresp/reqResp";
 import {IPeerRpcScoreStore, PeerRpcScoreStore} from "../../../../src/network/peers";

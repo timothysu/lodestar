@@ -13,7 +13,6 @@ import {IBeaconDb} from "../../db";
 import {createRpcProtocol, INetwork, NetworkEvent} from "../../network";
 import {ResponseError} from "../../network/reqresp/response";
 import {handlePeerMetadataSequence} from "../../network/peers/utils";
-import {syncPeersStatus} from "../utils/sync";
 import {assertPeerRelevance} from "../utils/assertPeerRelevance";
 import {IReqRespHandler} from "./interface";
 import {IBlockFilterOptions} from "../../db/api/beacon/repositories/blockArchive/abstract";
@@ -70,8 +69,7 @@ export class BeaconReqRespHandler implements IReqRespHandler {
   public async start(): Promise<void> {
     this.network.reqResp.registerHandler(this.onRequest.bind(this));
     this.network.on(NetworkEvent.peerConnect, this.handshake);
-    const myStatus = this.chain.getStatus();
-    await syncPeersStatus(this.network, myStatus);
+    await this.network.reStatusPeers(this.network.getConnectedPeers());
   }
 
   public async stop(): Promise<void> {

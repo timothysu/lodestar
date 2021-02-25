@@ -4,8 +4,8 @@ import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transiti
 import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {toHexString} from "@chainsafe/ssz";
-import {PeerAction} from "../../network";
 import {ChainSegmentError} from "../../chain/errors";
+import {PeerAction} from "../../network/peers";
 import {ItTrigger} from "../../util/itTrigger";
 import {byteArrayEquals} from "../../util/bytes";
 import {RangeSyncType} from "../utils";
