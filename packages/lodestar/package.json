@@ -69,6 +69,7 @@
     "fastify-cors": "^3.0.3",
     "fastify-sse-v2": "^1.0.7",
     "gc-stats": "^1.4.0",
+    "heapdump": "^0.3.15",
     "http-terminator": "^2.0.3",
     "interface-datastore": "^2.0.0",
     "it-all": "^1.0.2",
