@@ -9,7 +9,7 @@
     "lib/**/*.js.map"
   ],
   "scripts": {
-    "build": "concurrently \"yarn build:lib\" \"yarn build:types\"",
+    "build": "tsc --project tsconfig.build.json",
     "build:lib": "babel src -x .ts -d lib --source-maps",
     "build:lib:watch": "yarn run build:lib --watch",
     "build:release": "yarn clean && yarn build",
