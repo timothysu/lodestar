@@ -1,7 +1,7 @@
 import sinon from "sinon";
 import {expect} from "chai";
 import {config} from "@chainsafe/lodestar-config/mainnet";
-import * as utils from "../../../../src/util";
+import {rewiremock} from "../../../rewiremock";
 import {processBlockHeader} from "../../../../src/phase0/naive/block";
 
 import {generateState} from "../../../utils/state";
@@ -12,12 +12,6 @@ import {generateValidator} from "../../../utils/validator";
 
 describe("process block - block header", function () {
   const sandbox = sinon.createSandbox();
-
-  let getBeaconProposeIndexStub: any;
-
-  beforeEach(() => {
-    getBeaconProposeIndexStub = sandbox.stub(utils, "getBeaconProposerIndex");
-  });
 
   afterEach(() => {
     sandbox.restore();
@@ -56,13 +50,27 @@ describe("process block - block header", function () {
     } catch (e) {}
   });
 
-  it("should process block", function () {
+  it("should process block", async function () {
+    const getBeaconProposeIndexStub = sandbox.stub();
+    getBeaconProposeIndexStub.returns(0);
+
+    const {processBlockHeader} = await rewiremock.around(
+      () => import("../../../../src/phase0/naive/block"),
+      (mock) => {
+        mock(() => import("../../../../src/util"))
+          .with({
+            getBeaconProposerIndex: getBeaconProposeIndexStub,
+            getTemporaryBlockHeader: sandbox.stub(),
+          })
+          .toBeUsed();
+      }
+    );
+
     const state = generateState({slot: 5});
     state.validators.push(generateValidator({activation: 0, exit: 10}));
     const block = generateEmptyBlock();
     block.slot = 5;
     block.parentRoot = config.types.phase0.BeaconBlockHeader.hashTreeRoot(state.latestBlockHeader);
-    getBeaconProposeIndexStub.returns(0);
 
     processBlockHeader(config, state, block);
   });
