@@ -1,4 +1,4 @@
-import {phase0} from "@chainsafe/lodestar-types";
+import {phase0, allForks} from "@chainsafe/lodestar-types";
 import {processBlock} from "./block";
 import {processSlots} from "./slot";
 import {CachedBeaconState, verifyBlockSignature} from "./util";
@@ -27,7 +27,7 @@ export function fastStateTransition(
 
   // verify signature
   if (verifyProposer) {
-    if (!verifyBlockSignature(postState, signedBlock)) {
+    if (!verifyBlockSignature(postState as CachedBeaconState<allForks.BeaconState>, signedBlock)) {
       throw new Error("Invalid block signature");
     }
   }

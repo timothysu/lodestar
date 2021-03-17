@@ -1,4 +1,4 @@
-import {phase0} from "@chainsafe/lodestar-types";
+import {phase0, allForks} from "@chainsafe/lodestar-types";
 
 import {computeEpochAtSlot} from "../../../util";
 import {CachedBeaconState} from "../util";
@@ -77,7 +77,13 @@ export function processAttestation(
     state.previousEpochAttestations.push(pendingAttestation);
   }
 
-  if (!isValidIndexedAttestation(state, epochCtx.getIndexedAttestation(attestation), verifySignature)) {
+  if (
+    !isValidIndexedAttestation(
+      state as CachedBeaconState<allForks.BeaconState>,
+      epochCtx.getIndexedAttestation(attestation),
+      verifySignature
+    )
+  ) {
     throw new Error("Attestation is not valid");
   }
 }

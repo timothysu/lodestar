@@ -1,4 +1,4 @@
-import {phase0} from "@chainsafe/lodestar-types";
+import {phase0, allForks} from "@chainsafe/lodestar-types";
 import {computeSigningRoot, getDomain} from "../../../util";
 import {ISignatureSet, SignatureSetType, verifySignatureSet} from "../signatureSets";
 import {CachedBeaconState} from "../util";
@@ -7,7 +7,7 @@ import {CachedBeaconState} from "../util";
  * Check if `indexedAttestation` has sorted and unique indices and a valid aggregate signature.
  */
 export function isValidIndexedAttestation(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   indexedAttestation: phase0.IndexedAttestation,
   verifySignature = true
 ): boolean {
@@ -45,7 +45,7 @@ export function isValidIndexedAttestation(
 }
 
 export function getIndexedAttestationSignatureSet(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   indexedAttestation: phase0.IndexedAttestation,
   indices?: number[]
 ): ISignatureSet {

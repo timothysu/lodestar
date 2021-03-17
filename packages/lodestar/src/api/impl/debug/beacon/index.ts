@@ -1,5 +1,5 @@
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {phase0} from "@chainsafe/lodestar-types";
+import {phase0, allForks} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {IBeaconChain} from "../../../../chain";
 import {IBeaconDb} from "../../../../db";
@@ -33,7 +33,7 @@ export class DebugBeaconApi implements IDebugBeaconApi {
     }
   }
 
-  async getState(stateId: StateId): Promise<phase0.BeaconState | null> {
+  async getState(stateId: StateId): Promise<allForks.BeaconState | null> {
     try {
       return await resolveStateId(this.chain, this.db, stateId);
     } catch (e) {

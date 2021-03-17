@@ -3,13 +3,14 @@
  */
 
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {Bytes96, Root, Slot} from "@chainsafe/lodestar-types";
+import {allForks, Bytes96, Root, Slot} from "@chainsafe/lodestar-types";
 import {ZERO_HASH} from "../../../constants";
 import {IBeaconDb} from "../../../db/api";
 import {IEth1ForBlockProduction} from "../../../eth1";
 import {IBeaconChain} from "../../interface";
 import {assembleBody} from "./body";
-import {CachedBeaconState, phase0} from "@chainsafe/lodestar-beacon-state-transition";
+import {CachedBeaconState, phase0, processBlock} from "@chainsafe/lodestar-beacon-state-transition";
+import {ContainerType} from "@chainsafe/ssz";
 
 export async function assembleBlock(
   config: IBeaconConfig,
@@ -19,17 +20,15 @@ export async function assembleBlock(
   slot: Slot,
   randaoReveal: Bytes96,
   graffiti = ZERO_HASH
-): Promise<phase0.BeaconBlock> {
+): Promise<allForks.BeaconBlock> {
   const head = chain.forkChoice.getHead();
   const state = await chain.regen.getBlockSlotState(head.blockRoot, slot);
 
-  const block: phase0.BeaconBlock = {
-    slot,
-    proposerIndex: state.getBeaconProposer(slot),
-    parentRoot: head.blockRoot,
-    stateRoot: ZERO_HASH,
-    body: await assembleBody(config, db, eth1, state, randaoReveal, graffiti),
-  };
+  const block = config.getTypes(slot).BeaconBlock.defaultValue();
+  block.proposerIndex = state.getBeaconProposer(slot);
+  block.slot = slot;
+  block.parentRoot = head.blockRoot;
+  block.body = await assembleBody(config, db, eth1, state, slot, randaoReveal, graffiti);
   block.stateRoot = computeNewStateRoot(config, state, block);
 
   return block;
@@ -42,11 +41,9 @@ export async function assembleBlock(
  */
 function computeNewStateRoot(
   config: IBeaconConfig,
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   block: phase0.BeaconBlock
 ): Root {
-  const postState = state.clone();
-  phase0.fast.processBlock(postState, block, true);
-
-  return config.types.phase0.BeaconState.hashTreeRoot(postState);
+  const postState = processBlock(state.clone(), block, true);
+  return (config.getTypes(postState.slot).BeaconState as ContainerType<allForks.BeaconState>).hashTreeRoot(postState);
 }

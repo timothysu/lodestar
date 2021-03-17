@@ -1,4 +1,4 @@
-import {phase0} from "@chainsafe/lodestar-types";
+import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {FAR_FUTURE_EPOCH} from "../../../constants";
 import {computeSigningRoot, getDomain, isActiveValidator} from "../../../util";
 import {ISignatureSet, SignatureSetType, verifySignatureSet} from "../signatureSets";
@@ -35,7 +35,10 @@ export function processVoluntaryExit(
 
   // verify signature
   if (verifySignature) {
-    const signatureSet = getVoluntaryExitSignatureSet(state, signedVoluntaryExit);
+    const signatureSet = getVoluntaryExitSignatureSet(
+      state as CachedBeaconState<allForks.BeaconState>,
+      signedVoluntaryExit
+    );
     if (!verifySignatureSet(signatureSet)) {
       throw new Error("VoluntaryExit has an invalid signature");
     }
@@ -49,7 +52,7 @@ export function processVoluntaryExit(
  * Extract signatures to allow validating all block signatures at once
  */
 export function getVoluntaryExitSignatureSet(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   signedVoluntaryExit: phase0.SignedVoluntaryExit
 ): ISignatureSet {
   const {config, epochCtx} = state;

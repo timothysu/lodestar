@@ -1,10 +1,10 @@
-import {phase0} from "@chainsafe/lodestar-types";
+import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {computeSigningRoot, getDomain} from "../../../util";
 import {ISignatureSet, SignatureSetType, verifySignatureSet} from "../signatureSets";
 import {CachedBeaconState} from "./cachedBeaconState";
 
 export function verifyBlockSignature(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   signedBlock: phase0.SignedBeaconBlock
 ): boolean {
   const signatureSet = getBlockSignatureSet(state, signedBlock);
@@ -12,7 +12,7 @@ export function verifyBlockSignature(
 }
 
 export function getBlockSignatureSet(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   signedBlock: phase0.SignedBeaconBlock
 ): ISignatureSet {
   const {config, epochCtx} = state;

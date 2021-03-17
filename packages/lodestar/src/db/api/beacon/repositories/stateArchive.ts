@@ -1,8 +1,8 @@
-import {CompositeType, ITreeBacked} from "@chainsafe/ssz";
-import {phase0, Epoch, Root, Slot} from "@chainsafe/lodestar-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {Bucket, encodeKey, IDatabaseController, Repository} from "@chainsafe/lodestar-db";
+import {allForks, Epoch, Root, Slot} from "@chainsafe/lodestar-types";
 import {bytesToInt, intToBytes} from "@chainsafe/lodestar-utils";
-import {IDatabaseController, Bucket, Repository, encodeKey} from "@chainsafe/lodestar-db";
+import {CompositeType, ITreeBacked} from "@chainsafe/ssz";
 
 /**
  * A more relaxed form of `TreeBacked<T>`
@@ -15,21 +15,21 @@ import {IDatabaseController, Bucket, Repository, encodeKey} from "@chainsafe/lod
 // eslint-disable-next-line @typescript-eslint/ban-types
 export type RelaxedTreeBacked<T extends object> = ITreeBacked<T> & T;
 
-export class StateArchiveRepository extends Repository<Slot, RelaxedTreeBacked<phase0.BeaconState>> {
+export class StateArchiveRepository extends Repository<Slot, RelaxedTreeBacked<allForks.BeaconState>> {
   constructor(config: IBeaconConfig, db: IDatabaseController<Buffer, Buffer>) {
     super(
       config,
       db,
       Bucket.phase0_stateArchive,
-      (config.types.phase0.BeaconState as unknown) as CompositeType<RelaxedTreeBacked<phase0.BeaconState>>
+      (config.types.phase0.BeaconState as unknown) as CompositeType<RelaxedTreeBacked<allForks.BeaconState>>
     );
   }
 
-  async put(key: Slot, value: RelaxedTreeBacked<phase0.BeaconState>): Promise<void> {
+  async put(key: Slot, value: RelaxedTreeBacked<allForks.BeaconState>): Promise<void> {
     await Promise.all([super.put(key, value), this.storeRootIndex(key, value.hashTreeRoot())]);
   }
 
-  getId(state: RelaxedTreeBacked<phase0.BeaconState>): Epoch {
+  getId(state: RelaxedTreeBacked<allForks.BeaconState>): Epoch {
     return state.slot;
   }
 
@@ -37,11 +37,11 @@ export class StateArchiveRepository extends Repository<Slot, RelaxedTreeBacked<p
     return bytesToInt((super.decodeKey(data) as unknown) as Uint8Array, "be");
   }
 
-  decodeValue(data: Buffer): RelaxedTreeBacked<phase0.BeaconState> {
-    return ((this.type as unknown) as CompositeType<phase0.BeaconState>).tree.deserialize(data);
+  decodeValue(data: Buffer): RelaxedTreeBacked<allForks.BeaconState> {
+    return ((this.type as unknown) as CompositeType<allForks.BeaconState>).tree.deserialize(data);
   }
 
-  async getByRoot(stateRoot: Root): Promise<RelaxedTreeBacked<phase0.BeaconState> | null> {
+  async getByRoot(stateRoot: Root): Promise<RelaxedTreeBacked<allForks.BeaconState> | null> {
     const slot = await this.getSlotByRoot(stateRoot);
     if (slot !== null && Number.isInteger(slot)) {
       return this.get(slot);

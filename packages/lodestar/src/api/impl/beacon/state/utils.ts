@@ -3,7 +3,7 @@ import {GENESIS_SLOT, FAR_FUTURE_EPOCH, CachedBeaconState} from "@chainsafe/lode
 import {phase0} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {IForkChoice} from "@chainsafe/lodestar-fork-choice";
-import {Epoch, ValidatorIndex, Gwei, Slot} from "@chainsafe/lodestar-types";
+import {Epoch, ValidatorIndex, Gwei, Slot, allForks} from "@chainsafe/lodestar-types";
 import {fromHexString, readOnlyMap} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../../../chain";
 import {StateContextCache} from "../../../../chain/stateCache";
@@ -14,7 +14,7 @@ export async function resolveStateId(
   chain: IBeaconChain,
   db: IBeaconDb,
   stateId: StateId
-): Promise<phase0.BeaconState | null> {
+): Promise<allForks.BeaconState | null> {
   stateId = stateId.toLowerCase();
   if (stateId === "head" || stateId === "genesis" || stateId === "finalized" || stateId === "justified") {
     return await stateByName(db, chain.stateCache, chain.forkChoice, stateId);
@@ -84,18 +84,18 @@ export function toValidatorResponse(
 export function getEpochBeaconCommittees(
   config: IBeaconConfig,
   chain: IBeaconChain,
-  state: phase0.BeaconState | CachedBeaconState<phase0.BeaconState>,
+  state: allForks.BeaconState | CachedBeaconState<allForks.BeaconState>,
   epoch: Epoch
 ): ValidatorIndex[][][] {
   let committees: ValidatorIndex[][][] | null = null;
   if ((state as CachedBeaconState<phase0.BeaconState>).epochCtx) {
     switch (epoch) {
       case chain.clock.currentEpoch: {
-        committees = (state as CachedBeaconState<phase0.BeaconState>).currentShuffling.committees;
+        committees = (state as CachedBeaconState<allForks.BeaconState>).currentShuffling.committees;
         break;
       }
       case chain.clock.currentEpoch - 1: {
-        committees = (state as CachedBeaconState<phase0.BeaconState>).previousShuffling.committees;
+        committees = (state as CachedBeaconState<allForks.BeaconState>).previousShuffling.committees;
         break;
       }
     }
@@ -118,7 +118,7 @@ async function stateByName(
   stateCache: StateContextCache,
   forkChoice: IForkChoice,
   stateId: StateId
-): Promise<phase0.BeaconState | null> {
+): Promise<allForks.BeaconState | null> {
   switch (stateId) {
     case "head":
       return stateCache.get(forkChoice.getHead().stateRoot) ?? null;
@@ -137,7 +137,7 @@ async function stateByRoot(
   db: IBeaconDb,
   stateCache: StateContextCache,
   stateId: StateId
-): Promise<phase0.BeaconState | null> {
+): Promise<allForks.BeaconState | null> {
   if (stateId.startsWith("0x")) {
     const stateRoot = fromHexString(stateId);
     const cachedStateCtx = stateCache.get(stateRoot);
@@ -153,7 +153,7 @@ async function stateBySlot(
   stateCache: StateContextCache,
   forkChoice: IForkChoice,
   slot: Slot
-): Promise<phase0.BeaconState | null> {
+): Promise<allForks.BeaconState | null> {
   const blockSummary = forkChoice.getCanonicalBlockSummaryAtSlot(slot);
   if (blockSummary) {
     return stateCache.get(blockSummary.stateRoot) ?? null;

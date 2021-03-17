@@ -1,11 +1,11 @@
 import {readOnlyMap} from "@chainsafe/ssz";
-import {phase0} from "@chainsafe/lodestar-types";
+import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {ISignatureSet} from "./types";
 import {getIndexedAttestationSignatureSet} from "../block/isValidIndexedAttestation";
 import {CachedBeaconState} from "../util";
 
 export function getAttesterSlashingsSignatureSets(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   signedBlock: phase0.SignedBeaconBlock
 ): ISignatureSet[] {
   return readOnlyMap(signedBlock.message.body.attesterSlashings, (attesterSlashing) =>

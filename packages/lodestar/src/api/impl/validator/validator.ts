@@ -5,7 +5,7 @@
 import bls, {Signature} from "@chainsafe/bls";
 import {computeStartSlotAtEpoch, computeSubnetForCommitteesAtSlot} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {Bytes96, CommitteeIndex, Epoch, Root, phase0, Slot, ValidatorIndex} from "@chainsafe/lodestar-types";
+import {Bytes96, CommitteeIndex, Epoch, Root, phase0, Slot, ValidatorIndex, allForks} from "@chainsafe/lodestar-types";
 import {assert, ILogger} from "@chainsafe/lodestar-utils";
 import {readOnlyForEach} from "@chainsafe/ssz";
 import {IAttestationJob, IBeaconChain} from "../../../chain";
@@ -53,7 +53,7 @@ export class ValidatorApi implements IValidatorApi {
     this.logger = modules.logger;
   }
 
-  async produceBlock(slot: Slot, randaoReveal: Bytes96, graffiti = ""): Promise<phase0.BeaconBlock> {
+  async produceBlock(slot: Slot, randaoReveal: Bytes96, graffiti = ""): Promise<allForks.BeaconBlock> {
     await checkSyncStatus(this.config, this.sync);
     return await assembleBlock(
       this.config,

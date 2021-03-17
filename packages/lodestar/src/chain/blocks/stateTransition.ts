@@ -1,5 +1,5 @@
-import {byteArrayEquals} from "@chainsafe/ssz";
-import {Gwei, Slot} from "@chainsafe/lodestar-types";
+import {byteArrayEquals, ContainerType} from "@chainsafe/ssz";
+import {allForks, Gwei, Slot} from "@chainsafe/lodestar-types";
 import {assert} from "@chainsafe/lodestar-utils";
 import {
   CachedBeaconState,
@@ -23,14 +23,16 @@ import {sleep} from "@chainsafe/lodestar-utils";
  */
 export function emitCheckpointEvent(
   emitter: ChainEventEmitter,
-  checkpointState: CachedBeaconState<phase0.BeaconState>
+  checkpointState: CachedBeaconState<allForks.BeaconState>
 ): void {
   const config = checkpointState.config;
   const slot = checkpointState.slot;
   assert.true(slot % config.params.SLOTS_PER_EPOCH === 0, "Checkpoint state slot must be first in an epoch");
   const blockHeader = config.types.phase0.BeaconBlockHeader.clone(checkpointState.latestBlockHeader);
   if (config.types.Root.equals(blockHeader.stateRoot, ZERO_HASH)) {
-    blockHeader.stateRoot = config.types.phase0.BeaconState.hashTreeRoot(checkpointState);
+    blockHeader.stateRoot = (config.getTypes(checkpointState.slot).BeaconState as ContainerType<
+      allForks.BeaconState
+    >).hashTreeRoot(checkpointState);
   }
   emitter.emit(
     ChainEvent.checkpoint,
@@ -51,9 +53,9 @@ export function emitCheckpointEvent(
  */
 export async function processSlotsToNearestCheckpoint(
   emitter: ChainEventEmitter,
-  preState: CachedBeaconState<phase0.BeaconState>,
+  preState: CachedBeaconState<allForks.BeaconState>,
   slot: Slot
-): Promise<CachedBeaconState<phase0.BeaconState>> {
+): Promise<CachedBeaconState<allForks.BeaconState>> {
   const config = preState.config;
   const {SLOTS_PER_EPOCH} = config.params;
   const preSlot = preState.slot;
@@ -65,8 +67,8 @@ export async function processSlotsToNearestCheckpoint(
     nextEpochSlot <= postSlot;
     nextEpochSlot += SLOTS_PER_EPOCH
   ) {
-    phase0.fast.processSlots(postState, nextEpochSlot);
-    emitCheckpointEvent(emitter, postState.clone());
+    phase0.fast.processSlots(postState as CachedBeaconState<phase0.BeaconState>, nextEpochSlot);
+    emitCheckpointEvent(emitter, postState.clone() as CachedBeaconState<allForks.BeaconState>);
     // this avoids keeping our node busy processing blocks
     await sleep(0);
   }
@@ -80,12 +82,12 @@ export async function processSlotsToNearestCheckpoint(
  */
 export async function processSlotsByCheckpoint(
   emitter: ChainEventEmitter,
-  preState: CachedBeaconState<phase0.BeaconState>,
+  preState: CachedBeaconState<allForks.BeaconState>,
   slot: Slot
-): Promise<CachedBeaconState<phase0.BeaconState>> {
+): Promise<CachedBeaconState<allForks.BeaconState>> {
   const postState = await processSlotsToNearestCheckpoint(emitter, preState, slot);
   if (postState.slot < slot) {
-    phase0.fast.processSlots(postState, slot);
+    phase0.fast.processSlots(postState as CachedBeaconState<phase0.BeaconState>, slot);
   }
   return postState;
 }
@@ -115,7 +117,7 @@ export function emitForkChoiceHeadEvents(
 export function emitBlockEvent(
   emitter: ChainEventEmitter,
   job: IBlockJob,
-  postState: CachedBeaconState<phase0.BeaconState>
+  postState: CachedBeaconState<allForks.BeaconState>
 ): void {
   emitter.emit(ChainEvent.block, job.signedBlock, postState, job);
 }
@@ -124,14 +126,16 @@ export async function runStateTransition(
   emitter: ChainEventEmitter,
   forkChoice: IForkChoice,
   checkpointStateCache: CheckpointStateCache,
-  preState: CachedBeaconState<phase0.BeaconState>,
+  preState: CachedBeaconState<allForks.BeaconState>,
   job: IBlockJob
-): Promise<CachedBeaconState<phase0.BeaconState>> {
+): Promise<CachedBeaconState<allForks.BeaconState>> {
   const config = preState.config;
   const {SLOTS_PER_EPOCH} = config.params;
   const postSlot = job.signedBlock.message.slot;
 
   // if block is trusted don't verify proposer or op signature
+  // TODO: handle fork
+  // @ts-ignore
   const postState = phase0.fast.fastStateTransition(preState, job.signedBlock, {
     verifyStateRoot: true,
     verifyProposer: !job.validSignatures && !job.validProposerSignature,
@@ -153,13 +157,17 @@ export async function runStateTransition(
   forkChoice.onBlock(job.signedBlock.message, postState, justifiedBalances);
 
   if (postSlot % SLOTS_PER_EPOCH === 0) {
+    // TODO: handle fork
+    // @ts-ignore
     emitCheckpointEvent(emitter, postState);
   }
 
+  // TODO: handle fork
+  // @ts-ignore
   emitBlockEvent(emitter, job, postState);
   emitForkChoiceHeadEvents(emitter, forkChoice, forkChoice.getHead(), oldHead);
 
   // this avoids keeping our node busy processing blocks
   await sleep(0);
-  return postState;
+  return postState as CachedBeaconState<allForks.BeaconState>;
 }

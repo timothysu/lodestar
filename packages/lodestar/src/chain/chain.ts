@@ -12,7 +12,7 @@ import {
 import {phase0} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig, IForkName} from "@chainsafe/lodestar-config";
 import {IForkChoice} from "@chainsafe/lodestar-fork-choice";
-import {ForkDigest, Number64, Root, Slot} from "@chainsafe/lodestar-types";
+import {allForks, ForkDigest, Number64, Root, Slot} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {TreeBacked} from "@chainsafe/ssz";
 import {AbortController} from "abort-controller";
@@ -37,7 +37,7 @@ export interface IBeaconChainModules {
   db: IBeaconDb;
   logger: ILogger;
   metrics?: IBeaconMetrics;
-  anchorState: TreeBacked<phase0.BeaconState>;
+  anchorState: TreeBacked<allForks.BeaconState>;
 }
 
 export class BeaconChain implements IBeaconChain {
@@ -138,7 +138,7 @@ export class BeaconChain implements IBeaconChain {
     return this.genesisTime;
   }
 
-  getHeadState(): CachedBeaconState<phase0.BeaconState> {
+  getHeadState(): CachedBeaconState<allForks.BeaconState> {
     // head state should always exist
     const head = this.forkChoice.getHead();
     const headState =
@@ -147,17 +147,17 @@ export class BeaconChain implements IBeaconChain {
         epoch: Infinity,
       }) || this.stateCache.get(head.stateRoot);
     if (!headState) throw Error("headState does not exist");
-    return headState;
+    return headState as CachedBeaconState<allForks.BeaconState>;
   }
 
-  async getHeadStateAtCurrentEpoch(): Promise<CachedBeaconState<phase0.BeaconState>> {
+  async getHeadStateAtCurrentEpoch(): Promise<CachedBeaconState<allForks.BeaconState>> {
     const currentEpochStartSlot = computeStartSlotAtEpoch(this.config, this.clock.currentEpoch);
     const head = this.forkChoice.getHead();
     const bestSlot = currentEpochStartSlot > head.slot ? currentEpochStartSlot : head.slot;
     return await this.regen.getBlockSlotState(head.blockRoot, bestSlot);
   }
 
-  async getHeadStateAtCurrentSlot(): Promise<CachedBeaconState<phase0.BeaconState>> {
+  async getHeadStateAtCurrentSlot(): Promise<CachedBeaconState<allForks.BeaconState>> {
     return await this.regen.getBlockSlotState(this.forkChoice.getHeadRoot(), this.clock.currentSlot);
   }
 
@@ -182,7 +182,7 @@ export class BeaconChain implements IBeaconChain {
     return await this.db.block.get(summary.blockRoot);
   }
 
-  async getStateByBlockRoot(blockRoot: Root): Promise<CachedBeaconState<phase0.BeaconState> | null> {
+  async getStateByBlockRoot(blockRoot: Root): Promise<CachedBeaconState<allForks.BeaconState> | null> {
     const blockSummary = this.forkChoice.getBlock(blockRoot);
     if (!blockSummary) {
       return null;

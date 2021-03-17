@@ -2,24 +2,22 @@
  * @module node
  */
 
+import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {allForks} from "@chainsafe/lodestar-types";
+import {ILogger} from "@chainsafe/lodestar-utils";
+import {TreeBacked} from "@chainsafe/ssz";
 import {AbortController} from "abort-controller";
 import LibP2p from "libp2p";
-
-import {TreeBacked} from "@chainsafe/ssz";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {phase0} from "@chainsafe/lodestar-types";
-import {ILogger} from "@chainsafe/lodestar-utils";
-
+import {Api, IApi, RestApi} from "../api";
+import {BeaconChain, IBeaconChain, initBeaconMetrics} from "../chain";
 import {IBeaconDb} from "../db";
+import {Eth1ForBlockProduction, Eth1ForBlockProductionDisabled, Eth1Provider} from "../eth1";
+import {BeaconMetrics, HttpMetricsServer, IBeaconMetrics} from "../metrics";
 import {INetwork, Network} from "../network";
 import {BeaconSync, IBeaconSync} from "../sync";
-import {BeaconChain, IBeaconChain, initBeaconMetrics} from "../chain";
-import {BeaconMetrics, HttpMetricsServer, IBeaconMetrics} from "../metrics";
-import {Api, IApi, RestApi} from "../api";
 import {TasksService} from "../tasks";
-import {IBeaconNodeOptions} from "./options";
-import {Eth1ForBlockProduction, Eth1ForBlockProductionDisabled, Eth1Provider} from "../eth1";
 import {runNodeNotifier} from "./notifier";
+import {IBeaconNodeOptions} from "./options";
 
 export * from "./options";
 
@@ -44,7 +42,7 @@ export interface IBeaconNodeInitModules {
   db: IBeaconDb;
   logger: ILogger;
   libp2p: LibP2p;
-  anchorState: TreeBacked<phase0.BeaconState>;
+  anchorState: TreeBacked<allForks.BeaconState>;
 }
 
 export enum BeaconNodeStatus {

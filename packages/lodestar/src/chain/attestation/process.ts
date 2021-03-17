@@ -1,9 +1,8 @@
 import {phase0} from "@chainsafe/lodestar-beacon-state-transition";
 import {IForkChoice} from "@chainsafe/lodestar-fork-choice";
-
-import {IAttestationJob} from "../interface";
-import {AttestationError, AttestationErrorCode} from "../errors";
 import {ChainEvent, ChainEventEmitter} from "../emitter";
+import {AttestationError, AttestationErrorCode} from "../errors";
+import {IAttestationJob} from "../interface";
 import {IStateRegenerator} from "../regen";
 
 /**

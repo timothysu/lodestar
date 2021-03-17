@@ -1,4 +1,4 @@
-import {phase0} from "@chainsafe/lodestar-types";
+import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {computeEpochAtSlot, computeSigningRoot, getDomain, isSlashableValidator} from "../../../util";
 import {CachedBeaconState} from "../util";
 import {slashValidator} from "./slashValidator";
@@ -37,7 +37,10 @@ export function processProposerSlashing(
 
   // verify signatures
   if (verifySignatures) {
-    for (const [i, signatureSet] of getProposerSlashingSignatureSets(state, proposerSlashing).entries()) {
+    for (const [i, signatureSet] of getProposerSlashingSignatureSets(
+      state as CachedBeaconState<allForks.BeaconState>,
+      proposerSlashing
+    ).entries()) {
       if (!verifySignatureSet(signatureSet)) {
         throw new Error(`ProposerSlashing header${i + 1} signature invalid`);
       }
@@ -51,7 +54,7 @@ export function processProposerSlashing(
  * Extract signatures to allow validating all block signatures at once
  */
 export function getProposerSlashingSignatureSets(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   proposerSlashing: phase0.ProposerSlashing
 ): ISignatureSet[] {
   const {config, epochCtx} = state;

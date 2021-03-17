@@ -1,4 +1,4 @@
-import {phase0} from "@chainsafe/lodestar-types";
+import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {getRandaoRevealSignatureSet} from "../block/processRandao";
 import {CachedBeaconState, getBlockSignatureSet} from "../util";
 import {ISignatureSet} from "./types";
@@ -15,7 +15,7 @@ export * from "./verify";
  * Deposits are not included because they can legally have invalid signatures.
  */
 export function getAllBlockSignatureSets(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   signedBlock: phase0.SignedBeaconBlock
 ): ISignatureSet[] {
   return [getBlockSignatureSet(state, signedBlock), ...getAllBlockSignatureSetsExceptProposer(state, signedBlock)];
@@ -26,7 +26,7 @@ export function getAllBlockSignatureSets(
  * Useful since block proposer signature is verified beforehand on gossip validation
  */
 export function getAllBlockSignatureSetsExceptProposer(
-  state: CachedBeaconState<phase0.BeaconState>,
+  state: CachedBeaconState<allForks.BeaconState>,
   signedBlock: phase0.SignedBeaconBlock
 ): ISignatureSet[] {
   return [
