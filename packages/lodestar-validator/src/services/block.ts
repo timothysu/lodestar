@@ -2,11 +2,11 @@
  * @module validator
  */
 
-import {BLSPubkey, Epoch, Root, phase0, Slot} from "@chainsafe/lodestar-types";
+import {BLSPubkey, Epoch, Root, phase0, Slot, allForks} from "@chainsafe/lodestar-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {SecretKey} from "@chainsafe/bls";
 import {ILogger} from "@chainsafe/lodestar-utils";
-import {toHexString} from "@chainsafe/ssz";
+import {ContainerType, toHexString} from "@chainsafe/ssz";
 import {computeEpochAtSlot, computeSigningRoot, getDomain} from "@chainsafe/lodestar-beacon-state-transition";
 import {IApiClient} from "../api";
 import {BeaconEventType} from "../api/interface/events";
@@ -133,7 +133,7 @@ export default class BlockProposingService {
     slot: Slot,
     fork: phase0.Fork,
     genesisValidatorsRoot: Root
-  ): Promise<phase0.SignedBeaconBlock | null> {
+  ): Promise<allForks.SignedBeaconBlock | null> {
     const epoch = computeEpochAtSlot(this.config, slot);
     const randaoDomain = getDomain(
       this.config,
@@ -168,14 +168,16 @@ export default class BlockProposingService {
       signingRoot,
     });
 
-    const signedBlock: phase0.SignedBeaconBlock = {
+    const signedBlock: allForks.SignedBeaconBlock = {
       message: block,
       signature: validatorKeys.secretKey.sign(signingRoot).toBytes(),
     };
     try {
       await this.provider.beacon.blocks.publishBlock(signedBlock);
       this.logger.info("Proposed block", {
-        hash: toHexString(this.config.types.phase0.BeaconBlock.hashTreeRoot(block)),
+        hash: toHexString(
+          (this.config.getTypes(block.slot).BeaconBlock as ContainerType<allForks.BeaconBlock>).hashTreeRoot(block)
+        ),
         slot,
       });
     } catch (e) {

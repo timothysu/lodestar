@@ -1,9 +1,15 @@
-import {phase0} from "@chainsafe/lodestar-types";
+import {allForks} from "@chainsafe/lodestar-types";
+import {ContainerType} from "@chainsafe/ssz";
 import {IBeaconBlocksApi} from "../../../interface/beacon";
 import {RestApi} from "./abstract";
 
 export class RestBeaconBlocksApi extends RestApi implements IBeaconBlocksApi {
-  async publishBlock(block: phase0.SignedBeaconBlock): Promise<void> {
-    return this.client.post("/blocks", this.config.types.phase0.SignedBeaconBlock.toJson(block, {case: "snake"}));
+  async publishBlock(block: allForks.SignedBeaconBlock): Promise<void> {
+    return this.client.post(
+      "/blocks",
+      (this.config.getTypes(block.message.slot).SignedBeaconBlock as ContainerType<
+        allForks.SignedBeaconBlock
+      >).toJson(block, {case: "snake"})
+    );
   }
 }

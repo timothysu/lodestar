@@ -1,4 +1,13 @@
-import {BLSPubkey, CommitteeIndex, Epoch, Root, phase0, Slot, ValidatorIndex} from "@chainsafe/lodestar-types";
+import {
+  BLSPubkey,
+  CommitteeIndex,
+  Epoch,
+  Root,
+  phase0,
+  Slot,
+  ValidatorIndex,
+  allForks,
+} from "@chainsafe/lodestar-types";
 
 export type BeaconCommitteeSubscription = {
   validatorIndex: number;
@@ -18,7 +27,7 @@ export interface IValidatorApi {
    * which can then be signed by a ValidatorClient.
    * @returns {Promise<BeaconBlock>} A proposed BeaconBlock object
    */
-  produceBlock(slot: Slot, randaoReveal: Uint8Array, graffiti: string): Promise<phase0.BeaconBlock>;
+  produceBlock(slot: Slot, randaoReveal: Uint8Array, graffiti: string): Promise<allForks.BeaconBlock>;
 
   produceAttestationData(index: CommitteeIndex, slot: Slot): Promise<phase0.AttestationData>;
 

@@ -1,4 +1,4 @@
-import {BLSPubkey, ValidatorIndex, phase0} from "@chainsafe/lodestar-types";
+import {BLSPubkey, ValidatorIndex, phase0, allForks} from "@chainsafe/lodestar-types";
 
 export interface IBeaconApi {
   state: IBeaconStateApi;
@@ -14,7 +14,7 @@ export interface IBeaconStateApi {
 }
 
 export interface IBeaconBlocksApi {
-  publishBlock(block: phase0.SignedBeaconBlock): Promise<void>;
+  publishBlock(block: allForks.SignedBeaconBlock): Promise<void>;
 }
 
 export interface IBeaconPoolApi {

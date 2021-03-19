@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {CommitteeIndex, Epoch, Root, phase0, Slot, ValidatorIndex} from "@chainsafe/lodestar-types";
+import {CommitteeIndex, Epoch, Root, phase0, Slot, ValidatorIndex, allForks} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {Json, toHexString} from "@chainsafe/ssz";
 import {HttpClient, urlJoin} from "../../../../util";
@@ -34,13 +34,13 @@ export class RestValidatorApi implements IValidatorApi {
     return responseData.data.map((value) => this.config.types.phase0.AttesterDuty.fromJson(value, {case: "snake"}));
   }
 
-  async produceBlock(slot: Slot, randaoReveal: Uint8Array, graffiti: string): Promise<phase0.BeaconBlock> {
+  async produceBlock(slot: Slot, randaoReveal: Uint8Array, graffiti: string): Promise<allForks.BeaconBlock> {
     const query = {
       randao_reveal: toHexString(randaoReveal),
       graffiti: graffiti,
     };
     const responseData = await this.clientV2.get<{data: Json}>(`/blocks/${slot}`, query);
-    return this.config.types.phase0.BeaconBlock.fromJson(responseData.data, {case: "snake"});
+    return this.config.getTypes(slot).BeaconBlock.fromJson(responseData.data, {case: "snake"});
   }
 
   async produceAttestationData(index: CommitteeIndex, slot: Slot): Promise<phase0.AttestationData> {
