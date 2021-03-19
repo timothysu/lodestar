@@ -1,5 +1,7 @@
 import {ApiController} from "../types";
 import {fromHex} from "@chainsafe/lodestar-utils";
+import {allForks} from "@chainsafe/lodestar-types";
+import {ContainerType} from "@chainsafe/ssz";
 
 type Params = {
   slot: number;
@@ -23,7 +25,9 @@ export const produceBlockController: ApiController<Query, Params> = {
       .code(200)
       .type("application/json")
       .send({
-        data: this.config.types.phase0.BeaconBlock.toJson(block, {case: "snake"}),
+        data: (this.config.getTypes(block.slot).BeaconBlock as ContainerType<allForks.BeaconBlock>).toJson(block, {
+          case: "snake",
+        }),
       });
   },
 

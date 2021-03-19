@@ -1,6 +1,8 @@
 import {ApiController} from "../../types";
 import {DefaultQuery} from "fastify";
 import {toRestValidationError} from "../../utils";
+import {allForks} from "@chainsafe/lodestar-types";
+import {ContainerType} from "@chainsafe/ssz";
 
 export const getBlockRoot: ApiController<DefaultQuery, {blockId: string}> = {
   url: "/blocks/:blockId/root",
@@ -13,7 +15,11 @@ export const getBlockRoot: ApiController<DefaultQuery, {blockId: string}> = {
       }
       return resp.status(200).send({
         data: {
-          root: this.config.types.Root.toJson(this.config.types.phase0.BeaconBlock.hashTreeRoot(data.message)),
+          root: this.config.types.Root.toJson(
+            (this.config.getTypes(data.message.slot).BeaconBlock as ContainerType<allForks.BeaconBlock>).hashTreeRoot(
+              data.message
+            )
+          ),
         },
       });
     } catch (e) {
