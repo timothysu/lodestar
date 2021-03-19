@@ -1,18 +1,18 @@
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {phase0} from "@chainsafe/lodestar-types";
+import {phase0, allForks} from "@chainsafe/lodestar-types";
 import {interopDeposits} from "./interop/deposits";
 import {getInteropState} from "./interop/state";
 import {mkdirSync, writeFileSync} from "fs";
 import {dirname} from "path";
 import {IBeaconDb} from "../../db/api";
-import {TreeBacked} from "@chainsafe/ssz";
+import {TreeBacked, ContainerType} from "@chainsafe/ssz";
 
 export async function initDevState(
   config: IBeaconConfig,
   db: IBeaconDb,
   validatorCount: number,
   genesisTime?: number
-): Promise<TreeBacked<phase0.BeaconState>> {
+): Promise<TreeBacked<allForks.BeaconState>> {
   const deposits = interopDeposits(config, config.types.phase0.DepositDataRootList.tree.defaultValue(), validatorCount);
   await storeDeposits(config, db, deposits);
   const state = getInteropState(
@@ -24,9 +24,12 @@ export async function initDevState(
   return state;
 }
 
-export function storeSSZState(config: IBeaconConfig, state: TreeBacked<phase0.BeaconState>, path: string): void {
+export function storeSSZState(config: IBeaconConfig, state: TreeBacked<allForks.BeaconState>, path: string): void {
   mkdirSync(dirname(path), {recursive: true});
-  writeFileSync(path, config.types.phase0.BeaconState.serialize(state));
+  writeFileSync(
+    path,
+    (config.getTypes(state.slot).BeaconState as ContainerType<allForks.BeaconState>).serialize(state)
+  );
 }
 
 async function storeDeposits(config: IBeaconConfig, db: IBeaconDb, deposits: phase0.Deposit[]): Promise<void> {

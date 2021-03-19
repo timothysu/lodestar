@@ -2,7 +2,7 @@ import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {IBeaconChain, IBlockJob} from "..";
 import {IBeaconDb} from "../../db/api";
 import {ValidatorIndex} from "@chainsafe/lodestar-types";
-import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
+import {computeStartSlotAtEpoch, GENESIS_SLOT} from "@chainsafe/lodestar-beacon-state-transition";
 import {phase0} from "@chainsafe/lodestar-beacon-state-transition";
 import {BlockError, BlockErrorCode} from "../errors";
 
@@ -94,7 +94,8 @@ export async function hasProposerAlreadyProposed(
   blockRoot: Uint8Array,
   proposerIndex: ValidatorIndex
 ): Promise<boolean> {
-  const existingBlock = await db.block.get(blockRoot);
+  //TODO: fix this with separate root => version index
+  const existingBlock = await db.block.get(blockRoot, GENESIS_SLOT);
   return existingBlock?.message.proposerIndex === proposerIndex;
 }
 

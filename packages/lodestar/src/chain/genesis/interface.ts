@@ -1,7 +1,7 @@
 import {IEth1Provider} from "../../eth1";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {TreeBacked, List} from "@chainsafe/ssz";
-import {phase0, Root} from "@chainsafe/lodestar-types";
+import {allForks, phase0, Root} from "@chainsafe/lodestar-types";
 import {AbortSignal} from "abort-controller";
 
 export interface IGenesisBuilderKwargs {
@@ -13,7 +13,7 @@ export interface IGenesisBuilderKwargs {
 }
 
 export interface IGenesisResult {
-  state: TreeBacked<phase0.BeaconState>;
+  state: TreeBacked<allForks.BeaconState>;
   depositTree: TreeBacked<List<Root>>;
   block: phase0.Eth1Block;
 }

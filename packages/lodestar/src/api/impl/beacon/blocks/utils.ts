@@ -30,7 +30,8 @@ export async function resolveBlockId(
 ): Promise<phase0.SignedBeaconBlock | null> {
   blockId = blockId.toLowerCase();
   if (blockId === "head") {
-    return db.block.get(forkChoice.getHeadRoot());
+    const head = forkChoice.getHead();
+    return db.block.get(head.blockRoot, head.slot);
   }
   if (blockId === "genesis") {
     return db.blockArchive.get(GENESIS_SLOT);
@@ -40,7 +41,8 @@ export async function resolveBlockId(
   }
   if (blockId.startsWith("0x")) {
     const root = fromHexString(blockId);
-    return (await db.block.get(root)) || (await db.blockArchive.getByRoot(root));
+    //TODO: fix this, requires separate index root => type
+    return (await db.block.get(root, GENESIS_SLOT)) || (await db.blockArchive.getByRoot(root));
   }
   // block id must be slot
   const slot = parseInt(blockId, 10);
@@ -49,7 +51,7 @@ export async function resolveBlockId(
   }
   const blockSummary = forkChoice.getCanonicalBlockSummaryAtSlot(slot);
   if (blockSummary) {
-    return db.block.get(blockSummary.blockRoot);
+    return db.block.get(blockSummary.blockRoot, blockSummary.slot);
   }
   return await db.blockArchive.get(slot);
 }

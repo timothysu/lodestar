@@ -24,7 +24,7 @@ import {allForks} from "@chainsafe/lodestar-types";
 export async function persistGenesisResult(
   db: IBeaconDb,
   genesisResult: IGenesisResult,
-  genesisBlock: phase0.SignedBeaconBlock
+  genesisBlock: allForks.SignedBeaconBlock
 ): Promise<void> {
   await Promise.all([
     db.stateArchive.add(genesisResult.state),
@@ -41,7 +41,7 @@ export async function persistGenesisResult(
 export async function persistAnchorState(
   config: IBeaconConfig,
   db: IBeaconDb,
-  anchorState: TreeBacked<phase0.BeaconState>
+  anchorState: TreeBacked<allForks.BeaconState>
 ): Promise<void> {
   if (anchorState.slot === GENESIS_SLOT) {
     const genesisBlock = createGenesisBlock(config, anchorState);
@@ -51,9 +51,14 @@ export async function persistAnchorState(
   }
 }
 
-export function createGenesisBlock(config: IBeaconConfig, genesisState: phase0.BeaconState): phase0.SignedBeaconBlock {
-  const genesisBlock = config.types.phase0.SignedBeaconBlock.defaultValue();
-  const stateRoot = config.types.phase0.BeaconState.hashTreeRoot(genesisState);
+export function createGenesisBlock(
+  config: IBeaconConfig,
+  genesisState: allForks.BeaconState
+): allForks.SignedBeaconBlock {
+  const genesisBlock = config.getTypes(GENESIS_SLOT).SignedBeaconBlock.defaultValue();
+  const stateRoot = (config.getTypes(GENESIS_SLOT).BeaconState as ContainerType<allForks.BeaconState>).hashTreeRoot(
+    genesisState
+  );
   genesisBlock.message.stateRoot = stateRoot;
   return genesisBlock;
 }
@@ -67,15 +72,19 @@ export async function initStateFromEth1(
   logger: ILogger,
   eth1Provider: Eth1Provider,
   signal: AbortSignal
-): Promise<TreeBacked<phase0.BeaconState>> {
+): Promise<TreeBacked<allForks.BeaconState>> {
   logger.info("Listening to eth1 for genesis state");
 
   const builder = new GenesisBuilder(config, {eth1Provider, logger, signal});
 
   const genesisResult = await builder.waitForGenesis();
   const genesisBlock = createGenesisBlock(config, genesisResult.state);
-  const stateRoot = config.types.phase0.BeaconState.hashTreeRoot(genesisResult.state);
-  const blockRoot = config.types.phase0.BeaconBlock.hashTreeRoot(genesisBlock.message);
+  const stateRoot = (config.getTypes(genesisResult.state.slot).BeaconState as ContainerType<
+    allForks.BeaconState
+  >).hashTreeRoot(genesisResult.state);
+  const blockRoot = (config.getTypes(genesisResult.state.slot).BeaconBlock as ContainerType<
+    allForks.BeaconBlock
+  >).hashTreeRoot(genesisBlock.message);
 
   logger.info("Initializing genesis state", {
     stateRoot: toHexString(stateRoot),
@@ -94,7 +103,7 @@ export async function initStateFromDb(
   config: IBeaconConfig,
   db: IBeaconDb,
   logger: ILogger
-): Promise<TreeBacked<phase0.BeaconState>> {
+): Promise<TreeBacked<allForks.BeaconState>> {
   const state = await db.stateArchive.lastValue();
   if (!state) {
     throw new Error("No state exists in database");
@@ -103,10 +112,12 @@ export async function initStateFromDb(
   logger.info("Initializing beacon state from db", {
     slot: state.slot,
     epoch: computeEpochAtSlot(config, state.slot),
-    stateRoot: toHexString(config.types.phase0.BeaconState.hashTreeRoot(state)),
+    stateRoot: toHexString(
+      (config.getTypes(state.slot).BeaconState as ContainerType<allForks.BeaconState>).hashTreeRoot(state)
+    ),
   });
 
-  return state as TreeBacked<phase0.BeaconState>;
+  return state as TreeBacked<allForks.BeaconState>;
 }
 
 /**
@@ -116,12 +127,14 @@ export async function initStateFromAnchorState(
   config: IBeaconConfig,
   db: IBeaconDb,
   logger: ILogger,
-  anchorState: TreeBacked<phase0.BeaconState>
-): Promise<TreeBacked<phase0.BeaconState>> {
+  anchorState: TreeBacked<allForks.BeaconState>
+): Promise<TreeBacked<allForks.BeaconState>> {
   logger.info("Initializing beacon state", {
     slot: anchorState.slot,
     epoch: computeEpochAtSlot(config, anchorState.slot),
-    stateRoot: toHexString(config.types.phase0.BeaconState.hashTreeRoot(anchorState)),
+    stateRoot: toHexString(
+      (config.getTypes(anchorState.slot).BeaconState as ContainerType<allForks.BeaconState>).hashTreeRoot(anchorState)
+    ),
   });
 
   await persistAnchorState(config, db, anchorState);

@@ -15,6 +15,9 @@ import {IGlobalArgs} from "../../options";
 import {IDevArgs} from "./options";
 import {initializeOptionsAndConfig} from "../init/handler";
 import {mkdir, initBLS} from "../../util";
+import {GENESIS_SLOT} from "@chainsafe/lodestar-params";
+import {allForks} from "@chainsafe/lodestar-types";
+import {TreeBacked} from "@chainsafe/ssz";
 
 /**
  * Run a beacon node with validator
@@ -58,9 +61,11 @@ export async function devHandler(args: IDevArgs & IGlobalArgs): Promise<void> {
       config,
       db,
       logger,
-      config.types.phase0.BeaconState.tree.deserialize(
-        await fs.promises.readFile(join(args.rootDir, args.genesisStateFile))
-      )
+      config
+        .getTypes(GENESIS_SLOT)
+        .BeaconState.tree.deserialize(
+          await fs.promises.readFile(join(args.rootDir, args.genesisStateFile))
+        ) as TreeBacked<allForks.BeaconState>
     );
   } else {
     throw new Error("Unable to start node: no available genesis state");

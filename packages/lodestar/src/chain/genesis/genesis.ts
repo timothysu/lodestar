@@ -3,7 +3,7 @@
  */
 
 import {TreeBacked, List} from "@chainsafe/ssz";
-import {Root, phase0} from "@chainsafe/lodestar-types";
+import {Root, phase0, allForks} from "@chainsafe/lodestar-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {AbortSignal} from "abort-controller";
 import {
@@ -25,7 +25,7 @@ export class GenesisBuilder implements IGenesisBuilder {
   private readonly logger: ILogger;
   private readonly signal?: AbortSignal;
   private readonly eth1Params: IEth1StreamParams;
-  private state: TreeBacked<phase0.BeaconState>;
+  private state: TreeBacked<allForks.BeaconState>;
   private depositTree: TreeBacked<List<Root>>;
   private depositCache: Set<number>;
 

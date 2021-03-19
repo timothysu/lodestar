@@ -1,6 +1,8 @@
 import {ApiController, HttpHeader} from "../../types";
 import {DefaultQuery} from "fastify";
 import {toRestValidationError} from "../../utils";
+import {ContainerType} from "@chainsafe/ssz";
+import {allForks} from "@chainsafe/lodestar-types";
 
 const SSZ_MIME_TYPE = "application/octet-stream";
 
@@ -14,11 +16,15 @@ export const getState: ApiController<DefaultQuery, {stateId: string}> = {
         return resp.status(404).send();
       }
       if (req.headers[HttpHeader.ACCEPT] === SSZ_MIME_TYPE) {
-        const stateSsz = this.config.types.phase0.BeaconState.serialize(state);
+        const stateSsz = (this.config.getTypes(state.slot).BeaconState as ContainerType<
+          allForks.BeaconState
+        >).serialize(state);
         resp.status(200).header(HttpHeader.CONTENT_TYPE, SSZ_MIME_TYPE).send(Buffer.from(stateSsz));
       } else {
         return resp.status(200).send({
-          data: this.config.types.phase0.BeaconState.toJson(state, {case: "snake"}),
+          data: (this.config.getTypes(state.slot).BeaconState as ContainerType<allForks.BeaconState>).toJson(state, {
+            case: "snake",
+          }),
         });
       }
     } catch (e) {

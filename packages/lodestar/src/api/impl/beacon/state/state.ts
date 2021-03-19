@@ -1,7 +1,7 @@
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {IForkChoice} from "@chainsafe/lodestar-fork-choice";
 import {Root, phase0, allForks} from "@chainsafe/lodestar-types";
-import {List, readOnlyMap} from "@chainsafe/ssz";
+import {ContainerType, List, readOnlyMap} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../../../chain/interface";
 import {IBeaconDb} from "../../../../db/api";
 import {IApiOptions} from "../../../options";
@@ -29,7 +29,7 @@ export class BeaconStateApi implements IBeaconStateApi {
     if (!state) {
       return null;
     }
-    return this.config.types.phase0.BeaconState.hashTreeRoot(state);
+    return (this.config.getTypes(state.slot).BeaconState as ContainerType<allForks.BeaconState>).hashTreeRoot(state);
   }
 
   async getStateFinalityCheckpoints(stateId: StateId): Promise<phase0.FinalityCheckpoints | null> {
