@@ -2,15 +2,15 @@
  * @module chain/blockAssembly
  */
 
+import {CachedBeaconState, processBlock} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {allForks, Bytes96, Root, Slot} from "@chainsafe/lodestar-types";
+import {ContainerType} from "@chainsafe/ssz";
 import {ZERO_HASH} from "../../../constants";
 import {IBeaconDb} from "../../../db/api";
 import {IEth1ForBlockProduction} from "../../../eth1";
 import {IBeaconChain} from "../../interface";
 import {assembleBody} from "./body";
-import {CachedBeaconState, phase0, processBlock} from "@chainsafe/lodestar-beacon-state-transition";
-import {ContainerType} from "@chainsafe/ssz";
 
 export async function assembleBlock(
   config: IBeaconConfig,
@@ -42,7 +42,7 @@ export async function assembleBlock(
 function computeNewStateRoot(
   config: IBeaconConfig,
   state: CachedBeaconState<allForks.BeaconState>,
-  block: phase0.BeaconBlock
+  block: allForks.BeaconBlock
 ): Root {
   const postState = processBlock(state.clone(), block, true);
   return (config.getTypes(postState.slot).BeaconState as ContainerType<allForks.BeaconState>).hashTreeRoot(postState);

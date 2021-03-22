@@ -1,22 +1,21 @@
 import {aggregatePublicKeys, verifyAggregate} from "@chainsafe/bls";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
-import {Epoch, lightclient, ValidatorIndex, allForks} from "@chainsafe/lodestar-types";
+import {allForks, BLSPubkey, Epoch, lightclient, ValidatorIndex} from "@chainsafe/lodestar-types";
 import {assert, intDiv, intToBytes} from "@chainsafe/lodestar-utils";
 import {hash} from "@chainsafe/ssz";
-
+import {phase0} from "../../";
 import {
   computeEpochAtSlot,
   computeShuffledIndex,
   computeSigningRoot,
   getActiveValidatorIndices,
+  getBeaconProposerIndex,
   getBlockRootAtSlot,
   getCurrentEpoch,
   getDomain,
-  getBeaconProposerIndex,
   getSeed,
   increaseBalance,
 } from "../../util";
-import {phase0} from "../../";
 
 const MAX_RANDOM_BYTE = BigInt(2 ** 8 - 1);
 
@@ -30,8 +29,12 @@ export function processSyncCommittee(
   const currentEpoch = getCurrentEpoch(config, state);
   const committeeIndices = getSyncCommitteeIndices(config, state, currentEpoch);
   const participantIndices = committeeIndices.filter((index) => !!block.body.syncCommitteeBits[index]);
-  const committeePubkeys = Array.from(state.currentSyncCommittee.pubkeys);
-  const participantPubkeys = committeePubkeys.filter((pubkey, index) => !!block.body.syncCommitteeBits[index]);
+  const participantPubkeys: BLSPubkey[] = [];
+  state.currentSyncCommittee.pubkeys.forEach((pubkey, index) => {
+    if (block.body.syncCommitteeBits[index]) {
+      participantPubkeys.push(pubkey);
+    }
+  });
   const domain = getDomain(
     config,
     state,

@@ -51,13 +51,15 @@ export function getTemporaryBlockHeader(
 /**
  * Receives a BeaconBlock, and produces the corresponding BeaconBlockHeader.
  */
-export function blockToHeader(config: IBeaconConfig, block: phase0.BeaconBlock): phase0.BeaconBlockHeader {
+export function blockToHeader(config: IBeaconConfig, block: allForks.BeaconBlock): phase0.BeaconBlockHeader {
   return {
     stateRoot: block.stateRoot,
     proposerIndex: block.proposerIndex,
     slot: block.slot,
     parentRoot: block.parentRoot,
-    bodyRoot: config.types.phase0.BeaconBlockBody.hashTreeRoot(block.body),
+    bodyRoot: (config.getTypes(block.slot).BeaconBlockBody as ContainerType<allForks.BeaconBlockBody>).hashTreeRoot(
+      block.body
+    ),
   };
 }
 

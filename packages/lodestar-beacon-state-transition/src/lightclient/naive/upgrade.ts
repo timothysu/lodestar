@@ -5,6 +5,7 @@ import {phase0, lightclient, ValidatorFlag} from "@chainsafe/lodestar-types";
 import {getCurrentEpoch} from "../../util";
 
 export function upgrade(config: IBeaconConfig, pre: phase0.BeaconState): lightclient.BeaconState {
+  console.log("upgrade");
   const epoch = getCurrentEpoch(config, pre);
   const {previousEpochAttestations: _1, currentEpochAttestations: _2, ...old} = pre;
   return {

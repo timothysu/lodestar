@@ -43,7 +43,10 @@ export function getGenesisBeaconState(
   // Seed RANDAO with Eth1 entropy
   const randaoMixes = Array<Bytes32>(config.params.EPOCHS_PER_HISTORICAL_VECTOR).fill(genesisEth1Data.blockHash);
 
-  const state: allForks.BeaconState = config.getTypes(GENESIS_SLOT).BeaconState.tree.defaultValue();
+  const state: allForks.BeaconState = config.getTypes(GENESIS_SLOT).BeaconState.defaultValue();
+
+  //@ts-ignore
+  console.log(state.currentSyncCommittee);
   // MISC
   state.slot = GENESIS_SLOT;
   state.fork = {
@@ -60,7 +63,6 @@ export function getGenesisBeaconState(
   // Ethereum 1.0 chain data
   state.eth1Data = genesisEth1Data;
   state.randaoMixes = randaoMixes;
-
   return state as TreeBacked<allForks.BeaconState>;
 }
 

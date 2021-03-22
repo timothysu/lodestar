@@ -78,6 +78,7 @@ export function processAttestation(
   for (const index of getAttestingIndices(config, state, data, attestation.aggregationBits)) {
     for (const [flag, numerator] of getFlagsAndNumerators()) {
       if (participationFlagIndices.indexOf(flag) !== -1 && !hasValidatorFlags(epochParticipation[index], flag)) {
+        console.log("trol", index, epochParticipation.length);
         epochParticipation[index] = addValidatorFlags(epochParticipation[index], flag);
         proposerRewardNumerator += getBaseReward(config, state, index) * BigInt(numerator);
       }

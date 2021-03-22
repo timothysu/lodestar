@@ -31,6 +31,7 @@ export async function getDevBeaconNode({
   const peerId = await createPeerId();
   const tmpDir = tmp.dirSync({unsafeCleanup: true});
   const config = createIBeaconConfig({...minimalParams, ...params});
+  console.log(config.params);
   logger = logger ?? testLogger();
 
   const db = new BeaconDb({config, controller: new LevelDbController({name: tmpDir.name}, {logger})});
