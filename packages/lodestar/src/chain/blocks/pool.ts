@@ -27,9 +27,9 @@ export class BlockPool {
   constructor({config}: {config: IBeaconConfig}) {
     this.config = config;
 
-    this.blocks = new Map();
-    this.blocksByParent = new Map();
-    this.blocksBySlot = new Map();
+    this.blocks = new Map<string, string>();
+    this.blocksByParent = new Map<string, Set<string>>();
+    this.blocksBySlot = new Map<number, Set<string>>();
   }
 
   addByParent(signedBlock: phase0.SignedBeaconBlock): void {
@@ -95,6 +95,16 @@ export class BlockPool {
         this.blocksByParent.delete(parentKey);
       }
     }
+  }
+
+  getMissingAncestor(blockRoot: Root): Root {
+    let root = toHexString(blockRoot);
+
+    while (this.blocks.has(root)) {
+      root = this.blocks.get(root)!;
+    }
+
+    return fromHexString(root);
   }
 
   getTotalPendingBlocks(): number {

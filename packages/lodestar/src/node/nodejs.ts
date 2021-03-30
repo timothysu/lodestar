@@ -11,9 +11,9 @@ import LibP2p from "libp2p";
 import {Api, IApi, RestApi} from "../api";
 import {BeaconChain, IBeaconChain, initBeaconMetrics} from "../chain";
 import {IBeaconDb} from "../db";
-import {Eth1ForBlockProduction, Eth1ForBlockProductionDisabled, Eth1Provider} from "../eth1";
-import {BeaconMetrics, HttpMetricsServer, IBeaconMetrics} from "../metrics";
-import {INetwork, Network} from "../network";
+import { Eth1ForBlockProduction, Eth1ForBlockProductionDisabled, Eth1Provider } from "../eth1";
+import { BeaconMetrics, HttpMetricsServer, IBeaconMetrics } from "../metrics";
+import {INetwork, Network, ReqRespHandler} from "../network";
 import {BeaconSync, IBeaconSync} from "../sync";
 import {TasksService} from "../tasks";
 import {runNodeNotifier} from "./notifier";
@@ -140,6 +140,8 @@ export class BeaconNode {
       metrics,
       chain,
       db,
+      reqRespHandler: new ReqRespHandler({db, chain}),
+      signal,
     });
     const sync = new BeaconSync(opts.sync, {
       config,
@@ -191,11 +193,7 @@ export class BeaconNode {
     });
 
     await network.start();
-
-    // TODO: refactor the sync module to respect the "start should resolve quickly" interface
-    // Now if sync.start() is awaited it will stall the node start process
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    sync.start();
+    await sync.start();
     chores.start();
 
     void runNodeNotifier({network, chain, sync, config, logger, signal});
@@ -223,13 +221,12 @@ export class BeaconNode {
     if (this.status === BeaconNodeStatus.started) {
       this.status = BeaconNodeStatus.closing;
       await this.chores.stop();
-      await (this.sync as BeaconSync).stop();
+      await this.sync.stop();
       await this.network.stop();
       if (this.metricsServer) await this.metricsServer.stop();
       if (this.restApi) await this.restApi.close();
 
       this.chain.close();
-      this.metrics?.close();
       await this.db.stop();
       if (this.controller) this.controller.abort();
       this.status = BeaconNodeStatus.closed;

@@ -1,4 +1,4 @@
-import sinon, {SinonStub, SinonStubbedInstance} from "sinon";
+import sinon, {SinonStubbedInstance} from "sinon";
 import {expect} from "chai";
 import {rewiremock} from "../../../rewiremock";
 
@@ -7,41 +7,42 @@ import bls from "@chainsafe/bls";
 import {bigIntToBytes} from "@chainsafe/lodestar-utils";
 import {config} from "@chainsafe/lodestar-config/minimal";
 import * as validatorUtils from "@chainsafe/lodestar-beacon-state-transition/lib/util/validator";
-import {getCurrentSlot} from "@chainsafe/lodestar-beacon-state-transition";
-import * as blockUtils from "@chainsafe/lodestar-beacon-state-transition/lib/phase0/fast/block/isValidIndexedAttestation";
+import {getCurrentSlot, ISignatureSet} from "@chainsafe/lodestar-beacon-state-transition";
+import * as indexedAttUtils from "@chainsafe/lodestar-beacon-state-transition/lib/phase0/fast/block/isValidIndexedAttestation";
 
 import {BeaconChain, IAttestationJob, IBeaconChain} from "../../../../src/chain";
 import {LocalClock} from "../../../../src/chain/clock";
 import {IStateRegenerator, StateRegenerator} from "../../../../src/chain/regen";
 import {validateGossipAggregateAndProof} from "../../../../src/chain/validation";
 import {ATTESTATION_PROPAGATION_SLOT_RANGE, MAXIMUM_GOSSIP_CLOCK_DISPARITY} from "../../../../src/constants";
-import * as validationUtils from "../../../../src/chain/validation/utils";
+import * as blsUtils from "../../../../src/chain/bls";
 import {generateSignedAggregateAndProof} from "../../../utils/aggregateAndProof";
 import {generateCachedState} from "../../../utils/state";
 import {StubbedBeaconDb} from "../../../utils/stub";
 import {AttestationErrorCode} from "../../../../src/chain/errors";
 import {expectRejectedWithLodestarError} from "../../../utils/errors";
+import {SinonStubFn} from "../../../utils/types";
+import {AttestationError} from "../../../../src/chain/errors";
 
 describe("gossip aggregate and proof test", function () {
   let chain: SinonStubbedInstance<IBeaconChain>;
   let regen: SinonStubbedInstance<IStateRegenerator>;
   let db: StubbedBeaconDb;
-  let isAggregatorStub: SinonStub;
-  let isValidSelectionProofStub: SinonStub;
-  let isValidSignatureStub: SinonStub;
-  let isValidIndexedAttestationStub: SinonStub;
+  let isAggregatorStub: SinonStubFn<typeof validatorUtils["isAggregatorFromCommitteeLength"]>;
+  let isValidIndexedAttestationStub: SinonStubFn<typeof indexedAttUtils["isValidIndexedAttestation"]>;
+  // This util it not relevant for testing since only the result of verifySignatureSetsBatch() matters
+  const getIndexedAttestationSignatureSet: typeof indexedAttUtils["getIndexedAttestationSignatureSet"] = () =>
+    ({} as ISignatureSet);
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   async function mockValidateGossipAggregateAndProof({
     isAggregatorFromCommitteeLength,
     isValidIndexedAttestation,
-    isValidSelectionProofSignature,
-    isValidAggregateAndProofSignature,
+    verifySignatureSetsBatch,
   }: {
     isAggregatorFromCommitteeLength: typeof validatorUtils.isAggregatorFromCommitteeLength;
-    isValidIndexedAttestation: typeof blockUtils.isValidIndexedAttestation;
-    isValidSelectionProofSignature: typeof validationUtils.isValidSelectionProofSignature;
-    isValidAggregateAndProofSignature: typeof validationUtils.isValidAggregateAndProofSignature;
+    isValidIndexedAttestation: typeof indexedAttUtils.isValidIndexedAttestation;
+    verifySignatureSetsBatch: typeof blsUtils.verifySignatureSetsBatch;
   }) {
     return await rewiremock.around(
       () => import("../../../../src/chain/validation"),
@@ -52,10 +53,10 @@ describe("gossip aggregate and proof test", function () {
         mock(() =>
           import("@chainsafe/lodestar-beacon-state-transition/lib/phase0/fast/block/isValidIndexedAttestation")
         )
-          .with({isValidIndexedAttestation})
+          .with({isValidIndexedAttestation, getIndexedAttestationSignatureSet})
           .toBeUsed();
-        mock(() => import("../../../../src/chain/validation/utils"))
-          .with({isValidSelectionProofSignature, isValidAggregateAndProofSignature})
+        mock(() => import("../../../../src/chain/bls"))
+          .with({verifySignatureSetsBatch})
           .toBeUsed();
       }
     );
@@ -71,15 +72,11 @@ describe("gossip aggregate and proof test", function () {
     db.badBlock.has.resolves(false);
     db.seenAttestationCache.hasAggregateAndProof.returns(false);
     isAggregatorStub = sinon.stub(validatorUtils, "isAggregatorFromCommitteeLength");
-    isValidSelectionProofStub = sinon.stub(validationUtils, "isValidSelectionProofSignature");
-    isValidSignatureStub = sinon.stub(validationUtils, "isValidAggregateAndProofSignature");
-    isValidIndexedAttestationStub = sinon.stub(blockUtils, "isValidIndexedAttestation");
+    isValidIndexedAttestationStub = sinon.stub(indexedAttUtils, "isValidIndexedAttestation");
   });
 
   afterEach(function () {
     isAggregatorStub.restore();
-    isValidSelectionProofStub.restore();
-    isValidSignatureStub.restore();
     isValidIndexedAttestationStub.restore();
   });
 
@@ -109,7 +106,7 @@ describe("gossip aggregate and proof test", function () {
         validSignature: false,
       } as IAttestationJob);
     } catch (error) {
-      expect(error.type).to.have.property("code", AttestationErrorCode.PAST_SLOT);
+      expect((error as AttestationError).type).to.have.property("code", AttestationErrorCode.PAST_SLOT);
     }
   });
 
@@ -132,7 +129,7 @@ describe("gossip aggregate and proof test", function () {
         validSignature: false,
       } as IAttestationJob);
     } catch (error) {
-      expect(error.type).to.have.property("code", AttestationErrorCode.FUTURE_SLOT);
+      expect((error as AttestationError).type).to.have.property("code", AttestationErrorCode.FUTURE_SLOT);
     }
   });
 
@@ -151,7 +148,7 @@ describe("gossip aggregate and proof test", function () {
         validSignature: false,
       } as IAttestationJob);
     } catch (error) {
-      expect(error.type).to.have.property("code", AttestationErrorCode.AGGREGATE_ALREADY_KNOWN);
+      expect((error as AttestationError).type).to.have.property("code", AttestationErrorCode.AGGREGATE_ALREADY_KNOWN);
     }
     expect(db.seenAttestationCache.hasAggregateAndProof.withArgs(item.message).calledOnce).to.be.true;
   });
@@ -171,7 +168,10 @@ describe("gossip aggregate and proof test", function () {
         validSignature: false,
       } as IAttestationJob);
     } catch (error) {
-      expect(error.type).to.have.property("code", AttestationErrorCode.WRONG_NUMBER_OF_AGGREGATION_BITS);
+      expect((error as AttestationError).type).to.have.property(
+        "code",
+        AttestationErrorCode.WRONG_NUMBER_OF_AGGREGATION_BITS
+      );
     }
   });
 
@@ -191,7 +191,7 @@ describe("gossip aggregate and proof test", function () {
         validSignature: false,
       } as IAttestationJob);
     } catch (error) {
-      expect(error.type).to.have.property("code", AttestationErrorCode.KNOWN_BAD_BLOCK);
+      expect((error as AttestationError).type).to.have.property("code", AttestationErrorCode.KNOWN_BAD_BLOCK);
     }
     expect(db.badBlock.has.withArgs(item.message.aggregate.data.beaconBlockRoot.valueOf() as Uint8Array).calledOnce).to
       .be.true;
@@ -206,17 +206,19 @@ describe("gossip aggregate and proof test", function () {
         },
       },
     });
-    regen.getBlockSlotState.throws();
+    regen.getCheckpointState.throws();
     try {
       await validateGossipAggregateAndProof(config, chain, db, item, {
         attestation: item.message.aggregate,
         validSignature: false,
       } as IAttestationJob);
     } catch (error) {
-      expect(error.type).to.have.property("code", AttestationErrorCode.MISSING_ATTESTATION_PRESTATE);
+      expect((error as AttestationError).type).to.have.property(
+        "code",
+        AttestationErrorCode.MISSING_ATTESTATION_TARGET_STATE
+      );
     }
-    expect(regen.getBlockSlotState.withArgs(item.message.aggregate.data.target.root, sinon.match.any).calledOnce).to.be
-      .true;
+    expect(regen.getCheckpointState.withArgs(item.message.aggregate.data.target).calledOnce).to.be.true;
   });
 
   it("should throw error - aggregator not in committee", async function () {
@@ -230,17 +232,20 @@ describe("gossip aggregate and proof test", function () {
     });
     const state = generateCachedState();
     sinon.stub(state.epochCtx, "getBeaconCommittee").returns([]);
-    regen.getBlockSlotState.resolves(state);
+    regen.getCheckpointState.resolves(state);
     try {
       await validateGossipAggregateAndProof(config, chain, db, item, {
         attestation: item.message.aggregate,
         validSignature: false,
       } as IAttestationJob);
     } catch (error) {
-      expect(error.type).to.have.property("code", AttestationErrorCode.AGGREGATOR_NOT_IN_COMMITTEE);
+      expect((error as AttestationError).type).to.have.property(
+        "code",
+        AttestationErrorCode.AGGREGATOR_NOT_IN_COMMITTEE
+      );
     }
     expect(
-      (state.getBeaconCommittee as SinonStub).withArgs(
+      (state.getBeaconCommittee as SinonStubFn<typeof state["getBeaconCommittee"]>).withArgs(
         item.message.aggregate.data.slot,
         item.message.aggregate.data.index
       ).calledOnce
@@ -258,7 +263,7 @@ describe("gossip aggregate and proof test", function () {
     });
     const state = generateCachedState();
     sinon.stub(state.epochCtx, "getBeaconCommittee").returns([item.message.aggregatorIndex]);
-    regen.getBlockSlotState.resolves(state);
+    regen.getCheckpointState.resolves(state);
     isAggregatorStub.returns(false);
     try {
       await validateGossipAggregateAndProof(config, chain, db, item, {
@@ -266,7 +271,7 @@ describe("gossip aggregate and proof test", function () {
         validSignature: false,
       } as IAttestationJob);
     } catch (error) {
-      expect(error.type).to.have.property("code", AttestationErrorCode.INVALID_AGGREGATOR);
+      expect((error as AttestationError).type).to.have.property("code", AttestationErrorCode.INVALID_AGGREGATOR);
     }
     expect(isAggregatorStub.withArgs(config, 1, item.message.selectionProof).calledOnce).to.be.true;
   });
@@ -275,8 +280,7 @@ describe("gossip aggregate and proof test", function () {
     const {validateGossipAggregateAndProof} = await mockValidateGossipAggregateAndProof({
       isAggregatorFromCommitteeLength: sinon.stub().returns(true),
       isValidIndexedAttestation: sinon.stub().returns(true),
-      isValidSelectionProofSignature: sinon.stub().returns(false),
-      isValidAggregateAndProofSignature: sinon.stub().returns(true),
+      verifySignatureSetsBatch: sinon.stub().returns(false),
     });
 
     const item = generateSignedAggregateAndProof({
@@ -291,14 +295,14 @@ describe("gossip aggregate and proof test", function () {
     const privateKey = bls.SecretKey.fromBytes(bigIntToBytes(BigInt(1), 32));
     state.index2pubkey[item.message.aggregatorIndex] = privateKey.toPublicKey();
     sinon.stub(state.epochCtx, "getBeaconCommittee").returns([item.message.aggregatorIndex]);
-    regen.getBlockSlotState.resolves(state);
+    regen.getCheckpointState.resolves(state);
 
     await expectRejectedWithLodestarError(
       validateGossipAggregateAndProof(config, chain, db, item, {
         attestation: item.message.aggregate,
         validSignature: false,
       } as IAttestationJob),
-      AttestationErrorCode.INVALID_SELECTION_PROOF
+      AttestationErrorCode.INVALID_SIGNATURE
     );
   });
 
@@ -306,8 +310,7 @@ describe("gossip aggregate and proof test", function () {
     const {validateGossipAggregateAndProof} = await mockValidateGossipAggregateAndProof({
       isAggregatorFromCommitteeLength: sinon.stub().returns(true),
       isValidIndexedAttestation: sinon.stub().returns(true),
-      isValidSelectionProofSignature: sinon.stub().returns(true),
-      isValidAggregateAndProofSignature: sinon.stub().returns(false),
+      verifySignatureSetsBatch: sinon.stub().returns(false),
     });
 
     const item = generateSignedAggregateAndProof({
@@ -322,7 +325,7 @@ describe("gossip aggregate and proof test", function () {
     const privateKey = bls.SecretKey.fromBytes(bigIntToBytes(BigInt(1), 32));
     state.index2pubkey[item.message.aggregatorIndex] = privateKey.toPublicKey();
     sinon.stub(state.epochCtx, "getBeaconCommittee").returns([item.message.aggregatorIndex]);
-    regen.getBlockSlotState.resolves(state);
+    regen.getCheckpointState.resolves(state);
 
     await expectRejectedWithLodestarError(
       validateGossipAggregateAndProof(config, chain, db, item, {
@@ -337,8 +340,7 @@ describe("gossip aggregate and proof test", function () {
     const {validateGossipAggregateAndProof} = await mockValidateGossipAggregateAndProof({
       isAggregatorFromCommitteeLength: sinon.stub().returns(true),
       isValidIndexedAttestation: sinon.stub().returns(false),
-      isValidSelectionProofSignature: sinon.stub().returns(true),
-      isValidAggregateAndProofSignature: sinon.stub().returns(true),
+      verifySignatureSetsBatch: sinon.stub().returns(true),
     });
 
     const item = generateSignedAggregateAndProof({
@@ -353,14 +355,14 @@ describe("gossip aggregate and proof test", function () {
     const privateKey = bls.SecretKey.fromBytes(bigIntToBytes(BigInt(1), 32));
     state.index2pubkey[item.message.aggregatorIndex] = privateKey.toPublicKey();
     sinon.stub(state.epochCtx, "getBeaconCommittee").returns([item.message.aggregatorIndex]);
-    regen.getBlockSlotState.resolves(state);
+    regen.getCheckpointState.resolves(state);
 
     await expectRejectedWithLodestarError(
       validateGossipAggregateAndProof(config, chain, db, item, {
         attestation: item.message.aggregate,
         validSignature: false,
       } as IAttestationJob),
-      AttestationErrorCode.INVALID_SIGNATURE
+      AttestationErrorCode.INVALID_INDEXED_ATTESTATION
     );
   });
 
@@ -368,8 +370,7 @@ describe("gossip aggregate and proof test", function () {
     const {validateGossipAggregateAndProof} = await mockValidateGossipAggregateAndProof({
       isAggregatorFromCommitteeLength: sinon.stub().returns(true),
       isValidIndexedAttestation: sinon.stub().returns(true),
-      isValidSelectionProofSignature: sinon.stub().returns(true),
-      isValidAggregateAndProofSignature: sinon.stub().returns(true),
+      verifySignatureSetsBatch: sinon.stub().returns(true),
     });
 
     const item = generateSignedAggregateAndProof({
@@ -384,7 +385,7 @@ describe("gossip aggregate and proof test", function () {
     const privateKey = bls.SecretKey.fromKeygen();
     state.index2pubkey[item.message.aggregatorIndex] = privateKey.toPublicKey();
     sinon.stub(state.epochCtx, "getBeaconCommittee").returns([item.message.aggregatorIndex]);
-    regen.getBlockSlotState.resolves(state);
+    regen.getCheckpointState.resolves(state);
 
     expect(
       await validateGossipAggregateAndProof(config, chain, db, item, {

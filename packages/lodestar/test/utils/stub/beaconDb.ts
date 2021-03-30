@@ -20,6 +20,8 @@ import {
 import {SeenAttestationCache} from "../../../src/db/api/beacon/seenAttestationCache";
 import {minimalConfig} from "@chainsafe/lodestar-config/minimal";
 import {PendingBlockRepository} from "../../../src/db/api/beacon/repositories/pendingBlock";
+import {SignedBeaconBlock} from "@chainsafe/lodestar-types/phase0";
+import {createStubInstance} from "../types";
 
 export class StubbedBeaconDb extends BeaconDb {
   db!: SinonStubbedInstance<LevelDbController>;
@@ -48,22 +50,24 @@ export class StubbedBeaconDb extends BeaconDb {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(sinon: SinonSandbox, config = minimalConfig) {
     super({config, controller: null!});
-    this.badBlock = sinon.createStubInstance(BadBlockRepository) as any;
-    this.block = sinon.createStubInstance(BlockRepository) as any;
-    this.pendingBlock = sinon.createStubInstance(PendingBlockRepository) as any;
-    this.blockArchive = sinon.createStubInstance(BlockArchiveRepository) as any;
-    this.stateArchive = sinon.createStubInstance(StateArchiveRepository) as any;
+    this.badBlock = createStubInstance(BadBlockRepository);
+    this.block = createStubInstance(BlockRepository);
+    this.pendingBlock = createStubInstance(PendingBlockRepository);
+    this.blockArchive = createStubInstance(BlockArchiveRepository);
+    this.stateArchive = createStubInstance(StateArchiveRepository);
 
-    this.attestation = sinon.createStubInstance(AttestationRepository) as any;
-    this.aggregateAndProof = sinon.createStubInstance(AggregateAndProofRepository) as any;
-    this.voluntaryExit = sinon.createStubInstance(VoluntaryExitRepository) as any;
-    this.proposerSlashing = sinon.createStubInstance(ProposerSlashingRepository) as any;
-    this.attesterSlashing = sinon.createStubInstance(AttesterSlashingRepository) as any;
-    this.depositEvent = sinon.createStubInstance(DepositEventRepository) as any;
+    this.attestation = createStubInstance(AttestationRepository);
+    this.aggregateAndProof = createStubInstance(AggregateAndProofRepository);
+    this.voluntaryExit = createStubInstance(VoluntaryExitRepository);
+    this.proposerSlashing = createStubInstance(ProposerSlashingRepository);
+    this.attesterSlashing = createStubInstance(AttesterSlashingRepository);
+    this.depositEvent = createStubInstance(DepositEventRepository);
 
-    this.depositDataRoot = sinon.createStubInstance(DepositDataRootRepository) as any;
-    this.eth1Data = sinon.createStubInstance(Eth1DataRepository) as any;
-    this.seenAttestationCache = sinon.createStubInstance(SeenAttestationCache) as any;
-    this.processBlockOperations = sinon.stub(this, "processBlockOperations") as any;
+    this.depositDataRoot = createStubInstance(DepositDataRootRepository);
+    this.eth1Data = createStubInstance(Eth1DataRepository);
+    this.seenAttestationCache = createStubInstance(SeenAttestationCache);
+    this.processBlockOperations = sinon.stub(this, "processBlockOperations") as (
+      signedBlock: SignedBeaconBlock
+    ) => Promise<void>;
   }
 }

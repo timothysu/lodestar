@@ -8,6 +8,7 @@ import {
   computeEpochAtSlot,
   createCachedBeaconState,
   phase0,
+  CachedBeaconState,
 } from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
@@ -75,25 +76,53 @@ export async function initStateFromEth1(
 ): Promise<TreeBacked<allForks.BeaconState>> {
   logger.info("Listening to eth1 for genesis state");
 
-  const builder = new GenesisBuilder(config, {eth1Provider, logger, signal});
+  const statePreGenesis = await db.preGenesisState.get();
+  const depositTree = await db.depositDataRoot.getDepositRootTree();
+  const lastProcessedBlockNumber = await db.preGenesisStateLastProcessedBlock.get();
 
-  const genesisResult = await builder.waitForGenesis();
-  const genesisBlock = createGenesisBlock(config, genesisResult.state);
-  const stateRoot = (config.getTypes(genesisResult.state.slot).BeaconState as ContainerType<
-    allForks.BeaconState
-  >).hashTreeRoot(genesisResult.state);
-  const blockRoot = (config.getTypes(genesisResult.state.slot).BeaconBlock as ContainerType<
-    allForks.BeaconBlock
-  >).hashTreeRoot(genesisBlock.message);
-
-  logger.info("Initializing genesis state", {
-    stateRoot: toHexString(stateRoot),
-    blockRoot: toHexString(blockRoot),
-    validatorCount: genesisResult.state.validators.length,
+  const builder = new GenesisBuilder({
+    config,
+    eth1Provider,
+    logger,
+    signal,
+    pendingStatus:
+      statePreGenesis && depositTree && lastProcessedBlockNumber != null
+        ? {state: statePreGenesis, depositTree, lastProcessedBlockNumber}
+        : undefined,
   });
 
-  await persistGenesisResult(db, genesisResult, genesisBlock);
-  return genesisResult.state;
+  try {
+    const genesisResult = await builder.waitForGenesis();
+    const genesisBlock = createGenesisBlock(config, genesisResult.state);
+    const stateRoot = (config.getTypes(genesisResult.state.slot).BeaconState as ContainerType<
+      allForks.BeaconState
+    >).hashTreeRoot(genesisResult.state);
+    const blockRoot = (config.getTypes(genesisResult.state.slot).BeaconBlock as ContainerType<
+      allForks.BeaconBlock
+    >).hashTreeRoot(genesisBlock.message);
+
+    logger.info("Initializing genesis state", {
+      stateRoot: toHexString(stateRoot),
+      blockRoot: toHexString(blockRoot),
+      validatorCount: genesisResult.state.validators.length,
+    });
+
+    await persistGenesisResult(db, genesisResult, genesisBlock);
+
+    logger.verbose("Clearing pending genesis state if any");
+    await db.preGenesisState.delete();
+    await db.preGenesisStateLastProcessedBlock.delete();
+
+    return genesisResult.state;
+  } catch (e) {
+    if (builder.lastProcessedBlockNumber != null) {
+      logger.info("Persisting genesis state", {block: builder.lastProcessedBlockNumber});
+      await db.preGenesisState.put(builder.state);
+      await db.depositDataRoot.putList(builder.depositTree);
+      await db.preGenesisStateLastProcessedBlock.put(builder.lastProcessedBlockNumber);
+    }
+    throw e;
+  }
 }
 
 /**
@@ -150,7 +179,7 @@ export function restoreStateCaches(
   stateCache: StateContextCache,
   checkpointStateCache: CheckpointStateCache,
   state: TreeBacked<allForks.BeaconState>
-): void {
+): CachedBeaconState<allForks.BeaconState> {
   const {checkpoint} = computeAnchorCheckpoint(config, state);
 
   const cachedBeaconState = createCachedBeaconState(config, state);
@@ -158,6 +187,7 @@ export function restoreStateCaches(
   // store state in state caches
   void stateCache.add(cachedBeaconState);
   checkpointStateCache.add(checkpoint, cachedBeaconState);
+  return cachedBeaconState;
 }
 
 export function initBeaconMetrics(metrics: IBeaconMetrics, state: TreeBacked<allForks.BeaconState>): void {

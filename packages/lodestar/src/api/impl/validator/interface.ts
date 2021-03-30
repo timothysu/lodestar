@@ -12,14 +12,6 @@ import {
   allForks,
 } from "@chainsafe/lodestar-types";
 
-export type BeaconCommitteeSubscription = {
-  validatorIndex: number;
-  committeeIndex: number;
-  committeesAtSlot: number;
-  slot: number;
-  isAggregator: boolean;
-};
-
 /**
  * The API interface defines the calls that can be made from a Validator
  */
@@ -41,5 +33,5 @@ export interface IValidatorApi {
 
   publishAggregateAndProofs(signedAggregateAndProofs: phase0.SignedAggregateAndProof[]): Promise<void>;
 
-  prepareBeaconCommitteeSubnet(subscriptions: BeaconCommitteeSubscription[]): Promise<void>;
+  prepareBeaconCommitteeSubnet(subscriptions: phase0.BeaconCommitteeSubscription[]): Promise<void>;
 }

@@ -12,6 +12,11 @@ import {isLocalMultiAddr, clearMultiaddrUDP} from "..";
 import {ENR} from "@chainsafe/discv5";
 import LevelDatastore from "datastore-level";
 
+export type NodeJsLibp2pOpts = {
+  peerStoreDir?: string;
+  disablePeerDiscovery?: boolean;
+};
+
 /**
  * Save a peer id to disk
  */
@@ -32,18 +37,17 @@ export async function loadPeerIdFromJsonFile(path: string): Promise<PeerId> {
  * @param peerIdOrPromise Create an instance of NodejsNode asynchronously
  * @param network
  * @param peerStoreDir
- * @param autoDial
  */
 export async function createNodeJsLibp2p(
   peerIdOrPromise: PeerId | Promise<PeerId>,
   network: Partial<INetworkOptions> = {},
-  peerStoreDir?: string,
-  autoDial = true
+  nodeJsLibp2pOpts: NodeJsLibp2pOpts = {}
 ): Promise<LibP2p> {
   const peerId = await Promise.resolve(peerIdOrPromise);
   const localMultiaddrs = network.localMultiaddrs || defaultNetworkOptions.localMultiaddrs;
   const bootMultiaddrs = network.bootMultiaddrs || defaultNetworkOptions.bootMultiaddrs;
   const enr = network.discv5?.enr;
+  const {peerStoreDir, disablePeerDiscovery} = nodeJsLibp2pOpts;
 
   if (enr && typeof enr !== "string") {
     if (enr instanceof ENR) {
@@ -58,11 +62,12 @@ export async function createNodeJsLibp2p(
   return new NodejsNode({
     peerId,
     addresses: {listen: localMultiaddrs},
-    autoDial,
     datastore: peerStoreDir ? new LevelDatastore(peerStoreDir) : undefined,
     bootMultiaddrs: bootMultiaddrs,
     discv5: network.discv5 || defaultDiscv5Options,
     maxConnections: network.maxPeers,
-    minConnections: network.minPeers,
+    minConnections: network.targetPeers,
+    // If peer discovery is enabled let the default in NodejsNode
+    peerDiscovery: disablePeerDiscovery ? [] : undefined,
   });
 }

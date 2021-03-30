@@ -2,11 +2,10 @@ import PeerId from "peer-id";
 import {AbortController} from "abort-controller";
 import {IBeaconSync, ISyncModules, SyncMode} from "./interface";
 import {defaultSyncOptions, ISyncOptions} from "./options";
-import {getSyncProtocols, getUnknownRootProtocols, INetwork} from "../network";
+import {INetwork} from "../network";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {CommitteeIndex, Root, Slot, phase0} from "@chainsafe/lodestar-types";
 import {IRegularSync} from "./regular";
-import {BeaconReqRespHandler, IReqRespHandler} from "./reqResp";
 import {BeaconGossipHandler} from "./gossip";
 import {ChainEvent, IBeaconChain} from "../chain";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
@@ -15,7 +14,7 @@ import {BlockError, BlockErrorCode} from "../chain/errors";
 import {getPeersInitialSync} from "./utils/bestPeers";
 import {ORARegularSync} from "./regular/oneRangeAhead/oneRangeAhead";
 import {SyncChain, ProcessChainSegment, DownloadBeaconBlocksByRange, GetPeersAndTargetEpoch} from "./range/chain";
-import {AttestationCollector, RoundRobinArray, syncPeersStatus} from "./utils";
+import {AttestationCollector, RoundRobinArray} from "./utils";
 import {ScoreState} from "../network/peers";
 
 export class BeaconSync implements IBeaconSync {
@@ -27,11 +26,9 @@ export class BeaconSync implements IBeaconSync {
 
   private mode: SyncMode;
   private regularSync: IRegularSync;
-  private reqResp: IReqRespHandler;
   private gossip: BeaconGossipHandler;
   private attestationCollector: AttestationCollector;
 
-  private statusSyncTimer?: NodeJS.Timeout;
   // avoid finding same root at the same time
   private processingRoots: Set<string>;
 
@@ -44,7 +41,6 @@ export class BeaconSync implements IBeaconSync {
     this.chain = modules.chain;
     this.logger = modules.logger;
     this.regularSync = modules.regularSync || new ORARegularSync(opts, modules);
-    this.reqResp = modules.reqRespHandler || new BeaconReqRespHandler(modules);
     this.gossip =
       modules.gossipHandler || new BeaconGossipHandler(modules.config, modules.chain, modules.network, modules.db);
     this.attestationCollector = modules.attestationCollector || new AttestationCollector(modules.config, modules);
@@ -54,15 +50,12 @@ export class BeaconSync implements IBeaconSync {
 
   async start(): Promise<void> {
     this.mode = SyncMode.WAITING_PEERS as SyncMode;
-    await this.reqResp.start();
     this.attestationCollector.start();
     if (this.mode === SyncMode.STOPPED) {
       return;
     }
 
-    if ((this.mode as SyncMode) === SyncMode.STOPPED) return;
     this.mode = SyncMode.INITIAL_SYNCING;
-    this.startSyncTimer(this.config.params.SLOTS_PER_EPOCH * this.config.params.SECONDS_PER_SLOT * 1000);
 
     const finalizedBlock = this.chain.forkChoice.getFinalizedBlock();
     const startEpoch = finalizedBlock.finalizedEpoch;
@@ -79,11 +72,25 @@ export class BeaconSync implements IBeaconSync {
       this.controller.signal
     );
 
-    await initialSync.sync();
+    initialSync
+      .sync()
+      .then(() => {
+        // Reset state cache size after initial sync
+        this.chain.stateCache.maxStates = maxStates;
+        this.startRegularSync();
+      })
+      .catch((e) => {
+        this.logger.error("Error on initial sync", {}, e);
+      });
 
-    // Reset state cache size after initial sync
-    this.chain.stateCache.maxStates = maxStates;
-    this.startRegularSync();
+    // Hack while RangeSync is not merged
+    // If a node witness the genesis event and has peers consider it synced and start gossip
+    this.chain.emitter.on(ChainEvent.clockEpoch, (epoch) => {
+      if (epoch === 0 && this.network.getConnectedPeers().length > 0) {
+        this.initialSyncCompleted();
+        this.regularSyncCompleted();
+      }
+    });
   }
 
   async stop(): Promise<void> {
@@ -93,11 +100,9 @@ export class BeaconSync implements IBeaconSync {
     }
     this.mode = SyncMode.STOPPED;
     this.chain.emitter.off(ChainEvent.errorBlock, this.onUnknownBlockRoot);
-    this.regularSync.off("syncCompleted", this.syncCompleted);
-    this.stopSyncTimer();
+    this.regularSync.off("syncCompleted", this.regularSyncCompleted);
     this.regularSync.stop();
     this.attestationCollector.stop();
-    await this.reqResp.stop();
     this.gossip.stop();
     this.gossip.close();
   }
@@ -165,60 +170,48 @@ export class BeaconSync implements IBeaconSync {
 
   private startRegularSync(): void {
     if (this.mode === SyncMode.STOPPED) return;
+    this.regularSync.on("syncCompleted", this.regularSyncCompleted);
+    this.regularSync.start();
+    this.initialSyncCompleted();
+  }
+
+  private initialSyncCompleted = (): void => {
     this.mode = SyncMode.REGULAR_SYNCING;
-    this.startSyncTimer(3 * this.config.params.SECONDS_PER_SLOT * 1000);
-    this.regularSync.on("syncCompleted", this.syncCompleted);
+    this.chain.emitter.off(ChainEvent.errorBlock, this.onUnknownBlockRoot);
     this.chain.emitter.on(ChainEvent.errorBlock, this.onUnknownBlockRoot);
     this.gossip.start();
-    this.regularSync.start();
-  }
-
-  private syncCompleted = async (): Promise<void> => {
-    this.mode = SyncMode.SYNCED;
-    this.stopSyncTimer();
-    this.gossip.start();
-    await this.network.handleSyncCompleted();
   };
 
-  private startSyncTimer(interval: number): void {
-    this.stopSyncTimer();
-    this.statusSyncTimer = setInterval(async () => {
-      try {
-        await syncPeersStatus(this.network, this.chain.getStatus());
-      } catch (e) {
-        this.logger.error("Error on syncPeersStatus", e);
-      }
-    }, interval);
-  }
-
-  private stopSyncTimer(): void {
-    if (this.statusSyncTimer) clearInterval(this.statusSyncTimer);
-  }
+  private regularSyncCompleted = (): void => {
+    this.mode = SyncMode.SYNCED;
+    this.gossip.start();
+  };
 
   private getSyncPeers(): PeerId[] {
-    return this.getPeers(getSyncProtocols());
+    return this.getPeers();
   }
 
   private getUnknownRootPeers(): PeerId[] {
-    return this.getPeers(getUnknownRootProtocols());
+    return this.getPeers();
   }
 
-  private getPeers(protocols: string[]): PeerId[] {
+  private getPeers(): PeerId[] {
     return this.network
-      .getPeers({supportsProtocols: protocols})
-      .filter((peer) => {
-        return (
-          !!this.network.peerMetadata.status.get(peer.id) &&
-          this.network.peerRpcScores.getScoreState(peer.id) === ScoreState.Healthy
-        );
-      })
-      .map((peer) => peer.id);
+      .getConnectedPeers()
+      .filter(
+        (peer) =>
+          !!this.network.peerMetadata.status.get(peer) &&
+          this.network.peerRpcScores.getScoreState(peer) === ScoreState.Healthy
+      );
   }
 
   private onUnknownBlockRoot = async (err: BlockError): Promise<void> => {
     if (err.type.code !== BlockErrorCode.PARENT_UNKNOWN) return;
-    const parentRoot = err.type.parentRoot;
+
+    const blockRoot = this.config.types.phase0.BeaconBlock.hashTreeRoot(err.job.signedBlock.message);
+    const parentRoot = this.chain.pendingBlocks.getMissingAncestor(blockRoot);
     const parentRootHex = toHexString(parentRoot);
+
     if (this.processingRoots.has(parentRootHex)) {
       return;
     } else {
@@ -246,7 +239,7 @@ export class BeaconSync implements IBeaconSync {
         this.logger.verbose("Failed to get unknown ancestor root from peer", {
           parentRootHex,
           peer: peer.toB58String(),
-          error: e.message,
+          error: (e as Error).message,
           maxRetry,
           retry,
         });

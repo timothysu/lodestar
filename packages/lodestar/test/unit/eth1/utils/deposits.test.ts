@@ -26,7 +26,7 @@ describe("eth1 / util / deposits", function () {
       eth1DepositIndex: number;
       depositIndexes: number[];
       expectedReturnedIndexes?: number[];
-      error?: any;
+      error?: unknown;
     }
 
     const {MAX_DEPOSITS} = config.params;
@@ -97,7 +97,7 @@ describe("eth1 / util / deposits", function () {
           const result = await resultPromise;
           expect(result.map((deposit) => deposit.index)).to.deep.equal(expectedReturnedIndexes);
         } else if (error) {
-          await expect(resultPromise).to.be.rejectedWith(error);
+          await expect(resultPromise).to.be.rejectedWith(error as Error);
         } else {
           throw Error("Test case must have 'result' or 'error'");
         }
@@ -108,7 +108,7 @@ describe("eth1 / util / deposits", function () {
   describe("getDepositsWithProofs", () => {
     it("return empty array if no pending deposits", function () {
       const initialValues = [Buffer.alloc(32)] as List<Root>;
-      const depositRootTree = config.types.phase0.DepositDataRootList.tree.createValue(initialValues);
+      const depositRootTree = config.types.phase0.DepositDataRootList.createTreeBackedFromStruct(initialValues);
       const depositCount = 0;
       const eth1Data = generateEth1Data(depositCount, depositRootTree);
 
@@ -126,7 +126,7 @@ describe("eth1 / util / deposits", function () {
         })
       );
 
-      const depositRootTree = config.types.phase0.DepositDataRootList.tree.defaultValue();
+      const depositRootTree = config.types.phase0.DepositDataRootList.defaultTreeBacked();
       for (const depositEvent of depositEvents) {
         depositRootTree.push(config.types.phase0.DepositData.hashTreeRoot(depositEvent.depositData));
       }

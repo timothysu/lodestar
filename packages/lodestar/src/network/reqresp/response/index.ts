@@ -2,14 +2,21 @@ import PeerId from "peer-id";
 import pipe from "it-pipe";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Context, ILogger} from "@chainsafe/lodestar-utils";
+import {phase0} from "@chainsafe/lodestar-types";
 import {Method, ReqRespEncoding, RpcResponseStatus} from "../../../constants";
 import {onChunk} from "../utils/onChunk";
-import {ILibP2pStream, ReqRespHandler} from "../interface";
+import {ILibP2pStream} from "../interface";
 import {requestDecode} from "../encoders/requestDecode";
 import {responseEncodeError, responseEncodeSuccess} from "../encoders/responseEncode";
 import {ResponseError} from "./errors";
 
 export {ResponseError};
+
+export type PerformRequestHandler = (
+  method: Method,
+  requestBody: phase0.RequestBody,
+  peerId: PeerId
+) => AsyncIterable<phase0.ResponseBody>;
 
 /**
  * Handles a ReqResp request from a peer. Throws on error. Logs each step of the response lifecycle.
@@ -23,7 +30,7 @@ export {ResponseError};
  */
 export async function handleRequest(
   {config, logger}: {config: IBeaconConfig; logger: ILogger},
-  performRequestHandler: ReqRespHandler,
+  performRequestHandler: PerformRequestHandler,
   stream: ILibP2pStream,
   peerId: PeerId,
   method: Method,
@@ -39,8 +46,8 @@ export async function handleRequest(
     // in case request whose body is a List fails at chunk_i > 0, without breaking out of the for..await..of
     (async function* () {
       try {
-        const requestBody = await pipe(stream.source, requestDecode(config, method, encoding)).catch((e) => {
-          throw new ResponseError(RpcResponseStatus.INVALID_REQUEST, e.message);
+        const requestBody = await pipe(stream.source, requestDecode(config, method, encoding)).catch((e: unknown) => {
+          throw new ResponseError(RpcResponseStatus.INVALID_REQUEST, (e as Error).message);
         });
 
         logger.debug("Resp received request", {...logCtx, requestBody} as Context);
@@ -53,15 +60,20 @@ export async function handleRequest(
         );
       } catch (e) {
         const status = e instanceof ResponseError ? e.status : RpcResponseStatus.SERVER_ERROR;
-        yield* responseEncodeError(status, e.message);
+        yield* responseEncodeError(status, (e as Error).message);
 
         // Should not throw an error here or libp2p-mplex throws with 'AbortError: stream reset'
         // throw e;
-        responseError = e;
+        responseError = e as Error;
       }
     })(),
     stream.sink
   );
+
+  // If streak.sink throws, libp2p-mplex will close stream.source
+  // If `requestDecode()` throws the stream.source must be closed manually
+  // To ensure the stream.source it-pushable instance is always closed, stream.close() is called always
+  stream.close();
 
   // TODO: It may happen that stream.sink returns before returning stream.source first,
   // so you never see "Resp received request" in the logs and the response ends without
@@ -73,9 +85,7 @@ export async function handleRequest(
     logger.verbose("Resp error", logCtx, responseError);
     throw responseError;
   } else {
+    // NOTE: Only log once per request to verbose, intermediate steps to debug
     logger.verbose("Resp done", logCtx);
   }
-
-  // Not necessary to call `stream.close()` in finally {}, libp2p-mplex do
-  // when either the source is exhausted or the sink returns
 }

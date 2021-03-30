@@ -1,53 +1,39 @@
 import {expect} from "chai";
 import supertest from "supertest";
 import {toHexString} from "@chainsafe/ssz";
-import {config} from "@chainsafe/lodestar-config/minimal";
 
-import {ApiNamespace, RestApi} from "../../../../../../src/api";
 import {getBlockHeaders} from "../../../../../../src/api/rest/controllers/beacon/blocks";
 import {generateSignedBeaconHeaderResponse} from "../../../../../utils/api";
-import {StubbedApi} from "../../../../../utils/stub/api";
-import {testLogger} from "../../../../../utils/logger";
-import {urlJoin} from "../../utils";
-import {BEACON_PREFIX} from "../index.test";
+import {ApiResponseBody, urlJoin} from "../../utils";
+import {BEACON_PREFIX, setupRestApiTestServer} from "../../index.test";
+import {SinonStubbedInstance} from "sinon";
+import {RestApi} from "../../../../../../src/api";
+import {BeaconBlockApi, IBeaconBlocksApi} from "../../../../../../src/api/impl/beacon/blocks";
 
 describe("rest - beacon - getBlockHeaders", function () {
+  let beaconBlocksStub: SinonStubbedInstance<IBeaconBlocksApi>;
   let restApi: RestApi;
-  let api: StubbedApi;
 
-  beforeEach(async function () {
-    api = new StubbedApi();
-    restApi = await RestApi.init(
-      {
-        api: [ApiNamespace.BEACON],
-        cors: "*",
-        enabled: true,
-        host: "127.0.0.1",
-        port: 0,
-      },
-      {
-        config,
-        logger: testLogger(),
-        api,
-      }
-    );
+  before(async function () {
+    restApi = await setupRestApiTestServer();
+    beaconBlocksStub = restApi.server.api.beacon.blocks as SinonStubbedInstance<BeaconBlockApi>;
   });
 
-  afterEach(async function () {
+  after(async function () {
     await restApi.close();
   });
 
   it("should fetch without filters", async function () {
-    api.beacon.blocks.getBlockHeaders.resolves([generateSignedBeaconHeaderResponse()]);
+    beaconBlocksStub.getBlockHeaders.resolves([generateSignedBeaconHeaderResponse()]);
     const response = await supertest(restApi.server.server)
       .get(urlJoin(BEACON_PREFIX, getBlockHeaders.url))
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");
-    expect(response.body.data.length).to.be.equal(1);
+    expect((response.body as ApiResponseBody).data.length).to.be.equal(1);
   });
 
   it("should parse slot param", async function () {
-    api.beacon.blocks.getBlockHeaders
+    beaconBlocksStub.getBlockHeaders
       .withArgs({slot: 1, parentRoot: undefined})
       .resolves([generateSignedBeaconHeaderResponse()]);
     const response = await supertest(restApi.server.server)
@@ -55,11 +41,11 @@ describe("rest - beacon - getBlockHeaders", function () {
       .query({slot: "1"})
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");
-    expect(response.body.data.length).to.be.equal(1);
+    expect((response.body as ApiResponseBody).data.length).to.be.equal(1);
   });
 
   it("should parse parentRoot param", async function () {
-    api.beacon.blocks.getBlockHeaders
+    beaconBlocksStub.getBlockHeaders
       .withArgs({slot: undefined, parentRoot: new Uint8Array(32).fill(1)})
       .resolves([generateSignedBeaconHeaderResponse()]);
     const response = await supertest(restApi.server.server)
@@ -68,7 +54,7 @@ describe("rest - beacon - getBlockHeaders", function () {
       .query({parent_root: toHexString(Buffer.alloc(32, 1))})
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");
-    expect(response.body.data.length).to.be.equal(1);
+    expect((response.body as ApiResponseBody).data.length).to.be.equal(1);
   });
 
   it("should throw validation error on invalid slot", async function () {

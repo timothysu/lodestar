@@ -1,15 +1,17 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import "mocha";
 import {expect} from "chai";
 import {promisify} from "es6-promisify";
 // @ts-ignore
 import leveldown from "leveldown";
 import {AbortController} from "abort-controller";
-import {WinstonLogger, LogLevel, sleep} from "@chainsafe/lodestar-utils";
+import {sleep} from "@chainsafe/lodestar-utils";
 import {LevelDbController} from "@chainsafe/lodestar-db";
 
 import {Eth1ForBlockProduction, Eth1Provider} from "../../../src/eth1";
 import {IEth1Options} from "../../../src/eth1/options";
 import {getTestnetConfig, testnet} from "../../utils/testnet";
+import {testLogger} from "../../utils/logger";
 import {BeaconDb} from "../../../src/db";
 import {generateState} from "../../utils/state";
 import {fromHexString, List, toHexString} from "@chainsafe/ssz";
@@ -37,7 +39,7 @@ describe("eth1 / Eth1Provider", function () {
   const controller = new AbortController();
 
   const config = getTestnetConfig();
-  const logger = new WinstonLogger({level: LogLevel.verbose});
+  const logger = testLogger();
   const eth1Provider = new Eth1Provider(config, eth1Options);
 
   let db: BeaconDb;
@@ -97,7 +99,7 @@ describe("eth1 / Eth1Provider", function () {
     const periodStart = maxTimestamp + SECONDS_PER_ETH1_BLOCK * ETH1_FOLLOW_DISTANCE;
 
     // Compute correct deposit root tree
-    const depositRootTree = config.types.phase0.DepositDataRootList.tree.createValue(
+    const depositRootTree = config.types.phase0.DepositDataRootList.createTreeBackedFromStruct(
       pyrmontDepositsDataRoot.map((root) => fromHexString(root)) as List<Root>
     );
 

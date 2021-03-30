@@ -1,10 +1,16 @@
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import { ValidatorIndex, allForks } from '@chainsafe/lodestar-types';
 import {IAttestationJob, IBeaconChain} from "..";
 import {IBeaconDb} from "../../db/api";
-import {computeEpochAtSlot, isAggregatorFromCommitteeLength} from "@chainsafe/lodestar-beacon-state-transition";
-import {phase0} from "@chainsafe/lodestar-beacon-state-transition";
+import {
+  phase0,
+  CachedBeaconState,
+  computeEpochAtSlot,
+  isAggregatorFromCommitteeLength,
+} from "@chainsafe/lodestar-beacon-state-transition";
 import {isAttestingToInValidBlock} from "./attestation";
-import {isValidAggregateAndProofSignature, isValidSelectionProofSignature} from "./utils";
+import {getSelectionProofSignatureSet, getAggregateAndProofSignatureSet} from "./utils";
+import {verifySignatureSetsBatch} from "../bls";
 import {AttestationError, AttestationErrorCode} from "../errors";
 import {ATTESTATION_PROPAGATION_SLOT_RANGE} from "../../constants";
 
@@ -78,20 +84,22 @@ export async function validateAggregateAttestation(
   attestationJob: IAttestationJob
 ): Promise<void> {
   const attestation = aggregateAndProof.message.aggregate;
-  let attestationPreState;
+
+  let attestationTargetState: CachedBeaconState<allForks.BeaconState>;
   try {
     // the target state, advanced to the attestation slot
-    attestationPreState = await chain.regen.getBlockSlotState(attestation.data.target.root, attestation.data.slot);
+    attestationTargetState = await chain.regen.getCheckpointState(attestation.data.target);
   } catch (e) {
     throw new AttestationError({
-      code: AttestationErrorCode.MISSING_ATTESTATION_PRESTATE,
+      code: AttestationErrorCode.MISSING_ATTESTATION_TARGET_STATE,
+      error: e as Error,
       job: attestationJob,
     });
   }
 
-  let committee;
+  let committee: ValidatorIndex[];
   try {
-    committee = attestationPreState.getBeaconCommittee(attestation.data.slot, attestation.data.index);
+    committee = attestationTargetState.getBeaconCommittee(attestation.data.slot, attestation.data.index);
   } catch (error) {
     throw new AttestationError({
       code: AttestationErrorCode.AGGREGATOR_NOT_IN_COMMITTEE,
@@ -113,31 +121,18 @@ export async function validateAggregateAttestation(
     });
   }
 
-  const aggregator = attestationPreState.index2pubkey[aggregateAndProof.message.aggregatorIndex];
-  if (
-    !isValidSelectionProofSignature(
-      config,
-      attestationPreState,
-      attestation.data.slot,
-      aggregator,
-      aggregateAndProof.message.selectionProof.valueOf() as Uint8Array
-    )
-  ) {
-    throw new AttestationError({
-      code: AttestationErrorCode.INVALID_SELECTION_PROOF,
-      job: attestationJob,
-    });
-  }
+  const slot = attestation.data.slot;
+  const epoch = computeEpochAtSlot(config, slot);
+  const indexedAttestation = attestationTargetState.getIndexedAttestation(attestation);
+  const aggregator = attestationTargetState.index2pubkey[aggregateAndProof.message.aggregatorIndex];
 
-  if (
-    !isValidAggregateAndProofSignature(
-      config,
-      attestationPreState,
-      computeEpochAtSlot(config, attestation.data.slot),
-      aggregator,
-      aggregateAndProof
-    )
-  ) {
+  const signatureSets = [
+    getSelectionProofSignatureSet(config, attestationTargetState, slot, aggregator, aggregateAndProof),
+    getAggregateAndProofSignatureSet(config, attestationTargetState, epoch, aggregator, aggregateAndProof),
+    phase0.fast.getIndexedAttestationSignatureSet(attestationTargetState, indexedAttestation),
+  ];
+
+  if (!verifySignatureSetsBatch(signatureSets)) {
     throw new AttestationError({
       code: AttestationErrorCode.INVALID_SIGNATURE,
       job: attestationJob,
@@ -146,11 +141,10 @@ export async function validateAggregateAttestation(
 
   // TODO: once we have pool, check if aggregate block is seen and has target as ancestor
 
-  if (
-    !phase0.fast.isValidIndexedAttestation(attestationPreState, attestationPreState.getIndexedAttestation(attestation))
-  ) {
+  // verifySignature = false, verified in batch above
+  if (!phase0.fast.isValidIndexedAttestation(attestationTargetState, indexedAttestation, false)) {
     throw new AttestationError({
-      code: AttestationErrorCode.INVALID_SIGNATURE,
+      code: AttestationErrorCode.INVALID_INDEXED_ATTESTATION,
       job: attestationJob,
     });
   }

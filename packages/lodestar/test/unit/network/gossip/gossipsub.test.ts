@@ -12,6 +12,7 @@ import {
   GossipValidationError,
   encodeMessageData,
   GossipEncoding,
+  TopicValidatorFnMap,
 } from "../../../../src/network/gossip";
 
 import {generateEmptySignedBlock} from "../../../utils/block";
@@ -19,7 +20,7 @@ import {createNode} from "../../../utils/network";
 import {testLogger} from "../../../utils/logger";
 
 describe("gossipsub", function () {
-  let validatorFns: Map<string, TopicValidatorFn>;
+  let validatorFns: TopicValidatorFnMap;
   let gossipSub: Eth2Gossipsub;
   let message: InMessage;
   let topicString: string;
@@ -35,7 +36,7 @@ describe("gossipsub", function () {
       topicIDs: [topicString],
     };
 
-    validatorFns = new Map();
+    validatorFns = new Map<string, TopicValidatorFn>();
     const multiaddr = "/ip4/127.0.0.1/tcp/0";
     libp2p = await createNode(multiaddr);
   });
@@ -50,7 +51,7 @@ describe("gossipsub", function () {
       await gossipSub.validate(message);
       assert.fail("Expect error here");
     } catch (e) {
-      expect(e.code).to.be.equal(ERR_TOPIC_VALIDATOR_REJECT);
+      expect((e as GossipValidationError).code).to.be.equal(ERR_TOPIC_VALIDATOR_REJECT);
     }
   });
 

@@ -17,6 +17,7 @@ import {
   AggregateAndProofRepository,
 } from "../../../../src/db/api/beacon/repositories";
 import {generateValidators} from "../../../utils/validator";
+import {createStubInstance} from "../../../utils/types";
 
 chai.use(chaiAsPromised);
 
@@ -29,13 +30,13 @@ describe("beacon db - post block processing", function () {
       config,
       controller: sandbox.createStubInstance(LevelDbController),
     }) as StubbedBeaconDb;
-    dbStub.depositEvent = sandbox.createStubInstance(DepositEventRepository) as any;
-    dbStub.voluntaryExit = sandbox.createStubInstance(VoluntaryExitRepository) as any;
-    dbStub.proposerSlashing = sandbox.createStubInstance(ProposerSlashingRepository) as any;
-    dbStub.attesterSlashing = sandbox.createStubInstance(AttesterSlashingRepository) as any;
-    dbStub.attestation = sandbox.createStubInstance(AttestationRepository) as any;
-    dbStub.aggregateAndProof = sandbox.createStubInstance(AggregateAndProofRepository) as any;
-    dbStub.stateArchive = sandbox.createStubInstance(StateArchiveRepository) as any;
+    dbStub.depositEvent = createStubInstance(DepositEventRepository);
+    dbStub.voluntaryExit = createStubInstance(VoluntaryExitRepository);
+    dbStub.proposerSlashing = createStubInstance(ProposerSlashingRepository);
+    dbStub.attesterSlashing = createStubInstance(AttesterSlashingRepository);
+    dbStub.attestation = createStubInstance(AttestationRepository);
+    dbStub.aggregateAndProof = createStubInstance(AggregateAndProofRepository);
+    dbStub.stateArchive = createStubInstance(StateArchiveRepository);
 
     // Add to state
     dbStub.stateArchive.lastValue.resolves(

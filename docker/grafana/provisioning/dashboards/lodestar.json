@@ -1619,7 +1619,7 @@
         },
         {
           "aliasColors": {
-            "{instance=\"lodestar:8008\", job=\"Lodestar\"}": "semi-dark-orange"
+            "{instance=\"beacon_node:8008\", job=\"Lodestar\"}": "semi-dark-orange"
           },
           "bars": false,
           "dashLength": 10,
@@ -1831,7 +1831,7 @@
         },
         {
           "aliasColors": {
-            "{instance=\"lodestar:8008\", job=\"Lodestar\"}": "red"
+            "{instance=\"beacon_node:8008\", job=\"Lodestar\"}": "red"
           },
           "bars": false,
           "dashLength": 10,
@@ -2631,7 +2631,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "rate(lodestar_block_processor_total_async_time[$__rate_interval])",
+              "expr": "rate(lodestar_block_processor_queue_job_time_seconds[$__rate_interval])",
               "instant": false,
               "interval": "",
               "legendFormat": "",

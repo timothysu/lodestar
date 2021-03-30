@@ -4,7 +4,6 @@ import {config} from "@chainsafe/lodestar-config/minimal";
 import {BlockRangeFetcher} from "../../../../../src/sync/regular/oneRangeAhead/fetcher";
 import {BeaconChain, IBeaconChain} from "../../../../../src/chain";
 import {INetwork, Network} from "../../../../../src/network";
-import {WinstonLogger} from "@chainsafe/lodestar-utils";
 import PeerId from "peer-id";
 import * as blockUtils from "../../../../../src/sync/utils/blocks";
 import * as slotUtils from "@chainsafe/lodestar-beacon-state-transition/lib/util/slot";
@@ -13,6 +12,8 @@ import {IBeaconClock, LocalClock} from "../../../../../src/chain/clock";
 import {generateEmptySignedBlock} from "../../../../utils/block";
 import {phase0} from "@chainsafe/lodestar-types";
 import {getStubbedMetadataStore, StubbedIPeerMetadataStore} from "../../../../utils/peer";
+import {testLogger} from "../../../../utils/logger";
+import {SinonStubFn} from "../../../../utils/types";
 
 describe("BlockRangeFetcher", function () {
   let fetcher: BlockRangeFetcher;
@@ -20,9 +21,9 @@ describe("BlockRangeFetcher", function () {
   let clockStub: SinonStubbedInstance<IBeaconClock>;
   let networkStub: SinonStubbedInstance<INetwork>;
   let metadataStub: StubbedIPeerMetadataStore;
-  let getBlockRangeStub: SinonStub;
-  let getCurrentSlotStub: SinonStub;
-  const logger = new WinstonLogger();
+  let getBlockRangeStub: SinonStubFn<typeof blockUtils["getBlockRange"]>;
+  let getCurrentSlotStub: SinonStubFn<typeof slotUtils["getCurrentSlot"]>;
+  const logger = testLogger();
   const sandbox = sinon.createSandbox();
   let getPeers: SinonStub;
 

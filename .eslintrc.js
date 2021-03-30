@@ -86,6 +86,10 @@ module.exports = {
     "@typescript-eslint/type-annotation-spacing": "error",
     "@typescript-eslint/no-floating-promises": "error",
     "@typescript-eslint/explicit-member-accessibility": ["error", {accessibility: "no-public"}],
+    "@typescript-eslint/no-unsafe-assignment": "error",
+    "@typescript-eslint/no-unsafe-call": "error",
+    "@typescript-eslint/no-unsafe-member-access": "error",
+    "@typescript-eslint/no-unsafe-return": "error",
     "import/no-extraneous-dependencies": [
       "error",
       {
@@ -124,7 +128,7 @@ module.exports = {
       },
     },
     {
-      files: ["**/lodestar-types/**/*.ts"],
+      files: ["**/types/**/*.ts"],
       rules: {
         "@typescript-eslint/naming-convention": [
           "off",

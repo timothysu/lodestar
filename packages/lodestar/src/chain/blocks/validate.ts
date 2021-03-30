@@ -30,6 +30,7 @@ export function validateBlock({
     if (!job.reprocess && forkChoice.hasBlock(blockHash)) {
       throw new BlockError({
         code: BlockErrorCode.BLOCK_IS_ALREADY_KNOWN,
+        root: blockHash,
         job,
       });
     }
@@ -61,7 +62,7 @@ export function validateBlock({
 
     throw new BlockError({
       code: BlockErrorCode.BEACON_CHAIN_ERROR,
-      error: e,
+      error: e as Error,
       job,
     });
   }

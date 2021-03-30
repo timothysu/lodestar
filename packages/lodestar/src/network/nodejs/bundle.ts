@@ -19,7 +19,6 @@ export interface ILibp2pOptions {
     announce?: string[];
     noAnnounce?: string[];
   };
-  autoDial: boolean;
   datastore?: Adapter;
   discv5: {
     bindAddr: string;
@@ -63,9 +62,18 @@ export class NodejsNode extends LibP2p {
             enabled: false,
             active: false,
           },
+          advertise: {
+            enabled: false,
+            ttl: 0,
+            bootDelay: 0,
+          },
+          autoRelay: {
+            enabled: false,
+            maxListeners: 0,
+          },
         },
         peerDiscovery: {
-          autoDial: options.autoDial,
+          autoDial: false,
           mdns: {
             peerId: options.peerId,
           },

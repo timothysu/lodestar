@@ -1,8 +1,8 @@
 import {expect} from "chai";
-import PeerId from "peer-id";
 import {config} from "@chainsafe/lodestar-config/minimal";
 import {Epoch} from "@chainsafe/lodestar-types";
 import {testLogger} from "../../../../utils/logger";
+import {getValidPeerId} from "../../../../utils/peer";
 import {Batch, BatchOpts, BatchStatus} from "../../../../../src/sync/range/batch";
 import {
   validateBatchesStatus,
@@ -14,7 +14,7 @@ import {
 describe("sync / range / batches", () => {
   const logger = testLogger();
   const opts: BatchOpts = {epochsPerBatch: 2};
-  const peer = new PeerId(Buffer.from("lodestar"));
+  const peer = getValidPeerId();
 
   describe("validateBatchesStatus", () => {
     const testCases: {
@@ -125,7 +125,7 @@ describe("sync / range / batches", () => {
         const _batches = batches.map(createBatch);
         const nextBatchToProcess = getNextBatchToProcess(_batches);
         if (nextBatchToProcessIndex === undefined) {
-          expect(nextBatchToProcess).to.equal(undefined);
+          expect(nextBatchToProcess).to.equal(null);
         } else {
           expect(nextBatchToProcess).to.equal(_batches[nextBatchToProcessIndex]);
         }

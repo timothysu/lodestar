@@ -7,7 +7,7 @@ import {computeStartSlotAtEpoch, computeSubnetForCommitteesAtSlot} from "@chains
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {Bytes96, CommitteeIndex, Epoch, Root, phase0, Slot, ValidatorIndex, allForks} from "@chainsafe/lodestar-types";
 import {assert, ILogger} from "@chainsafe/lodestar-utils";
-import {readOnlyForEach} from "@chainsafe/ssz";
+import {readonlyValues} from "@chainsafe/ssz";
 import {IAttestationJob, IBeaconChain} from "../../../chain";
 import {assembleAttestationData} from "../../../chain/factory/attestation";
 import {assembleBlock} from "../../../chain/factory/block";
@@ -22,7 +22,7 @@ import {IApiOptions} from "../../options";
 import {ApiError} from "../errors/api";
 import {ApiNamespace, IApiModules} from "../interface";
 import {checkSyncStatus} from "../utils";
-import {BeaconCommitteeSubscription, IValidatorApi} from "./interface";
+import {IValidatorApi} from "./interface";
 
 /**
  * Server implementation for handling validator duties.
@@ -131,11 +131,13 @@ export class ValidatorApi implements IValidatorApi {
       try {
         const signature = bls.Signature.fromBytes(attestation.signature.valueOf() as Uint8Array);
         signatures.push(signature);
-        readOnlyForEach(attestation.aggregationBits, (bit, index) => {
+        let index = 0;
+        for (const bit of readonlyValues(attestation.aggregationBits)) {
           if (bit) {
             aggregationBits[index] = true;
           }
-        });
+          index++;
+        }
       } catch (e) {
         this.logger.verbose("Invalid attestation signature", e);
       }
@@ -178,15 +180,33 @@ export class ValidatorApi implements IValidatorApi {
     );
   }
 
-  async prepareBeaconCommitteeSubnet(subscriptions: BeaconCommitteeSubscription[]): Promise<void> {
+  async prepareBeaconCommitteeSubnet(subscriptions: phase0.BeaconCommitteeSubscription[]): Promise<void> {
     await checkSyncStatus(this.config, this.sync);
 
-    for (const {isAggregator, slot, committeeIndex, committeesAtSlot} of subscriptions) {
+    // Determine if the validator is an aggregator. If so, we subscribe to the subnet and
+    // if successful add the validator to a mapping of known aggregators for that exact
+    // subnet.
+    for (const {isAggregator, slot, committeeIndex} of subscriptions) {
       if (isAggregator) {
         this.sync.collectAttestations(slot, committeeIndex);
       }
-      const subnet = computeSubnetForCommitteesAtSlot(this.config, slot, committeesAtSlot, committeeIndex);
-      await this.network.searchSubnetPeers([String(subnet)]);
     }
+
+    this.network.requestAttSubnets(
+      subscriptions.map(({slot, committeesAtSlot, committeeIndex}) => ({
+        subnetId: computeSubnetForCommitteesAtSlot(this.config, slot, committeesAtSlot, committeeIndex),
+        // Network should keep finding peers for this subnet until `toSlot`
+        // add one slot to ensure we keep the peer for the subscription slot
+        toSlot: slot + 1,
+      }))
+    );
+
+    // TODO:
+    // Update the `known_validators` mapping and subscribes to a set of random subnets if required
+    // It must also update the ENR to indicate our long-lived subscription to the subnet
+
+    // TODO:
+    // If the discovery mechanism isn't disabled, attempt to set up a peer discovery for the
+    // required subnets.
   }
 }

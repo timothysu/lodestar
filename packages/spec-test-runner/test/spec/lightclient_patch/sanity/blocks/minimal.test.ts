@@ -3,7 +3,7 @@ import {expect} from "chai";
 import {params} from "@chainsafe/lodestar-params/minimal";
 import {lightclient} from "@chainsafe/lodestar-beacon-state-transition";
 import {lightclient as lightclientTypes} from "@chainsafe/lodestar-types";
-import {describeDirectorySpecTest, InputType} from "@chainsafe/lodestar-spec-test-util/lib/single";
+import {describeDirectorySpecTest, InputType} from "@chainsafe/lodestar-spec-test-util";
 import {IBeaconConfig, createIBeaconConfig} from "@chainsafe/lodestar-config";
 import {IBlockSanityTestCase} from "./types";
 import {SPEC_TEST_LOCATION} from "../../../../utils/specTestCases";
@@ -55,7 +55,7 @@ function generateBlocksSZZTypeMapping(
   n: number,
   config: IBeaconConfig
 ): Record<string, typeof config.types.lightclient.SignedBeaconBlock> {
-  const blocksMapping: any = {};
+  const blocksMapping: Record<string, typeof config.types.lightclient.SignedBeaconBlock> = {};
   for (let i = 0; i < n; i++) {
     blocksMapping[`blocks_${i}`] = config.types.lightclient.SignedBeaconBlock;
   }

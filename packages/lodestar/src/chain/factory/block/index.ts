@@ -44,6 +44,6 @@ function computeNewStateRoot(
   state: CachedBeaconState<allForks.BeaconState>,
   block: allForks.BeaconBlock
 ): Root {
-  const postState = processBlock(state.clone(), block, true);
+  const postState = processBlock(state.clone(), block, false);
   return (config.getTypes(postState.slot).BeaconState as ContainerType<allForks.BeaconState>).hashTreeRoot(postState);
 }

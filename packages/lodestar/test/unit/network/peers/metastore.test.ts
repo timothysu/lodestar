@@ -5,25 +5,29 @@ import {ReqRespEncoding} from "../../../../src/constants";
 import {expect} from "chai";
 import PeerId from "peer-id";
 import {phase0} from "@chainsafe/lodestar-types";
+import MetadataBook from "libp2p/src/peer-store/metadata-book";
+import ProtoBook from "libp2p/src/peer-store/proto-book";
 
 describe("Libp2pPeerMetadataStore", function () {
-  let metabookStub: SinonStubbedInstance<MetadataBook>;
+  let metabookStub: SinonStubbedInstance<MetadataBook> & MetadataBook;
 
   const peerId = PeerId.createFromB58String("Qma9T5YraSnpRDZqRR4krcSJabThc8nwZuJV3LercPHufi");
 
   beforeEach(function () {
     let stored: Buffer;
     metabookStub = {
-      data: new Map(),
+      data: new Map<string, Map<string, Buffer>>(),
       delete: sinon.stub(),
       deleteValue: sinon.stub(),
       get: sinon.stub(),
       getValue: sinon.stub().callsFake(() => {
         return stored;
       }) as SinonStub<[PeerId, string], Buffer>,
+      // @ts-ignore
       set: sinon.stub().callsFake(
         (peerId: PeerId, key: string, value: Buffer): ProtoBook => {
           stored = value;
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           return (metabookStub as unknown) as ProtoBook;
         }
       ) as SinonStub<[PeerId, string, Buffer], ProtoBook>,

@@ -13,6 +13,7 @@ import {
   ErrorNoDepositsForBlockRange,
   ErrorNotEnoughDepositRoots,
 } from "../../../../src/eth1/utils/eth1Data";
+import {DepositData} from "@chainsafe/lodestar-types/phase0";
 
 chai.use(chaiAsPromised);
 
@@ -24,7 +25,7 @@ describe("eth1 / util / getEth1DataForBlocks", function () {
     depositRootTree: TreeBacked<List<Root>>;
     lastProcessedDepositBlockNumber: number;
     expectedEth1Data?: Partial<phase0.Eth1Data & phase0.Eth1Block>[];
-    error?: any;
+    error?: unknown;
   }
 
   const testCases: (() => ITestCase)[] = [
@@ -48,7 +49,7 @@ describe("eth1 / util / getEth1DataForBlocks", function () {
       const lastProcessedDepositBlockNumber = expectedEth1Data[expectedEth1Data.length - 1].blockNumber;
 
       // Pre-fill the depositTree with roots for all deposits
-      const depositRootTree = config.types.phase0.DepositDataRootList.tree.createValue(
+      const depositRootTree = config.types.phase0.DepositDataRootList.createTreeBackedFromStruct(
         Array.from({length: deposits[deposits.length - 1].index + 1}, (_, i) => Buffer.alloc(32, i)) as List<Root>
       );
 
@@ -67,7 +68,7 @@ describe("eth1 / util / getEth1DataForBlocks", function () {
         id: "No deposits yet, should throw with NoDepositsForBlockRange",
         blocks: [getMockBlock({blockNumber: 0})],
         deposits: [],
-        depositRootTree: config.types.phase0.DepositDataRootList.tree.defaultValue(),
+        depositRootTree: config.types.phase0.DepositDataRootList.defaultTreeBacked(),
         lastProcessedDepositBlockNumber: 0,
         error: ErrorNoDepositsForBlockRange,
       };
@@ -78,7 +79,7 @@ describe("eth1 / util / getEth1DataForBlocks", function () {
         id: "With deposits and no deposit roots, should throw with NotEnoughDepositRoots",
         blocks: [getMockBlock({blockNumber: 0})],
         deposits: [getMockDeposit({blockNumber: 0, index: 0})],
-        depositRootTree: config.types.phase0.DepositDataRootList.tree.defaultValue(),
+        depositRootTree: config.types.phase0.DepositDataRootList.defaultTreeBacked(),
         lastProcessedDepositBlockNumber: 0,
         error: ErrorNotEnoughDepositRoots,
       };
@@ -89,7 +90,7 @@ describe("eth1 / util / getEth1DataForBlocks", function () {
         id: "Empty case",
         blocks: [],
         deposits: [],
-        depositRootTree: config.types.phase0.DepositDataRootList.tree.defaultValue(),
+        depositRootTree: config.types.phase0.DepositDataRootList.defaultTreeBacked(),
         lastProcessedDepositBlockNumber: 0,
         expectedEth1Data: [],
       };
@@ -120,7 +121,7 @@ describe("eth1 / util / getEth1DataForBlocks", function () {
         const eth1DatasPartial = eth1Datas.map((eth1Data) => pick(eth1Data, Object.keys(expectedEth1Data[0])));
         expect(eth1DatasPartial).to.deep.equal(expectedEth1Data);
       } else if (error) {
-        await expect(eth1DatasPromise).to.be.rejectedWith(error);
+        await expect(eth1DatasPromise).to.be.rejectedWith(error as Error);
       } else {
         throw Error("Test case must have 'expectedEth1Data' or 'error'");
       }
@@ -212,7 +213,7 @@ describe("eth1 / util / getDepositRootByDepositCount", function () {
   }
 
   const fullRootMap = new Map<number, Root>();
-  const fullDepositRootTree = config.types.phase0.DepositDataRootList.tree.defaultValue();
+  const fullDepositRootTree = config.types.phase0.DepositDataRootList.defaultTreeBacked();
   for (let i = 0; i < 10; i++) {
     fullDepositRootTree.push(Buffer.alloc(32, i));
     fullRootMap.set(fullDepositRootTree.length, fullDepositRootTree.hashTreeRoot());
@@ -242,7 +243,7 @@ describe("eth1 / util / getDepositRootByDepositCount", function () {
       };
     },
     () => {
-      const emptyTree = config.types.phase0.DepositDataRootList.tree.defaultValue();
+      const emptyTree = config.types.phase0.DepositDataRootList.defaultTreeBacked();
       return {
         id: "Empty case",
         depositCounts: [],
@@ -273,6 +274,6 @@ function getMockDeposit({blockNumber, index}: {blockNumber: number; index: numbe
   return {
     blockNumber,
     index,
-    depositData: {} as any, // Not used
+    depositData: {} as DepositData, // Not used
   };
 }

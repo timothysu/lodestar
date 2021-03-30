@@ -1,5 +1,5 @@
 import {expect} from "chai";
-import sinon from "sinon";
+import sinon, {SinonStub} from "sinon";
 import bls, {SecretKey} from "@chainsafe/bls";
 import {List} from "@chainsafe/ssz";
 import {config} from "@chainsafe/lodestar-config/minimal";
@@ -42,7 +42,12 @@ describe("produce block", function () {
     const secretKeys = Array.from({length: 64}, () => bls.SecretKey.fromKeygen());
 
     const validators = secretKeys.map((secretKey) => {
-      const validator = generateValidator({activationEpoch: 0, exitEpoch: FAR_FUTURE_EPOCH});
+      const validator = generateValidator({
+        activationEpoch: 0,
+        exitEpoch: FAR_FUTURE_EPOCH,
+        withdrawableEpoch: FAR_FUTURE_EPOCH,
+        effectiveBalance: config.params.MAX_EFFECTIVE_BALANCE,
+      });
       validator.pubkey = secretKey.toPublicKey().toBytes();
       validator.effectiveBalance = config.params.MAX_EFFECTIVE_BALANCE;
       return validator;
@@ -69,8 +74,8 @@ describe("produce block", function () {
         config
       )
     );
-    const depositDataRootList = config.types.phase0.DepositDataRootList.tree.defaultValue();
-    const tree = depositDataRootList.tree();
+    const depositDataRootList = config.types.phase0.DepositDataRootList.defaultTreeBacked();
+    const tree = depositDataRootList.tree;
     depositDataRootList.push(config.types.phase0.DepositData.hashTreeRoot(generateDeposit().data));
     const slotState = state.clone();
     slotState.slot = 1;
@@ -90,8 +95,8 @@ describe("produce block", function () {
 
     const secretKey = secretKeys[validatorIndex];
     const blockProposingService = getBlockProposingService(secretKey);
-    // @ts-ignore
-    blockProposingService.getRpcClient().validator.produceBlock.callsFake(async (slot, randao) => {
+    const produceBlock = blockProposingService.getRpcClient().validator.produceBlock as SinonStub;
+    produceBlock.callsFake(async (slot, randao) => {
       return await assembleBlock(config, chainStub, dbStub, eth1, slot, randao);
     });
     const block = await blockProposingService.createAndPublishBlock(

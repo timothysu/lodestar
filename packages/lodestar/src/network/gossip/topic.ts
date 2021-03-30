@@ -15,7 +15,7 @@ import {
   GossipSerializer,
   GossipType,
   GossipTopic,
-  IBeaconBlockTopic,
+  GossipTopicMap,
 } from "./interface";
 import {DEFAULT_ENCODING} from "./constants";
 
@@ -81,7 +81,7 @@ export function getGossipTopic(config: IBeaconConfig, topic: string, genesisVali
     type,
     fork,
     encoding,
-  } as IBeaconBlockTopic;
+  } as GossipTopicMap[GossipType.beacon_block];
 }
 
 export function getGossipSSZType<T extends GossipObject>(config: IBeaconConfig, topic: GossipTopic): ContainerType<T> {
@@ -112,7 +112,7 @@ export function getGossipSSZDeserializer(config: IBeaconConfig, topic: GossipTop
   switch (topic.type) {
     case GossipType.beacon_block:
       // Deserialize tree-backed block, all other gossip can be deserialized to struct
-      return sszType.tree.deserialize.bind(sszType.tree);
+      return sszType.createTreeBackedFromBytes.bind(sszType);
     case GossipType.beacon_aggregate_and_proof:
     case GossipType.beacon_attestation:
     case GossipType.proposer_slashing:
