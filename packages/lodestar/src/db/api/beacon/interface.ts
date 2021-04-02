@@ -17,10 +17,10 @@ import {
   ProposerSlashingRepository,
   StateArchiveRepository,
   VoluntaryExitRepository,
+  PendingBlockRepository,
 } from "./repositories";
 import {PreGenesisState, PreGenesisStateLastProcessedBlock} from "./single";
 import {SeenAttestationCache} from "./seenAttestationCache";
-import {PendingBlockRepository} from "./repositories/pendingBlock";
 
 /**
  * The DB service manages the data layer of the beacon chain

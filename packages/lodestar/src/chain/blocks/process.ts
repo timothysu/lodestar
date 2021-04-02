@@ -49,9 +49,6 @@ export async function processBlock({
       job.validProposerSignature = true;
       job.validSignatures = true;
     }
-
-    //TODO: handle different forks
-    //@ts-ignore
     await runStateTransition(emitter, forkChoice, checkpointStateCache, preState, job);
   } catch (e) {
     if (e instanceof RegenError) {
@@ -140,8 +137,6 @@ export async function processChainSegment({
       }
 
       for (const block of blocksInEpoch) {
-        //TODO: handle different forks
-        //@ts-ignore
         preState = await runStateTransition(emitter, forkChoice, checkpointStateCache, preState, {
           reprocess: job.reprocess,
           prefinalized: job.prefinalized,

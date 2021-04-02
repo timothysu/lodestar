@@ -18,10 +18,10 @@ import {
   ProposerSlashingRepository,
   StateArchiveRepository,
   VoluntaryExitRepository,
+  PendingBlockRepository,
 } from "./repositories";
 import {PreGenesisState, PreGenesisStateLastProcessedBlock} from "./single";
 import {SeenAttestationCache} from "./seenAttestationCache";
-import {PendingBlockRepository} from "./repositories/pendingBlock";
 
 export class BeaconDb extends DatabaseService implements IBeaconDb {
   badBlock: BadBlockRepository;

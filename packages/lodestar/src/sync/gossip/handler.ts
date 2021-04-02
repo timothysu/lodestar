@@ -1,4 +1,4 @@
-import {phase0, Version} from "@chainsafe/lodestar-types";
+import { phase0, Version, allForks } from '@chainsafe/lodestar-types';
 import {IBeaconConfig, IForkName} from "@chainsafe/lodestar-config";
 
 import {INetwork} from "../../network";
@@ -65,7 +65,7 @@ export class BeaconGossipHandler {
     this.state = {status: GossipHandlerStatus.Stopped};
   }
 
-  onBlock = (block: phase0.SignedBeaconBlock): void => {
+  onBlock = (block: allForks.SignedBeaconBlock): void => {
     this.chain.receiveBlock(block);
   };
 

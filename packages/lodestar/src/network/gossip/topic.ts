@@ -77,6 +77,7 @@ export function getGossipTopic(config: IBeaconConfig, topic: string, genesisVali
   if (GossipType[type] == null) {
     throw new Error(`Bad gossip topic type: ${type}`);
   }
+  console.log("Fork", fork);
   return {
     type,
     fork,

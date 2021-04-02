@@ -1,6 +1,6 @@
 /* eslint-disable max-len */
-import {fromHexString, readonlyValues, toHexString} from "@chainsafe/ssz";
-import {Slot, ValidatorIndex, Gwei, phase0} from "@chainsafe/lodestar-types";
+import {ContainerType, fromHexString, readonlyValues, toHexString} from "@chainsafe/ssz";
+import {Slot, ValidatorIndex, Gwei, phase0, allForks} from "@chainsafe/lodestar-types";
 import {
   computeSlotsSinceEpochStart,
   computeStartSlotAtEpoch,
@@ -214,7 +214,7 @@ export class ForkChoice implements IForkChoice {
    * `justifiedBalances` balances of justified state which is updated synchronously.
    * This ensures that the forkchoice is never out of sync.
    */
-  onBlock(block: phase0.BeaconBlock, state: phase0.BeaconState, justifiedBalances?: Gwei[]): void {
+  onBlock(block: allForks.BeaconBlock, state: allForks.BeaconState, justifiedBalances?: Gwei[]): void {
     // Parent block must be known
     if (!this.protoArray.hasBlock(toHexString(block.parentRoot))) {
       throw new ForkChoiceError({
@@ -322,14 +322,16 @@ export class ForkChoice implements IForkChoice {
     const targetSlot = computeStartSlotAtEpoch(this.config, computeEpochAtSlot(this.config, block.slot));
     const targetRoot =
       block.slot === targetSlot
-        ? this.config.types.phase0.BeaconBlock.hashTreeRoot(block)
+        ? (this.config.getTypes(block.slot).BeaconBlock as ContainerType<allForks.BeaconBlock>).hashTreeRoot(block)
         : state.blockRoots[targetSlot % this.config.params.SLOTS_PER_HISTORICAL_ROOT];
 
     // This does not apply a vote to the block, it just makes fork choice aware of the block so
     // it can still be identified as the head even if it doesn't have any votes.
     this.protoArray.onBlock({
       slot: block.slot,
-      blockRoot: toHexString(this.config.types.phase0.BeaconBlock.hashTreeRoot(block)),
+      blockRoot: toHexString(
+        (this.config.getTypes(block.slot).BeaconBlock as ContainerType<allForks.BeaconBlock>).hashTreeRoot(block)
+      ),
       parentRoot: toHexString(block.parentRoot),
       targetRoot: toHexString(targetRoot),
       stateRoot: toHexString(block.stateRoot),
@@ -547,7 +549,7 @@ export class ForkChoice implements IForkChoice {
    *
    * https://github.com/ethereum/eth2.0-specs/blob/v0.12.1/specs/phase0/fork-choice.md#should_update_justified_checkpoint
    */
-  private shouldUpdateJustifiedCheckpoint(state: phase0.BeaconState): boolean {
+  private shouldUpdateJustifiedCheckpoint(state: allForks.BeaconState): boolean {
     const newJustifiedCheckpoint = state.currentJustifiedCheckpoint;
 
     if (

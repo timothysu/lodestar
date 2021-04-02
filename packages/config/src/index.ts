@@ -19,20 +19,20 @@ export function createIBeaconConfig(params: IBeaconParams): IBeaconConfig {
     types,
     getForkInfoRecord(): Record<IForkName, IForkInfo> {
       return {
-        phase0: {
-          name: "phase0",
-          slot: GENESIS_SLOT,
-          version: params.GENESIS_FORK_VERSION,
+        phase1: {
+          name: "phase1",
+          slot: params.PHASE_1_FORK_SLOT,
+          version: params.PHASE_1_FORK_VERSION,
         },
         lightclient: {
           name: "lightclient",
           slot: params.LIGHTCLIENT_PATCH_FORK_SLOT,
           version: params.LIGHTCLIENT_PATCH_FORK_VERSION,
         },
-        phase1: {
-          name: "phase1",
-          slot: params.PHASE_1_FORK_SLOT,
-          version: params.PHASE_1_FORK_VERSION,
+        phase0: {
+          name: "phase0",
+          slot: GENESIS_SLOT,
+          version: params.GENESIS_FORK_VERSION,
         },
       };
     },

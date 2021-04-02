@@ -31,11 +31,11 @@ interface IProcessBlock {
 }
 
 export interface IChainSegmentJob extends IProcessBlock {
-  signedBlocks: phase0.SignedBeaconBlock[];
+  signedBlocks: allForks.SignedBeaconBlock[];
 }
 
 export interface IBlockJob extends IProcessBlock {
-  signedBlock: phase0.SignedBeaconBlock;
+  signedBlock: allForks.SignedBeaconBlock;
 }
 
 export interface IAttestationJob {

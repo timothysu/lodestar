@@ -7,6 +7,7 @@ import {expect} from "chai";
 import {ChainEvent} from "../../../src/chain";
 import {IRestApiOptions} from "../../../src/api/rest/options";
 import {testLogger, LogLevel} from "../../utils/logger";
+import {params} from "@chainsafe/lodestar-params/mainnet";
 
 describe("Altair: Run single node single thread interop validators (no eth1) until checkpoint", function () {
   const timeout = 120 * 1000;
@@ -17,6 +18,8 @@ describe("Altair: Run single node single thread interop validators (no eth1) unt
     SECONDS_PER_SLOT: 2,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     SLOTS_PER_EPOCH: 8,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    GENESIS_FORK_VERSION: params.LIGHTCLIENT_PATCH_FORK_VERSION,
   };
   const manyValidatorParams: Partial<IBeaconParams> = {
     ...testParams,
@@ -54,7 +57,13 @@ describe("Altair: Run single node single thread interop validators (no eth1) unt
         testCase.event,
         timeout - 10 * 1000
       );
-      const validators = getDevValidators(bn, testCase.validators, testCase.vc, true, loggerValiA);
+      const validators = getDevValidators({
+        node: bn,
+        count: testCase.validators,
+        validatorClientCount: testCase.vc,
+        useRestApi: true,
+        logger: loggerValiA,
+      });
       await Promise.all(validators.map((v) => v.start()));
       try {
         await justificationEventListener;

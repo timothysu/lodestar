@@ -20,6 +20,7 @@ export class PreGenesisStateLastProcessedBlock {
   }
 
   async get(): Promise<number | null> {
+    console.log("Invalid get pgb")
     const value = await this.db.get(this.key);
     return value ? this.type.deserialize(value) : null;
   }

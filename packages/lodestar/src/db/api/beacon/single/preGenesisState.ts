@@ -22,6 +22,7 @@ export class PreGenesisState {
   }
 
   async get(): Promise<TreeBacked<allForks.BeaconState> | null> {
+    console.log("Invalid get pgs")
     const value = await this.db.get(this.key);
     return value ? this.type.createTreeBackedFromBytes(value) : null;
   }

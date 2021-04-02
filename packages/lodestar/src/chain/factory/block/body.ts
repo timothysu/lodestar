@@ -2,7 +2,7 @@
  * @module chain/blockAssembly
  */
 
-import {CachedBeaconState} from "@chainsafe/lodestar-beacon-state-transition";
+import {CachedBeaconState, EMPTY_SIGNATURE} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {allForks, Bytes32, Bytes96, lightclient, phase0, Slot} from "@chainsafe/lodestar-types";
 import {BitVector, List} from "@chainsafe/ssz";
@@ -42,6 +42,7 @@ export async function assembleBody(
 
   if (slot >= config.params.LIGHTCLIENT_PATCH_FORK_SLOT) {
     (body as lightclient.BeaconBlockBody).syncCommitteeBits = getSyncCommitteeBits(config);
+    (body as lightclient.BeaconBlockBody).syncCommitteeSignature = EMPTY_SIGNATURE;
   }
   return body;
 }

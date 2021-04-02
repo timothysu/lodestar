@@ -4,7 +4,7 @@
 
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {phase0} from "@chainsafe/lodestar-types";
-import {assert} from "@chainsafe/lodestar-utils";
+import {assert, prettyBytes} from "@chainsafe/lodestar-utils";
 import {getBeaconProposerIndex, getTemporaryBlockHeader} from "../../../util";
 
 export function processBlockHeader(config: IBeaconConfig, state: phase0.BeaconState, block: phase0.BeaconBlock): void {
@@ -15,6 +15,10 @@ export function processBlockHeader(config: IBeaconConfig, state: phase0.BeaconSt
   // Verify that proposer index is the correct index
   assert.equal(block.proposerIndex, getBeaconProposerIndex(config, state), "Incorrect proposer index");
   // Verify that the parent matches
+  console.log(
+    prettyBytes(block.parentRoot),
+    prettyBytes(config.types.phase0.BeaconBlockHeader.hashTreeRoot(state.latestBlockHeader))
+  );
   assert.true(
     config.types.Root.equals(
       block.parentRoot,

@@ -2,14 +2,14 @@ import {ContainerType} from "@chainsafe/ssz";
 import {IBeaconConfig, IForkName} from "@chainsafe/lodestar-config";
 import {Bucket, IDatabaseController, Repository} from "@chainsafe/lodestar-db";
 import {allForks, Slot} from "@chainsafe/lodestar-types";
-import {GenericBlockRepository} from "./abstract";
+import { GenericBlockRepository } from "../block/abstract";
 
 /**
  * Blocks by root
  *
  * Used to store unfinalized blocks
  */
-export class BlockRepository {
+export class PendingBlockRepository {
   protected config: IBeaconConfig;
   protected db: IDatabaseController<Buffer, Buffer>;
 
@@ -24,7 +24,7 @@ export class BlockRepository {
         new GenericBlockRepository(
           config,
           db,
-          Bucket.phase0_block,
+          Bucket.phase0_pendingBlock,
           config.types.phase0.SignedBeaconBlock as ContainerType<allForks.SignedBeaconBlock>
         ),
       ],
@@ -33,7 +33,7 @@ export class BlockRepository {
         new GenericBlockRepository(
           config,
           db,
-          Bucket.lightclient_block,
+          Bucket.lightclient_pendingBlock,
           config.types.lightclient.SignedBeaconBlock as ContainerType<allForks.SignedBeaconBlock>
         ),
       ],

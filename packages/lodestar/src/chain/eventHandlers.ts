@@ -105,10 +105,10 @@ export async function onClockSlot(this: BeaconChain, slot: Slot): Promise<void> 
 
   await Promise.all(
     this.pendingBlocks.getBySlot(slot).map(async (root) => {
-      const pendingBlock = await this.db.pendingBlock.get(root);
+      const pendingBlock = await this.db.pendingBlock.get(root, slot);
       if (pendingBlock) {
         this.pendingBlocks.remove(pendingBlock);
-        await this.db.pendingBlock.delete(root);
+        await this.db.pendingBlock.remove(pendingBlock);
         return this.blockProcessor.processBlockJob({
           signedBlock: pendingBlock,
           reprocess: false,
@@ -247,10 +247,11 @@ export async function onBlock(
 
   await Promise.all(
     this.pendingBlocks.getByParent(blockRoot).map(async (root) => {
-      const pendingBlock = await this.db.pendingBlock.get(root);
+      // TODO: fix somehow
+      const pendingBlock = await this.db.pendingBlock.get(root, this.config.params.LIGHTCLIENT_PATCH_FORK_SLOT);
       if (pendingBlock) {
         this.pendingBlocks.remove(pendingBlock);
-        await this.db.pendingBlock.delete(root);
+        await this.db.pendingBlock.remove(pendingBlock);
         return this.blockProcessor.processBlockJob({
           signedBlock: pendingBlock,
           reprocess: false,

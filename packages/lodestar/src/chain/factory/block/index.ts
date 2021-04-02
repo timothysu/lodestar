@@ -23,7 +23,7 @@ export async function assembleBlock(
 ): Promise<allForks.BeaconBlock> {
   const head = chain.forkChoice.getHead();
   const state = await chain.regen.getBlockSlotState(head.blockRoot, slot);
-
+  console.log("state slot", state.slot);
   const block = config.getTypes(slot).BeaconBlock.defaultValue();
   block.proposerIndex = state.getBeaconProposer(slot);
   block.slot = slot;
@@ -44,6 +44,8 @@ function computeNewStateRoot(
   state: CachedBeaconState<allForks.BeaconState>,
   block: allForks.BeaconBlock
 ): Root {
+  console.log("pre", state.latestBlockHeader.valueOf());
   const postState = processBlock(state.clone(), block, false);
+  console.log("post", postState.latestBlockHeader.valueOf());
   return (config.getTypes(postState.slot).BeaconState as ContainerType<allForks.BeaconState>).hashTreeRoot(postState);
 }

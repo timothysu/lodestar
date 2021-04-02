@@ -1,7 +1,7 @@
 import {List, TreeBacked} from "@chainsafe/ssz";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {GENESIS_SLOT} from "@chainsafe/lodestar-params";
-import {Bytes32, Number64, phase0, Root, allForks} from "@chainsafe/lodestar-types";
+import {Bytes32, Number64, phase0, Root, allForks, lightclient, ValidatorFlag} from "@chainsafe/lodestar-types";
 import {bigIntMin} from "@chainsafe/lodestar-utils";
 
 import {processDeposit} from "../phase0/naive";
@@ -51,7 +51,6 @@ export function getGenesisBeaconState(
     currentVersion: config.params.GENESIS_FORK_VERSION,
     epoch: computeEpochAtSlot(config, GENESIS_SLOT),
   } as phase0.Fork;
-
   // Validator registry
 
   // Randomness and committees
@@ -176,6 +175,18 @@ export function initializeBeaconStateFromEth1(
 
   // Process deposits
   applyDeposits(config, state, deposits);
+
+  //needs to happen after applying deposits
+  if (config.getForkName(GENESIS_SLOT) === "lightclient") {
+    (state as lightclient.BeaconState).currentEpochParticipation = Array.from(
+      {length: state.validators.length},
+      () => 0
+    ) as List<ValidatorFlag>;
+    (state as lightclient.BeaconState).previousEpochParticipation = Array.from(
+      {length: state.validators.length},
+      () => 0
+    ) as List<ValidatorFlag>;
+  }
 
   return state;
 }

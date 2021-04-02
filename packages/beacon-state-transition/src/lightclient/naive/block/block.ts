@@ -11,15 +11,25 @@ import {processDeposit} from "./deposit";
 
 export function processBlock(
   config: IBeaconConfig,
-  state: lightclient.BeaconState & phase0Types.BeaconState,
+  state: lightclient.BeaconState,
   block: lightclient.BeaconBlock,
   verifySignatures = true
 ): void {
-  phase0.processBlockHeader(config, state, block);
-  phase0.processRandao(config, state, block.body);
-  phase0.processEth1Data(config, state, block.body);
-  processOperations(config, state, block.body, verifySignatures);
-  processSyncCommittee(config, state, block, verifySignatures);
+  phase0.processBlockHeader(config, (state as unknown) as phase0Types.BeaconState, block);
+  phase0.processRandao(config, (state as unknown) as phase0Types.BeaconState, block.body);
+  phase0.processEth1Data(config, (state as unknown) as phase0Types.BeaconState, block.body);
+  processOperations(
+    config,
+    (state as unknown) as phase0Types.BeaconState & lightclient.BeaconState,
+    block.body,
+    verifySignatures
+  );
+  processSyncCommittee(
+    config,
+    (state as unknown) as phase0Types.BeaconState & lightclient.BeaconState,
+    block,
+    verifySignatures
+  );
 }
 
 type Operation =

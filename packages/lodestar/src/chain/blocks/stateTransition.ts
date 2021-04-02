@@ -1,20 +1,19 @@
-import {byteArrayEquals, ContainerType} from "@chainsafe/ssz";
-import {allForks, Gwei, Slot} from "@chainsafe/lodestar-types";
-import {assert} from "@chainsafe/lodestar-utils";
 import {
   CachedBeaconState,
   computeEpochAtSlot,
   computeStartSlotAtEpoch,
-  phase0,
   getEffectiveBalances,
+  processSlots,
+  stateTransition,
 } from "@chainsafe/lodestar-beacon-state-transition";
 import {IBlockSummary, IForkChoice} from "@chainsafe/lodestar-fork-choice";
-
+import {allForks, Gwei, Slot} from "@chainsafe/lodestar-types";
+import {assert, sleep} from "@chainsafe/lodestar-utils";
+import {byteArrayEquals, ContainerType} from "@chainsafe/ssz";
 import {ZERO_HASH} from "../../constants";
-import {CheckpointStateCache} from "../stateCache";
 import {ChainEvent, ChainEventEmitter} from "../emitter";
 import {IBlockJob} from "../interface";
-import {sleep} from "@chainsafe/lodestar-utils";
+import {CheckpointStateCache} from "../stateCache";
 
 /**
  * Emits a properly formed "checkpoint" event, given a checkpoint state context
@@ -67,7 +66,7 @@ export async function processSlotsToNearestCheckpoint(
     nextEpochSlot <= postSlot;
     nextEpochSlot += SLOTS_PER_EPOCH
   ) {
-    phase0.fast.processSlots(postState as CachedBeaconState<phase0.BeaconState>, nextEpochSlot);
+    processSlots(postState, nextEpochSlot);
     emitCheckpointEvent(emitter, postState.clone() as CachedBeaconState<allForks.BeaconState>);
     // this avoids keeping our node busy processing blocks
     await sleep(0);
@@ -87,7 +86,9 @@ export async function processSlotsByCheckpoint(
 ): Promise<CachedBeaconState<allForks.BeaconState>> {
   const postState = await processSlotsToNearestCheckpoint(emitter, preState, slot);
   if (postState.slot < slot) {
-    phase0.fast.processSlots(postState as CachedBeaconState<phase0.BeaconState>, slot);
+    console.log("Slot before", postState.slot);
+    processSlots(postState as CachedBeaconState<allForks.BeaconState>, slot);
+    console.log("Slot after", postState.slot);
   }
   return postState;
 }
@@ -134,9 +135,7 @@ export async function runStateTransition(
   const postSlot = job.signedBlock.message.slot;
 
   // if block is trusted don't verify proposer or op signature
-  // TODO: handle fork
-  // @ts-ignore
-  const postState = phase0.fast.fastStateTransition(preState, job.signedBlock, {
+  const postState = stateTransition(preState, job.signedBlock, {
     verifyStateRoot: true,
     verifyProposer: !job.validSignatures && !job.validProposerSignature,
     verifySignatures: !job.validSignatures,
@@ -154,13 +153,9 @@ export async function runStateTransition(
   forkChoice.onBlock(job.signedBlock.message, postState, justifiedBalances);
 
   if (postSlot % SLOTS_PER_EPOCH === 0) {
-    // TODO: handle fork
-    // @ts-ignore
     emitCheckpointEvent(emitter, postState);
   }
 
-  // TODO: handle fork
-  // @ts-ignore
   emitBlockEvent(emitter, job, postState);
   emitForkChoiceHeadEvents(emitter, forkChoice, forkChoice.getHead(), oldHead);
 

@@ -51,6 +51,8 @@ export enum Bucket {
 
   lightclient_block = 27, // Root -> lightclient.SignedBeaconBlock
   lightclient_blockArchive = 28, // Slot -> lightclient.SignedBeaconBlock
+  lightclient_pendingBlock = 29, // Slot -> lightclient.SignedBeaconBlock
+
 }
 
 export enum Key {
