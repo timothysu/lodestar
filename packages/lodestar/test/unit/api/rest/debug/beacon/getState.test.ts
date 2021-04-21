@@ -2,45 +2,19 @@ import {expect} from "chai";
 import supertest from "supertest";
 import {config} from "@chainsafe/lodestar-config/minimal";
 
-import {ApiNamespace, RestApi} from "../../../../../../src/api";
-import {StubbedApi} from "../../../../../utils/stub/api";
-import {testLogger} from "../../../../../utils/logger";
 import {SinonStubbedInstance} from "sinon";
 import {DebugBeaconApi} from "../../../../../../src/api/impl/debug/beacon";
 import {generateState} from "../../../../../utils/state";
 import {ApiResponseBody} from "../../utils";
+import {setupRestApiTestServer} from "../../setupApiImplTestServer";
 
 describe("rest - debug - beacon - getState", function () {
-  let restApi: RestApi;
-  let api: StubbedApi;
-  let debugBeaconStub: SinonStubbedInstance<DebugBeaconApi>;
-
-  beforeEach(async function () {
-    api = new StubbedApi();
-    restApi = await RestApi.init(
-      {
-        api: [ApiNamespace.DEBUG],
-        cors: "*",
-        enabled: true,
-        host: "127.0.0.1",
-        port: 0,
-      },
-      {
-        config,
-        logger: testLogger(),
-        api,
-      }
-    );
-    debugBeaconStub = api.debug.beacon as SinonStubbedInstance<DebugBeaconApi>;
-  });
-
-  afterEach(async function () {
-    await restApi.close();
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should get state json successfully", async function () {
+    const debugBeaconStub = ctx.api.debug.beacon as SinonStubbedInstance<DebugBeaconApi>;
     debugBeaconStub.getState.resolves(generateState());
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get("/eth/v1/debug/beacon/states/0xSomething")
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");
@@ -49,8 +23,9 @@ describe("rest - debug - beacon - getState", function () {
 
   it("should get state ssz successfully", async function () {
     const state = generateState();
+    const debugBeaconStub = ctx.api.debug.beacon as SinonStubbedInstance<DebugBeaconApi>;
     debugBeaconStub.getState.resolves(state);
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get("/eth/v1/debug/beacon/states/0xSomething")
       .accept("application/octet-stream")
       .expect(200)

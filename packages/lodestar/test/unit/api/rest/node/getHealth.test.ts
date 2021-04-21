@@ -2,31 +2,27 @@ import supertest from "supertest";
 
 import {getHealth} from "../../../../../src/api/rest/node/getHealth";
 import {urlJoin} from "../utils";
-import {NODE_PREFIX, setupRestApiTestServer} from "../index.test";
+import {NODE_PREFIX, setupRestApiTestServer} from "../setupApiImplTestServer";
 import {StubbedNodeApi} from "../../../../utils/stub/nodeApi";
-import {RestApi} from "../../../../../src/api";
 
 describe("rest - node - getHealth", function () {
-  let nodeStub: StubbedNodeApi;
-  let restApi: RestApi;
-
-  before(async function () {
-    restApi = await setupRestApiTestServer();
-    nodeStub = restApi.server.api.node as StubbedNodeApi;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("ready", async function () {
+    const nodeStub = ctx.rest.server.api.node as StubbedNodeApi;
     nodeStub.getNodeStatus.resolves("ready");
-    await supertest(restApi.server.server).get(urlJoin(NODE_PREFIX, getHealth.url)).expect(200);
+    await supertest(ctx.rest.server.server).get(urlJoin(NODE_PREFIX, getHealth.url)).expect(200);
   });
 
   it("syncing", async function () {
+    const nodeStub = ctx.rest.server.api.node as StubbedNodeApi;
     nodeStub.getNodeStatus.resolves("syncing");
-    await supertest(restApi.server.server).get(urlJoin(NODE_PREFIX, getHealth.url)).expect(206);
+    await supertest(ctx.rest.server.server).get(urlJoin(NODE_PREFIX, getHealth.url)).expect(206);
   });
 
   it("error", async function () {
+    const nodeStub = ctx.rest.server.api.node as StubbedNodeApi;
     nodeStub.getNodeStatus.resolves("error");
-    await supertest(restApi.server.server).get(urlJoin(NODE_PREFIX, getHealth.url)).expect(503);
+    await supertest(ctx.rest.server.server).get(urlJoin(NODE_PREFIX, getHealth.url)).expect(503);
   });
 });

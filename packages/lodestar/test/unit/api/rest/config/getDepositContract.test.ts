@@ -2,16 +2,17 @@ import {config} from "@chainsafe/lodestar-config/minimal";
 import {urlJoin} from "@chainsafe/lodestar-validator/src/util";
 import {expect} from "chai";
 import supertest from "supertest";
-import {CONFIG_PREFIX, setupRestApiTestServer} from "../index.test";
+import {CONFIG_PREFIX, setupRestApiTestServer} from "../setupApiImplTestServer";
 import {getDepositContract} from "../../../../../src/api/rest/config/getDepositContract";
 import {ConfigApi} from "../../../../../src/api/impl/config";
 import {SinonStubbedInstance} from "sinon";
 import {ApiResponseBody} from "../utils";
 
 describe("rest - config - getDepositContract", function () {
+  const ctx = setupRestApiTestServer();
+
   it("ready", async function () {
-    const restApi = await setupRestApiTestServer();
-    const configStub = restApi.server.api.config as SinonStubbedInstance<ConfigApi>;
+    const configStub = ctx.rest.server.api.config as SinonStubbedInstance<ConfigApi>;
     const depositContract = {
       chainId: config.params.DEPOSIT_CHAIN_ID,
       address: config.params.DEPOSIT_CONTRACT_ADDRESS,
@@ -21,7 +22,7 @@ describe("rest - config - getDepositContract", function () {
       unknown
     >;
     configStub.getDepositContract.resolves(depositContract);
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(CONFIG_PREFIX, getDepositContract.url))
       .expect(200);
     expect((response.body as ApiResponseBody).data).to.not.be.undefined;

@@ -4,22 +4,16 @@ import {StateNotFound} from "../../../../../../src/api/impl/errors";
 import {getStateValidators} from "../../../../../../src/api/rest/beacon/state/getValidators";
 import {generateValidator} from "../../../../../utils/validator";
 import {ApiResponseBody, urlJoin} from "../../utils";
-import {BEACON_PREFIX, setupRestApiTestServer} from "../../index.test";
+import {BEACON_PREFIX, setupRestApiTestServer} from "../../setupApiImplTestServer";
 import {phase0} from "@chainsafe/lodestar-types";
 import {SinonStubbedInstance} from "sinon";
-import {RestApi} from "../../../../../../src/api";
 import {BeaconStateApi} from "../../../../../../src/api/impl/beacon/state";
 
 describe("rest - beacon - getStateValidators", function () {
-  let beaconStateStub: SinonStubbedInstance<BeaconStateApi>;
-  let restApi: RestApi;
-
-  beforeEach(async function () {
-    restApi = await setupRestApiTestServer();
-    beaconStateStub = restApi.server.api.beacon.state as SinonStubbedInstance<BeaconStateApi>;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should success", async function () {
+    const beaconStateStub = ctx.rest.server.api.beacon.state as SinonStubbedInstance<BeaconStateApi>;
     beaconStateStub.getStateValidators.withArgs("head").resolves([
       {
         index: 1,
@@ -28,7 +22,7 @@ describe("rest - beacon - getStateValidators", function () {
         validator: generateValidator(),
       },
     ]);
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(BEACON_PREFIX, getStateValidators.url.replace(":stateId", "head")))
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");
@@ -37,8 +31,9 @@ describe("rest - beacon - getStateValidators", function () {
   });
 
   it("should not found state", async function () {
+    const beaconStateStub = ctx.rest.server.api.beacon.state as SinonStubbedInstance<BeaconStateApi>;
     beaconStateStub.getStateValidators.withArgs("4").throws(new StateNotFound());
-    await supertest(restApi.server.server)
+    await supertest(ctx.rest.server.server)
       .get(urlJoin(BEACON_PREFIX, getStateValidators.url.replace(":stateId", "4")))
       .expect(404);
     expect(beaconStateStub.getStateValidators.calledOnce).to.be.true;

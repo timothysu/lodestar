@@ -3,26 +3,21 @@ import {expect} from "chai";
 import supertest from "supertest";
 import {proposerDutiesController} from "../../../../../src/api/rest/validator/duties/proposerDuties";
 import {urlJoin} from "../utils";
-import {setupRestApiTestServer, VALIDATOR_PREFIX} from "../index.test";
-import {RestApi, ValidatorApi} from "../../../../../src/api";
+import {setupRestApiTestServer, VALIDATOR_PREFIX} from "../setupApiImplTestServer";
+import {ValidatorApi} from "../../../../../src/api";
 import {SinonStubbedInstance} from "sinon";
 import {ProposerDuty} from "@chainsafe/lodestar-types/phase0";
 
 describe("rest - validator - proposerDuties", function () {
-  let restApi: RestApi;
-  let validatorStub: SinonStubbedInstance<ValidatorApi>;
-
-  before(async function () {
-    restApi = await setupRestApiTestServer();
-    validatorStub = restApi.server.api.validator as SinonStubbedInstance<ValidatorApi>;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should succeed", async function () {
+    const validatorStub = ctx.rest.server.api.validator as SinonStubbedInstance<ValidatorApi>;
     validatorStub.getProposerDuties.resolves([
       config.types.phase0.ProposerDuty.defaultValue(),
       config.types.phase0.ProposerDuty.defaultValue(),
     ]);
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(VALIDATOR_PREFIX, proposerDutiesController.url.replace(":epoch", "1")))
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");
@@ -32,7 +27,7 @@ describe("rest - validator - proposerDuties", function () {
   });
 
   it("invalid epoch", async function () {
-    await supertest(restApi.server.server)
+    await supertest(ctx.rest.server.server)
       .get(urlJoin(VALIDATOR_PREFIX, proposerDutiesController.url.replace(":epoch", "a")))
       .expect(400)
       .expect("Content-Type", "application/json; charset=utf-8");

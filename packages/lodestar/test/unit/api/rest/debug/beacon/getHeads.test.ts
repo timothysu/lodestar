@@ -3,22 +3,16 @@ import supertest from "supertest";
 import {ZERO_HASH} from "@chainsafe/lodestar-beacon-state-transition";
 import {SinonStubbedInstance} from "sinon";
 import {DebugBeaconApi} from "../../../../../../src/api/impl/debug/beacon";
-import {RestApi} from "../../../../../../src/api";
-import {setupRestApiTestServer} from "../../index.test";
+import {setupRestApiTestServer} from "../../setupApiImplTestServer";
 import {ApiResponseBody} from "../../utils";
 
 describe("rest - debug - beacon - getHeads", function () {
-  let debugBeaconStub: SinonStubbedInstance<DebugBeaconApi>;
-  let restApi: RestApi;
-
-  before(async function () {
-    restApi = await setupRestApiTestServer();
-    debugBeaconStub = restApi.server.api.debug.beacon as SinonStubbedInstance<DebugBeaconApi>;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should succeed", async function () {
+    const debugBeaconStub = ctx.rest.server.api.debug.beacon as SinonStubbedInstance<DebugBeaconApi>;
     debugBeaconStub.getHeads.resolves([{slot: 100, root: ZERO_HASH}]);
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get("/eth/v1/debug/beacon/heads")
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");

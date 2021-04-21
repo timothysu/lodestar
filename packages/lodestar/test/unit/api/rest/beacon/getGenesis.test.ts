@@ -4,26 +4,21 @@ import {config} from "@chainsafe/lodestar-config/mainnet";
 
 import {getGenesis} from "../../../../../src/api/rest/beacon/getGenesis";
 import {ApiResponseBody, urlJoin} from "../utils";
-import {BEACON_PREFIX, setupRestApiTestServer} from "../index.test";
-import {BeaconApi, RestApi} from "../../../../../src/api";
+import {BEACON_PREFIX, setupRestApiTestServer} from "../setupApiImplTestServer";
+import {BeaconApi} from "../../../../../src/api";
 import {SinonStubbedInstance} from "sinon";
 
 describe("rest - beacon - getGenesis", function () {
-  let beaconStub: SinonStubbedInstance<BeaconApi>;
-  let restApi: RestApi;
-
-  before(async function () {
-    restApi = await setupRestApiTestServer();
-    beaconStub = restApi.server.api.beacon as SinonStubbedInstance<BeaconApi>;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should get genesis object", async function () {
+    const beaconStub = ctx.rest.server.api.beacon as SinonStubbedInstance<BeaconApi>;
     beaconStub.getGenesis.resolves({
       genesisForkVersion: config.params.GENESIS_FORK_VERSION,
       genesisTime: BigInt(0),
       genesisValidatorsRoot: Buffer.alloc(32),
     });
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(BEACON_PREFIX, getGenesis.url))
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");

@@ -3,20 +3,14 @@ import supertest from "supertest";
 
 import {getPeer} from "../../../../../src/api/rest/node/getPeer";
 import {ApiResponseBody, urlJoin} from "../utils";
-import {NODE_PREFIX, setupRestApiTestServer} from "../index.test";
-import {RestApi} from "../../../../../src/api";
+import {NODE_PREFIX, setupRestApiTestServer} from "../setupApiImplTestServer";
 import {StubbedNodeApi} from "../../../../utils/stub/nodeApi";
 
 describe("rest - node - getPeer", function () {
-  let nodeStub: StubbedNodeApi;
-  let restApi: RestApi;
-
-  before(async function () {
-    restApi = await setupRestApiTestServer();
-    nodeStub = restApi.server.api.node as StubbedNodeApi;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should succeed", async function () {
+    const nodeStub = ctx.rest.server.api.node as StubbedNodeApi;
     nodeStub.getPeer.resolves({
       lastSeenP2pAddress: "/ip4/127.0.0.1/tcp/36000",
       direction: "inbound",
@@ -24,7 +18,7 @@ describe("rest - node - getPeer", function () {
       peerId: "16",
       state: "connected",
     });
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(NODE_PREFIX, getPeer.url.replace(":peerId", "16")))
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");

@@ -3,25 +3,20 @@ import {expect} from "chai";
 import supertest from "supertest";
 import {attesterDutiesController} from "../../../../../src/api/rest/validator/duties/attesterDuties";
 import {ApiResponseBody, urlJoin} from "../utils";
-import {setupRestApiTestServer, VALIDATOR_PREFIX} from "../index.test";
+import {setupRestApiTestServer, VALIDATOR_PREFIX} from "../setupApiImplTestServer";
 import {SinonStubbedInstance} from "sinon";
-import {RestApi, ValidatorApi} from "../../../../../src/api";
+import {ValidatorApi} from "../../../../../src/api";
 
 describe("rest - validator - attesterDuties", function () {
-  let restApi: RestApi;
-  let validatorStub: SinonStubbedInstance<ValidatorApi>;
-
-  before(async function () {
-    restApi = await setupRestApiTestServer();
-    validatorStub = restApi.server.api.validator as SinonStubbedInstance<ValidatorApi>;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should succeed", async function () {
+    const validatorStub = ctx.rest.server.api.validator as SinonStubbedInstance<ValidatorApi>;
     validatorStub.getAttesterDuties.resolves([
       config.types.phase0.AttesterDuty.defaultValue(),
       config.types.phase0.AttesterDuty.defaultValue(),
     ]);
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .post(urlJoin(VALIDATOR_PREFIX, attesterDutiesController.url.replace(":epoch", "0")))
       .send(["1", "4"])
       .expect(200)
@@ -32,11 +27,12 @@ describe("rest - validator - attesterDuties", function () {
   });
 
   it("invalid epoch", async function () {
+    const validatorStub = ctx.rest.server.api.validator as SinonStubbedInstance<ValidatorApi>;
     validatorStub.getAttesterDuties.resolves([
       config.types.phase0.AttesterDuty.defaultValue(),
       config.types.phase0.AttesterDuty.defaultValue(),
     ]);
-    await supertest(restApi.server.server)
+    await supertest(ctx.rest.server.server)
       .post(urlJoin(VALIDATOR_PREFIX, attesterDutiesController.url.replace(":epoch", "a")))
       .send(["1", "4"])
       .expect(400)
@@ -44,11 +40,12 @@ describe("rest - validator - attesterDuties", function () {
   });
 
   it("no validator indices", async function () {
+    const validatorStub = ctx.rest.server.api.validator as SinonStubbedInstance<ValidatorApi>;
     validatorStub.getAttesterDuties.resolves([
       config.types.phase0.AttesterDuty.defaultValue(),
       config.types.phase0.AttesterDuty.defaultValue(),
     ]);
-    await supertest(restApi.server.server)
+    await supertest(ctx.rest.server.server)
       .post(urlJoin(VALIDATOR_PREFIX, attesterDutiesController.url.replace(":epoch", "1")))
       .send([])
       .expect(400)
@@ -56,11 +53,12 @@ describe("rest - validator - attesterDuties", function () {
   });
 
   it("invalid validator index", async function () {
+    const validatorStub = ctx.rest.server.api.validator as SinonStubbedInstance<ValidatorApi>;
     validatorStub.getAttesterDuties.resolves([
       config.types.phase0.AttesterDuty.defaultValue(),
       config.types.phase0.AttesterDuty.defaultValue(),
     ]);
-    await supertest(restApi.server.server)
+    await supertest(ctx.rest.server.server)
       .post(urlJoin(VALIDATOR_PREFIX, attesterDutiesController.url.replace(":epoch", "1")))
       .send([1, "a"])
       .expect(400)

@@ -6,28 +6,18 @@ import {config} from "@chainsafe/lodestar-config/minimal";
 import {getBlockRoot} from "../../../../../../src/api/rest/beacon/blocks/getBlockRoot";
 import {generateEmptySignedBlock} from "../../../../../utils/block";
 import {urlJoin} from "../../utils";
-import {BEACON_PREFIX, setupRestApiTestServer} from "../../index.test";
+import {BEACON_PREFIX, setupRestApiTestServer} from "../../setupApiImplTestServer";
 import {SinonStubbedInstance} from "sinon";
-import {RestApi} from "../../../../../../src/api";
-import {BeaconBlockApi, IBeaconBlocksApi} from "../../../../../../src/api/impl/beacon/blocks";
+import {BeaconBlockApi} from "../../../../../../src/api/impl/beacon/blocks";
 
 describe("rest - beacon - getBlockRoot", function () {
-  let beaconBlocksStub: SinonStubbedInstance<IBeaconBlocksApi>;
-  let restApi: RestApi;
-
-  before(async function () {
-    restApi = await setupRestApiTestServer();
-    beaconBlocksStub = restApi.server.api.beacon.blocks as SinonStubbedInstance<BeaconBlockApi>;
-  });
-
-  after(async function () {
-    await restApi.close();
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should succeed", async function () {
     const block = generateEmptySignedBlock();
+    const beaconBlocksStub = ctx.rest.server.api.beacon.blocks as SinonStubbedInstance<BeaconBlockApi>;
     beaconBlocksStub.getBlock.withArgs("head").resolves(block);
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(BEACON_PREFIX, getBlockRoot.url.replace(":blockId", "head")))
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");

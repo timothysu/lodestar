@@ -7,21 +7,22 @@ import {generateAttestation} from "../../../../utils/attestation";
 import {expect} from "chai";
 import {AddressInfo} from "net";
 import {LodestarEventIterator} from "@chainsafe/lodestar-utils";
-import {setupRestApiTestServer} from "../index.test";
+import {setupRestApiTestServer} from "../setupApiImplTestServer";
 import {SinonStubbedInstance} from "sinon";
 import {EventsApi} from "../../../../../src/api";
 
 describe("rest - events - getEventStream", function () {
+  const ctx = setupRestApiTestServer();
+
   it("should subscribe to topics", async function () {
-    const restApi = await setupRestApiTestServer();
-    const eventsApiStub = restApi.server.api.events as SinonStubbedInstance<EventsApi>;
+    const eventsApiStub = ctx.rest.server.api.events as SinonStubbedInstance<EventsApi>;
 
     const source = pushable<BeaconEvent>();
     // @ts-ignore
     source.stop = () => null;
     eventsApiStub.getEventStream.returns((source as unknown) as LodestarEventIterator<BeaconEvent>);
     const eventSource = new EventSource(
-      getEventStreamUrl([BeaconEventType.BLOCK, BeaconEventType.ATTESTATION], restApi)
+      getEventStreamUrl([BeaconEventType.BLOCK, BeaconEventType.ATTESTATION], ctx.rest)
     );
     const blockEventPromise = new Promise((resolve) => {
       eventSource.addEventListener(BeaconEventType.BLOCK, resolve);

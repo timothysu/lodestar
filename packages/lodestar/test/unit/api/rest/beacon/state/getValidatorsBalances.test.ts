@@ -5,28 +5,17 @@ import supertest from "supertest";
 import {StateNotFound} from "../../../../../../src/api/impl/errors";
 import {getStateValidatorsBalances} from "../../../../../../src/api/rest/beacon/state/getValidatorsBalances";
 import {ApiResponseBody, urlJoin} from "../../utils";
-import {BEACON_PREFIX, setupRestApiTestServer} from "../../index.test";
+import {BEACON_PREFIX, setupRestApiTestServer} from "../../setupApiImplTestServer";
 import {SinonStubbedInstance} from "sinon";
-import {RestApi} from "../../../../../../src/api";
 import {BeaconStateApi} from "../../../../../../src/api/impl/beacon/state";
 
 describe("rest - beacon - getStateValidatorsBalances", function () {
-  let beaconStateStub: SinonStubbedInstance<BeaconStateApi>;
-  let restApi: RestApi;
-
-  beforeEach(async function () {
-    restApi = await setupRestApiTestServer();
-    beaconStateStub = restApi.server.api.beacon.state as SinonStubbedInstance<BeaconStateApi>;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should succeed", async function () {
-    beaconStateStub.getStateValidatorBalances.withArgs("head").resolves([
-      {
-        index: 1,
-        balance: BigInt(32),
-      },
-    ]);
-    const response = await supertest(restApi.server.server)
+    const beaconStateStub = ctx.rest.server.api.beacon.state as SinonStubbedInstance<BeaconStateApi>;
+    beaconStateStub.getStateValidatorBalances.withArgs("head").resolves([{index: 1, balance: BigInt(32)}]);
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(BEACON_PREFIX, getStateValidatorsBalances.url.replace(":stateId", "head")))
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");
@@ -37,17 +26,12 @@ describe("rest - beacon - getStateValidatorsBalances", function () {
   it("should success with indices filter", async function () {
     const hexPubkey = toHexString(Buffer.alloc(48, 1));
     const pubkey = config.types.BLSPubkey.fromJson(hexPubkey);
+    const beaconStateStub = ctx.rest.server.api.beacon.state as SinonStubbedInstance<BeaconStateApi>;
     beaconStateStub.getStateValidatorBalances.withArgs("head", [1, pubkey]).resolves([
-      {
-        index: 1,
-        balance: BigInt(32),
-      },
-      {
-        index: 3,
-        balance: BigInt(32),
-      },
+      {index: 1, balance: BigInt(32)},
+      {index: 3, balance: BigInt(32)},
     ]);
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(BEACON_PREFIX, getStateValidatorsBalances.url.replace(":stateId", "head")))
       .query({
         id: [1, hexPubkey],
@@ -59,8 +43,9 @@ describe("rest - beacon - getStateValidatorsBalances", function () {
   });
 
   it("should not found state", async function () {
+    const beaconStateStub = ctx.rest.server.api.beacon.state as SinonStubbedInstance<BeaconStateApi>;
     beaconStateStub.getStateValidatorBalances.withArgs("4").throws(new StateNotFound());
-    await supertest(restApi.server.server)
+    await supertest(ctx.rest.server.server)
       .get(urlJoin(BEACON_PREFIX, getStateValidatorsBalances.url.replace(":stateId", "4")))
       .expect(404);
     expect(beaconStateStub.getStateValidatorBalances.calledOnce).to.be.true;

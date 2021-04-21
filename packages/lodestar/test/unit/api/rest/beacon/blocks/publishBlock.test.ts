@@ -4,24 +4,18 @@ import supertest from "supertest";
 import {publishBlock} from "../../../../../../src/api/rest/beacon/blocks/publishBlock";
 import {generateEmptySignedBlock} from "../../../../../utils/block";
 import {urlJoin} from "../../utils";
-import {BEACON_PREFIX, setupRestApiTestServer} from "../../index.test";
+import {BEACON_PREFIX, setupRestApiTestServer} from "../../setupApiImplTestServer";
 import {SinonStubbedInstance} from "sinon";
-import {RestApi} from "../../../../../../src/api";
-import {BeaconBlockApi, IBeaconBlocksApi} from "../../../../../../src/api/impl/beacon/blocks";
+import {BeaconBlockApi} from "../../../../../../src/api/impl/beacon/blocks";
 
 describe("rest - beacon - publishBlock", function () {
-  let beaconBlocksStub: SinonStubbedInstance<IBeaconBlocksApi>;
-  let restApi: RestApi;
-
-  beforeEach(async function () {
-    restApi = await setupRestApiTestServer();
-    beaconBlocksStub = restApi.server.api.beacon.blocks as SinonStubbedInstance<BeaconBlockApi>;
-  });
+  const ctx = setupRestApiTestServer();
 
   it("should succeed", async function () {
     const block = generateEmptySignedBlock();
+    const beaconBlocksStub = ctx.rest.server.api.beacon.blocks as SinonStubbedInstance<BeaconBlockApi>;
     beaconBlocksStub.publishBlock.resolves();
-    await supertest(restApi.server.server)
+    await supertest(ctx.rest.server.server)
       .post(urlJoin(BEACON_PREFIX, publishBlock.url))
       .send(config.types.phase0.SignedBeaconBlock.toJson(block, {case: "snake"}) as Record<string, unknown>)
       .expect(200)
@@ -29,7 +23,8 @@ describe("rest - beacon - publishBlock", function () {
   });
 
   it("bad body", async function () {
-    await supertest(restApi.server.server)
+    const beaconBlocksStub = ctx.rest.server.api.beacon.blocks as SinonStubbedInstance<BeaconBlockApi>;
+    await supertest(ctx.rest.server.server)
       .post(urlJoin(BEACON_PREFIX, publishBlock.url))
       .send({})
       .expect(400)

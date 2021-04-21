@@ -3,14 +3,14 @@ import supertest from "supertest";
 
 import {getNetworkIdentity} from "../../../../../src/api/rest/node/getNetworkIdentity";
 import {ApiResponseBody, urlJoin} from "../utils";
-import {NODE_PREFIX, setupRestApiTestServer} from "../index.test";
+import {NODE_PREFIX, setupRestApiTestServer} from "../setupApiImplTestServer";
 import {StubbedNodeApi} from "../../../../utils/stub/nodeApi";
 
 describe("rest - node - getNetworkIdentity", function () {
-  it("should succeed", async function () {
-    const restApi = await setupRestApiTestServer();
-    const nodeStub = restApi.server.api.node as StubbedNodeApi;
+  const ctx = setupRestApiTestServer();
 
+  it("should succeed", async function () {
+    const nodeStub = ctx.rest.server.api.node as StubbedNodeApi;
     nodeStub.getNodeIdentity.resolves({
       metadata: {
         attnets: [true, false],
@@ -21,7 +21,7 @@ describe("rest - node - getNetworkIdentity", function () {
       enr: "enr-",
       discoveryAddresses: ["/ip4/127.0.0.1/tcp/36000"],
     });
-    const response = await supertest(restApi.server.server)
+    const response = await supertest(ctx.rest.server.server)
       .get(urlJoin(NODE_PREFIX, getNetworkIdentity.url))
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8");
