@@ -1,3 +1,4 @@
+import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {IBeaconChain} from "../../../chain";
 import {IBeaconDb} from "../../../db";
@@ -17,10 +18,12 @@ export interface IReqRespHandler {
 export class ReqRespHandler implements IReqRespHandler {
   private db: IBeaconDb;
   private chain: IBeaconChain;
+  private config: IBeaconConfig;
 
-  constructor({db, chain}: {db: IBeaconDb; chain: IBeaconChain}) {
+  constructor({db, chain, config}: {config: IBeaconConfig; db: IBeaconDb; chain: IBeaconChain}) {
     this.db = db;
     this.chain = chain;
+    this.config = config;
   }
 
   async *onStatus(): AsyncIterable<phase0.Status> {
@@ -28,7 +31,7 @@ export class ReqRespHandler implements IReqRespHandler {
   }
 
   async *onBeaconBlocksByRange(req: phase0.BeaconBlocksByRangeRequest): AsyncIterable<allForks.SignedBeaconBlock> {
-    yield* onBeaconBlocksByRange(req, this.chain, this.db);
+    yield* onBeaconBlocksByRange(req, this.chain, this.db, this.config);
   }
 
   async *onBeaconBlocksByRoot(req: phase0.BeaconBlocksByRootRequest): AsyncIterable<allForks.SignedBeaconBlock> {

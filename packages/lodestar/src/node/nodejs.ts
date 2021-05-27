@@ -141,7 +141,7 @@ export class BeaconNode {
       metrics,
       chain,
       db,
-      reqRespHandler: new ReqRespHandler({db, chain}),
+      reqRespHandler: new ReqRespHandler({config, db, chain}),
       signal,
     });
     const sync = new BeaconSync(opts.sync, {

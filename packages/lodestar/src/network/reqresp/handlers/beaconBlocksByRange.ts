@@ -1,18 +1,20 @@
-import {GENESIS_SLOT} from "@chainsafe/lodestar-beacon-state-transition";
+import {computeStartSlotAtEpoch, GENESIS_SLOT} from "@chainsafe/lodestar-beacon-state-transition";
 import {MAX_REQUEST_BLOCKS} from "@chainsafe/lodestar-params";
 import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {IBlockFilterOptions} from "../../../db/repositories";
 import {IBeaconChain} from "../../../chain";
 import {IBeaconDb} from "../../../db";
-import {RespStatus} from "../../../constants";
+import {getMaxEpochForBlockRequests, RespStatus} from "../../../constants";
 import {ResponseError} from "../response";
+import {IBeaconConfig} from "@chainsafe/lodestar-config";
 
 // TODO: Unit test
 
 export async function* onBeaconBlocksByRange(
   requestBody: phase0.BeaconBlocksByRangeRequest,
   chain: IBeaconChain,
-  db: IBeaconDb
+  db: IBeaconDb,
+  config: IBeaconConfig
 ): AsyncIterable<allForks.SignedBeaconBlock> {
   if (requestBody.step < 1) {
     throw new ResponseError(RespStatus.INVALID_REQUEST, "step < 1");
@@ -23,7 +25,12 @@ export async function* onBeaconBlocksByRange(
   if (requestBody.startSlot < GENESIS_SLOT) {
     throw new ResponseError(RespStatus.INVALID_REQUEST, "startSlot < genesis");
   }
-
+  if (
+    requestBody.startSlot <
+    computeStartSlotAtEpoch(config, chain.clock.currentEpoch - getMaxEpochForBlockRequests(config))
+  ) {
+    throw new ResponseError(RespStatus.INVALID_REQUEST, "startSlot < slot(MAX_EPOCH_FOR_BLOCK)");
+  }
   if (requestBody.count > MAX_REQUEST_BLOCKS) {
     requestBody.count = MAX_REQUEST_BLOCKS;
   }

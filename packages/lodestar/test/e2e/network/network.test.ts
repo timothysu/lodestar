@@ -55,7 +55,7 @@ describe("network", function () {
 
     const chain = new MockBeaconChain({genesisTime: 0, chainId: 0, networkId: BigInt(0), state, config});
     const db = new StubbedBeaconDb(sinon, config);
-    const reqRespHandler = new ReqRespHandler({db, chain});
+    const reqRespHandler = new ReqRespHandler({db, chain, config});
 
     const [libp2pA, libp2pB] = await Promise.all([createNode(multiaddr), createNode(multiaddr)]);
     const loggerA = testLogger("A");
