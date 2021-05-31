@@ -71,7 +71,13 @@ export enum RangeSyncType {
   Finalized = "Finalized",
   /** A head chain sync should be started with this peer */
   Head = "Head",
+
+  /**when initialized from ws state, used for backfilling blocks into db */
+  Backfill = "Backfill",
 }
+
+export const FRONT_RANGE_SYNC_TYPES = [RangeSyncType.Finalized, RangeSyncType.Head];
+export const BACK_RANGE_SYNC_TYPES = [RangeSyncType.Backfill];
 
 /**
  * Check if a peer requires a finalized chain sync. Only if:

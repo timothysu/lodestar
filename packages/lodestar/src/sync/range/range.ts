@@ -9,8 +9,11 @@ import {IBeaconChain} from "../../chain";
 import {INetwork} from "../../network";
 import {IMetrics} from "../../metrics";
 import {RangeSyncType, getRangeSyncType} from "../utils";
-import {updateChains, shouldRemoveChain} from "./utils";
+import {updateChains, shouldRemoveFrontSyncChain} from "./utils";
 import {ChainTarget, SyncChainFns, SyncChain, SyncChainOpts, SyncChainDebugState} from "./chain";
+import {getMinEpochForBlockRequests} from "../../constants";
+import {GENESIS_EPOCH} from "@chainsafe/lodestar-params";
+import {SignedBeaconBlock} from "@chainsafe/lodestar-types/lib/allForks";
 
 export enum RangeSyncEvent {
   completedChain = "RangeSync-completedChain",
@@ -138,7 +141,10 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     }
 
     this.addPeerOrCreateChain(startEpoch, target, peerId, syncType);
-    this.update(localStatus.finalizedEpoch);
+    this.updateForwardSync(localStatus.finalizedEpoch);
+    this.backfill(peerId, peerStatus).catch((e) => {
+      this.logger.error("Failed to add peer to backfilling sync", e);
+    });
   }
 
   /**
@@ -197,9 +203,41 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   /** Convenience method for `SyncChain` */
   private onSyncChainEnd: SyncChainFns["onEnd"] = () => {
     const localStatus = this.chain.getStatus();
-    this.update(localStatus.finalizedEpoch);
+    this.updateForwardSync(localStatus.finalizedEpoch);
     this.emit(RangeSyncEvent.completedChain);
   };
+
+  /**
+   * Check whether we should do backfill sync from peer
+   */
+  private async backfill(remotePeerId: PeerId, remotePeerStatus: phase0.Status): Promise<void> {
+    const oldestBlock = await this.chain.getOldestBlock();
+    const currentEpoch = this.chain.clock.currentEpoch;
+    const requiredOldestEpoch = Math.max(GENESIS_EPOCH, currentEpoch - getMinEpochForBlockRequests(this.config));
+    const requiredOldestSlot = computeStartSlotAtEpoch(this.config, requiredOldestEpoch);
+    let target: ChainTarget | null = null;
+    if (remotePeerStatus.headSlot > requiredOldestSlot) {
+      if (requiredOldestSlot < oldestBlock.message.slot) {
+        //peer is beyond our oldest block so we can do fullbackfill from him
+        if (remotePeerStatus.headSlot >= oldestBlock.message.slot) {
+          target = {
+            slot: oldestBlock.message.slot,
+            root: this.config.getForkTypes(oldestBlock.message.slot).BeaconBlock.hashTreeRoot(oldestBlock.message),
+          };
+          //we can only use peer to backfill up to his head slot
+        } else {
+          target = {
+            slot: remotePeerStatus.headSlot,
+            root: remotePeerStatus.headRoot,
+          };
+        }
+      }
+    }
+    if (target) {
+      this.addPeerOrCreateChain(requiredOldestEpoch, target, remotePeerId, RangeSyncType.Backfill);
+      this.updateBackfillSync(oldestBlock);
+    }
+  }
 
   private addPeerOrCreateChain(startEpoch: Epoch, target: ChainTarget, peer: PeerId, syncType: RangeSyncType): void {
     let syncChain = this.chains.get(syncType);
@@ -223,12 +261,12 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     syncChain.addPeer(peer, target);
   }
 
-  private update(localFinalizedEpoch: Epoch): void {
+  private updateForwardSync(localFinalizedEpoch: Epoch): void {
     const localFinalizedSlot = computeStartSlotAtEpoch(this.config, localFinalizedEpoch);
 
     // Remove chains that are out-dated, peer-empty, completed or failed
     for (const [id, syncChain] of this.chains.entries()) {
-      if (shouldRemoveChain(syncChain, localFinalizedSlot, this.chain)) {
+      if (shouldRemoveFrontSyncChain(syncChain, localFinalizedSlot, this.chain)) {
         syncChain.remove();
         this.chains.delete(id);
         this.logger.debug("Removed syncChain", {id: syncChain.logId});
@@ -247,6 +285,17 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
     for (const syncChain of toStart) {
       syncChain.startSyncing(localFinalizedEpoch);
       if (!syncChain.isSyncing) this.metrics?.syncChainsStarted.inc({syncType: syncChain.syncType});
+    }
+  }
+
+  private updateBackfillSync(oldestBlock: SignedBeaconBlock): void {
+    // Remove chains that are out of date
+    for (const [id, syncChain] of this.chains.entries()) {
+      if ((syncChain.syncType === RangeSyncType.Backfill && syncChain.target?.slot) ?? 0 <= oldestBlock.message.slot) {
+        syncChain.remove();
+        this.chains.delete(id);
+        this.logger.debug("Removed syncChain", {id: syncChain.logId});
+      }
     }
   }
 }

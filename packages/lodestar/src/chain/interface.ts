@@ -86,6 +86,7 @@ export interface IBeaconChain {
   getStateByBlockRoot(blockRoot: Root): Promise<CachedBeaconState<allForks.BeaconState> | null>;
   getUnfinalizedBlocksAtSlots(slots: Slot[]): Promise<allForks.SignedBeaconBlock[]>;
   getFinalizedCheckpoint(): phase0.Checkpoint;
+  getOldestBlock(): Promise<allForks.SignedBeaconBlock>;
 
   /** Add attestation to the fork-choice rule */
   receiveAttestation(attestation: phase0.Attestation): void;

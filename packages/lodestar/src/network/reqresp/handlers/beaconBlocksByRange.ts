@@ -4,7 +4,7 @@ import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {IBlockFilterOptions} from "../../../db/repositories";
 import {IBeaconChain} from "../../../chain";
 import {IBeaconDb} from "../../../db";
-import {getMaxEpochForBlockRequests, RespStatus} from "../../../constants";
+import {getMinEpochForBlockRequests, RespStatus} from "../../../constants";
 import {ResponseError} from "../response";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 
@@ -27,7 +27,7 @@ export async function* onBeaconBlocksByRange(
   }
   if (
     requestBody.startSlot <
-    computeStartSlotAtEpoch(config, chain.clock.currentEpoch - getMaxEpochForBlockRequests(config))
+    computeStartSlotAtEpoch(config, chain.clock.currentEpoch - getMinEpochForBlockRequests(config))
   ) {
     throw new ResponseError(RespStatus.INVALID_REQUEST, "startSlot < slot(MAX_EPOCH_FOR_BLOCK)");
   }
