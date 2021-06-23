@@ -1,10 +1,12 @@
 import {expect} from "chai";
-import {WinstonLogger} from "@chainsafe/lodestar-utils";
+import {sleep, WinstonLogger} from "@chainsafe/lodestar-utils";
 import leveldown from "leveldown";
 import all from "it-all";
 import {LevelDbController} from "../../../src/controller";
+import {Bucket, encodeKey} from "../../../lib";
 
-describe("LevelDB controller", () => {
+describe("LevelDB controller", function() {
+  this.timeout(30000);
   const dbLocation = "./.__testdb";
   const db = new LevelDbController({name: dbLocation}, {logger: new WinstonLogger()});
 
@@ -105,5 +107,11 @@ describe("LevelDB controller", () => {
     });
     const result = await all(resultStream);
     expect(result.length).to.be.equal(2);
+  });
+
+  it("test size", async () => {
+    await db.put(Buffer.alloc(1, 0), Buffer.alloc(512, 1));
+    await sleep(5000);
+    console.log(await db.size());
   });
 });

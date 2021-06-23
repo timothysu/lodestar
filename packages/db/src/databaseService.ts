@@ -1,5 +1,7 @@
-import {IDatabaseController} from "./controller";
+import {IDatabaseController, LevelDbController} from "./controller";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {Bucket} from ".";
+import { BucketSize } from "./metrics";
 
 export interface IDatabaseApiOptions {
   config: IBeaconConfig;
@@ -21,5 +23,9 @@ export abstract class DatabaseService {
 
   async stop(): Promise<void> {
     await this.db.stop();
+  }
+
+  async size(): Promise<BucketSize[]> {
+    return (this.db as LevelDbController).size() ?? [];
   }
 }

@@ -7,6 +7,8 @@ import level from "level";
 import all from "it-all";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {IDatabaseController, IDatabaseOptions, IFilterOptions, IKeyValue} from "./interface";
+import {Bucket, encodeKey} from "..";
+import {BucketSize} from "../metrics";
 
 enum Status {
   started = "started",
@@ -107,6 +109,25 @@ export class LevelDbController implements IDatabaseController<Buffer, Buffer> {
 
   async entries(opts?: IFilterOptions<Buffer>): Promise<IKeyValue<Buffer, Buffer>[]> {
     return all(this.entriesStream(opts));
+  }
+
+  async size(): Promise<BucketSize[]> {
+    const summary: BucketSize[] = [];
+    const leveldown = ((this.db as unknown) as {db: unknown}).db as {
+      approximateSize: (start: Buffer, end: Buffer, callback: (size: number) => void) => void;
+    };
+    if (!leveldown) return [];
+    for (const bucket in Bucket) {
+      if (isNaN(parseInt(bucket))) {
+        const bucketSize = await new Promise<number>((resolve) => {
+          leveldown.approximateSize(Buffer.alloc(1, 0), Buffer.alloc(32, 10), (size: number) => {
+            resolve(size);
+          });
+        });
+        summary.push({bucket, size: bucketSize});
+      }
+    }
+    return summary;
   }
 
   /**

@@ -7,6 +7,7 @@ import {allForks} from "@chainsafe/lodestar-types";
 import {collectDefaultMetrics, Registry} from "prom-client";
 import gcStats from "prometheus-gc-stats";
 import {createBeaconMetrics, IBeaconMetrics} from "./metrics/beacon";
+import {createDbMetrics} from "./metrics/db";
 import {createLodestarMetrics, ILodestarMetrics} from "./metrics/lodestar";
 import {IMetricsOptions} from "./options";
 import {RegistryMetricCreator} from "./utils/registryMetricCreator";
@@ -21,6 +22,7 @@ export function createMetrics(
 ): IMetrics {
   const register = new RegistryMetricCreator();
   const beacon = createBeaconMetrics(register);
+  const db = createDbMetrics(register);
   const lodestar = createLodestarMetrics(register, opts.metadata, anchorState);
 
   const genesisTime = anchorState.genesisTime;
@@ -43,5 +45,5 @@ export function createMetrics(
   // - nodejs_gc_reclaimed_bytes_total: The number of bytes GC has freed
   gcStats(register)();
 
-  return {...beacon, ...lodestar, ...validatorMonitor, register};
+  return {...beacon, ...lodestar, ...validatorMonitor, ...db, register};
 }
