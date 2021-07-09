@@ -111,7 +111,9 @@ export class AttnetsService implements IAttnetsService {
    * Check if a subscription is still active before handling a gossip object
    */
   shouldProcess(subnet: number, slot: Slot): boolean {
-    return this.subscriptionsCommittee.isActiveAtSlot(subnet, slot);
+    // testing code
+    // return this.subscriptionsCommittee.isActiveAtSlot(subnet, slot);
+    return true;
   }
 
   /** Call ONLY ONCE: Two epoch before the fork, re-subscribe all existing random subscriptions to the new fork  */

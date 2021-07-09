@@ -8,7 +8,7 @@ import Multiaddr from "multiaddr";
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
-import {ForkName} from "@chainsafe/lodestar-params";
+import {ATTESTATION_SUBNET_COUNT, ForkName} from "@chainsafe/lodestar-params";
 import {Discv5Discovery, ENR} from "@chainsafe/discv5";
 import {computeEpochAtSlot} from "@chainsafe/lodestar-beacon-state-transition";
 import {Epoch} from "@chainsafe/lodestar-types";
@@ -281,6 +281,10 @@ export class Network implements INetwork {
     this.gossip.subscribeTopic({type: GossipType.voluntary_exit, fork});
     this.gossip.subscribeTopic({type: GossipType.proposer_slashing, fork});
     this.gossip.subscribeTopic({type: GossipType.attester_slashing, fork});
+    // testing code
+    for (let subnet = 0; subnet < ATTESTATION_SUBNET_COUNT; subnet++) {
+      this.gossip.subscribeTopic({type: GossipType.beacon_attestation, fork, subnet});
+    }
     if (fork === ForkName.altair) {
       this.gossip.subscribeTopic({type: GossipType.sync_committee_contribution_and_proof, fork});
     }
@@ -295,6 +299,10 @@ export class Network implements INetwork {
     this.gossip.unsubscribeTopic({type: GossipType.voluntary_exit, fork});
     this.gossip.unsubscribeTopic({type: GossipType.proposer_slashing, fork});
     this.gossip.unsubscribeTopic({type: GossipType.attester_slashing, fork});
+    // testing code
+    for (let subnet = 0; subnet < ATTESTATION_SUBNET_COUNT; subnet++) {
+      this.gossip.unsubscribeTopic({type: GossipType.beacon_attestation, fork, subnet});
+    }
     if (fork === ForkName.altair) {
       this.gossip.unsubscribeTopic({type: GossipType.sync_committee_contribution_and_proof, fork});
     }
