@@ -1,6 +1,7 @@
 {
   "name": "@chainsafe/lodestar-cli",
   "version": "0.28.0",
+  "type": "module",
   "description": "Command line interface for other packages",
   "author": "ChainSafe Systems",
   "license": "LGPL-3.0",

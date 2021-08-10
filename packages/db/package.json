@@ -1,6 +1,7 @@
 {
   "name": "@chainsafe/lodestar-db",
   "version": "0.28.0",
+  "type": "module",
   "description": "DB modules of Lodestar",
   "author": "ChainSafe Systems",
   "homepage": "https://github.com/ChainSafe/lodestar#readme",

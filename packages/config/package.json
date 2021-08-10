@@ -1,6 +1,7 @@
 {
   "name": "@chainsafe/lodestar-config",
   "version": "0.28.0",
+  "type": "module",
   "description": "Chain configuration required for lodestar",
   "author": "ChainSafe Systems",
   "license": "Apache-2.0",
