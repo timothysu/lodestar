@@ -1,4 +1,4 @@
-import {ByteVector, hash, toHexString, BitList, List} from "@chainsafe/ssz";
+import {ByteVector, hash, toHexString, BitList, List, readonlyValuesListOfLeafNodeStruct} from "@chainsafe/ssz";
 import bls, {CoordType, PublicKey} from "@chainsafe/bls";
 import {
   BLSSignature,
@@ -6,10 +6,12 @@ import {
   Epoch,
   Slot,
   ValidatorIndex,
-  phase0,
   allForks,
   Gwei,
   Number64,
+  ssz,
+  phase0,
+  altair,
 } from "@chainsafe/lodestar-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {
@@ -24,7 +26,7 @@ import {
   SYNC_REWARD_WEIGHT,
   WEIGHT_DENOMINATOR,
 } from "@chainsafe/lodestar-params";
-import {bigIntSqrt, intToBytes, LodestarError} from "@chainsafe/lodestar-utils";
+import {bigIntMax, bigIntSqrt, intToBytes, LodestarError} from "@chainsafe/lodestar-utils";
 
 import {
   computeActivationExitEpoch,
@@ -95,7 +97,6 @@ export class PubkeyIndexMap {
 export function createEpochContext(
   config: IBeaconConfig,
   state: allForks.BeaconState,
-  validators: MutableVector<phase0.Validator>,
   opts?: EpochContextOpts
 ): EpochContext {
   const pubkey2index = opts?.pubkey2index || new PubkeyIndexMap();
@@ -115,19 +116,26 @@ export function createEpochContext(
   const previousActiveIndices: ValidatorIndex[] = [];
   const currentActiveIndices: ValidatorIndex[] = [];
   const nextActiveIndices: ValidatorIndex[] = [];
-  validators.forEach(function processActiveIndices(v, i) {
-    if (isActiveValidator(v, previousEpoch)) {
+  const effectiveBalancesArr: Gwei[] = [];
+
+  const validators = readonlyValuesListOfLeafNodeStruct(state.validators);
+  const validatorCount = validators.length;
+
+  for (let i = 0; i < validatorCount; i++) {
+    const validator = validators[i];
+
+    if (isActiveValidator(validator, previousEpoch)) {
       previousActiveIndices.push(i);
     }
-    if (isActiveValidator(v, currentEpoch)) {
+    if (isActiveValidator(validator, currentEpoch)) {
       currentActiveIndices.push(i);
-      totalActiveBalance += v.effectiveBalance;
+      totalActiveBalance += validator.effectiveBalance;
     }
-    if (isActiveValidator(v, nextEpoch)) {
+    if (isActiveValidator(validator, nextEpoch)) {
       nextActiveIndices.push(i);
     }
 
-    const {exitEpoch} = v;
+    const {exitEpoch} = validator;
     if (exitEpoch !== FAR_FUTURE_EPOCH) {
       if (exitEpoch > exitQueueEpoch) {
         exitQueueEpoch = exitEpoch;
@@ -136,7 +144,10 @@ export function createEpochContext(
         exitQueueChurn += 1;
       }
     }
-  });
+
+    // TODO: Should have 0 for not active validators to be re-usable in ForkChoice
+    effectiveBalancesArr.push(validator.effectiveBalance);
+  }
 
   // Spec: `EFFECTIVE_BALANCE_INCREMENT` Gwei minimum to avoid divisions by zero
   if (totalActiveBalance < EFFECTIVE_BALANCE_INCREMENT) {
@@ -195,6 +206,7 @@ export function createEpochContext(
     syncParticipantReward,
     syncProposerReward,
     baseRewardPerIncrement,
+    effectiveBalances: MutableVector.from(effectiveBalancesArr),
     churnLimit,
     exitQueueEpoch,
     exitQueueChurn,
@@ -217,9 +229,13 @@ export function syncPubkeys(
   if (currentCount !== index2pubkey.length) {
     throw new Error(`Pubkey indices have fallen out of sync: ${currentCount} != ${index2pubkey.length}`);
   }
+
+  // Get the validators sub tree once for all the loop
+  const validators = state.validators;
+
   const newCount = state.validators.length;
   for (let i = currentCount; i < newCount; i++) {
-    const pubkey = state.validators[i].pubkey.valueOf() as Uint8Array;
+    const pubkey = validators[i].pubkey.valueOf() as Uint8Array;
     pubkey2index.set(pubkey, i);
     // Pubkeys must be checked for group + inf. This must be done only once when the validator deposit is processed.
     // Afterwards any public key is the state consider validated.
@@ -256,13 +272,29 @@ export function computeSyncParticipantReward(config: IBeaconConfig, totalActiveB
 }
 
 /**
- * Called to re-use information, such as the shuffling of the next epoch, after transitioning into a
- * new epoch.
+ * Runs just after running an epoch transition on state. It is used to prepare data useful for the entire length of the
+ * next epoch at the at the cost of added memory.
+ *
+ * ```js
+ * beforeProcessEpoch(); // before epoch transition hook
+ * epochTransition();
+ * postState.slot++;
+ * afterProcessEpoch(); // after epoch transition hook
+ * ```
  */
-export function afterProcessEpoch(state: CachedBeaconState<allForks.BeaconState>, epochProcess: IEpochProcess): void {
+export function afterProcessEpoch(
+  state:
+    | CachedBeaconState<phase0.BeaconState>
+    | CachedBeaconState<altair.BeaconState>
+    | CachedBeaconState<allForks.BeaconState>,
+  epochProcess: IEpochProcess
+): void {
   const {epochCtx} = state;
+
+  // Rotate shufflings
   epochCtx.previousShuffling = epochCtx.currentShuffling;
   epochCtx.currentShuffling = epochCtx.nextShuffling;
+
   const currEpoch = epochCtx.currentShuffling.epoch;
   const nextEpoch = currEpoch + 1;
   epochCtx.nextShuffling = computeEpochShuffling(
@@ -271,6 +303,13 @@ export function afterProcessEpoch(state: CachedBeaconState<allForks.BeaconState>
     nextEpoch
   );
   epochCtx.proposers = computeProposers(state, epochCtx.currentShuffling);
+
+  // Commit mutated flat balances to the state tree
+  // TODO: Improve typings and benchmark to maybe use a faster strategy
+  // SLOW CODE - 🐢🐢🐢🐢🐢🐢🐢🐢🐢🐢
+  state.balances = ssz.phase0.Balances.createTreeBackedFromStruct(
+    (epochProcess.balancesFlat as unknown) as List<bigint>
+  );
 
   // TODO: DEDUPLICATE from createEpochContext
   //
@@ -298,7 +337,8 @@ export function afterProcessEpoch(state: CachedBeaconState<allForks.BeaconState>
   }
 
   if (currEpoch >= epochCtx.config.ALTAIR_FORK_EPOCH) {
-    const totalActiveBalance = epochProcess.nextEpochTotalActiveBalance;
+    // To pass spec tests, force to EFFECTIVE_BALANCE_INCREMENT since nextEpochTotalActiveBalance may be zero
+    const totalActiveBalance = bigIntMax(epochProcess.nextEpochTotalActiveBalance, EFFECTIVE_BALANCE_INCREMENT);
     epochCtx.syncParticipantReward = computeSyncParticipantReward(epochCtx.config, totalActiveBalance);
     epochCtx.syncProposerReward =
       (epochCtx.syncParticipantReward * PROPOSER_WEIGHT) / (WEIGHT_DENOMINATOR - PROPOSER_WEIGHT);
@@ -318,6 +358,7 @@ interface IEpochContextData {
   syncParticipantReward: Gwei;
   syncProposerReward: Gwei;
   baseRewardPerIncrement: Gwei;
+  effectiveBalances: MutableVector<Gwei>;
   churnLimit: number;
   exitQueueEpoch: Epoch;
   exitQueueChurn: number;
@@ -376,6 +417,10 @@ export class EpochContext {
    */
   baseRewardPerIncrement: Gwei;
   /**
+   * Effective balances, for altair processAttestations()
+   */
+  effectiveBalances: MutableVector<Gwei>;
+  /**
    * Rate at which validators can enter or leave the set per epoch. Depends only on activeIndexes, so it does not
    * change through the epoch. It's used in initiateValidatorExit(). Must be update after changing active indexes.
    */
@@ -406,6 +451,7 @@ export class EpochContext {
     this.syncParticipantReward = data.syncParticipantReward;
     this.syncProposerReward = data.syncProposerReward;
     this.baseRewardPerIncrement = data.baseRewardPerIncrement;
+    this.effectiveBalances = data.effectiveBalances;
     this.churnLimit = data.churnLimit;
     this.exitQueueEpoch = data.exitQueueEpoch;
     this.exitQueueChurn = data.exitQueueChurn;

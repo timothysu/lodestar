@@ -63,10 +63,10 @@ export function stateTransition(
 
   // Verify state root
   if (verifyStateRoot) {
-    if (!ssz.Root.equals(block.stateRoot, postState.tree.root)) {
+    if (!ssz.Root.equals(block.stateRoot, postState.hashTreeRoot())) {
       throw new Error(
         `Invalid state root at slot ${block.slot}, expected=${toHexString(block.stateRoot)}, actual=${toHexString(
-          postState.tree.root
+          postState.hashTreeRoot()
         )}`
       );
     }
@@ -147,7 +147,7 @@ function processSlotsWithTransientCache(
       try {
         const epochProcess = beforeProcessEpoch(postState);
         processEpochByFork[fork](postState, epochProcess);
-        metrics?.registerValidatorStatuses(epochProcess.currentEpoch, epochProcess.statuses);
+        metrics?.registerValidatorStatuses(epochProcess.currentEpoch, epochProcess.statusesFlat);
 
         postState.slot++;
         afterProcessEpoch(postState, epochProcess);
