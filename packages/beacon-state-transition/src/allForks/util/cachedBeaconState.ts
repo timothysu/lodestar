@@ -89,11 +89,50 @@ export type CachedBeaconState<T extends allForks.BeaconState> =
     // Beacon State interface
     T;
 
+class MemoryTracker {
+  prev: NodeJS.MemoryUsage;
+
+  constructor() {
+    global.gc();
+    global.gc();
+    this.prev = process.memoryUsage();
+  }
+
+  logDiff(id: string): void {
+    global.gc();
+    global.gc();
+    const curr = process.memoryUsage();
+    const parts: string[] = [];
+    for (const key of Object.keys(this.prev) as (keyof NodeJS.MemoryUsage)[]) {
+      const prevVal = this.prev[key];
+      const currVal = curr[key];
+      const bytesDiff = currVal - prevVal;
+      const sign = bytesDiff < 0 ? "-" : bytesDiff > 0 ? "+" : " ";
+      parts.push(`${key} ${sign}${this.formatBytes(Math.abs(bytesDiff)).padEnd(15)}`);
+    }
+    this.prev = curr;
+    console.log(id.padEnd(20), parts.join(" "));
+  }
+
+  formatBytes(bytes: number, decimals = 2): string {
+    if (bytes === 0) return "0 B";
+
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  }
+}
+
 export function createCachedBeaconState<T extends allForks.BeaconState>(
   chainForkConfig: IChainForkConfig,
   state: TreeBacked<T>,
   opts?: EpochContextOpts
 ): CachedBeaconState<T> {
+  const tracker = new MemoryTracker();
   const config = createIBeaconConfig(chainForkConfig, state.genesisValidatorsRoot);
 
   let cachedPreviousParticipation, cachedCurrentParticipation;
@@ -104,6 +143,8 @@ export function createCachedBeaconState<T extends allForks.BeaconState>(
   // TODO: Try to merge the validator loop inside createEpochContext() with the loops above
   const epochCtx = createEpochContext(config, state, opts);
   let cachedInactivityScores: MutableVector<Number64>;
+
+  tracker.logDiff("CachedBeaconState - epochCtx");
 
   if (forkName === ForkName.phase0) {
     // TODO: More efficient way of getting the length?
@@ -134,6 +175,9 @@ export function createCachedBeaconState<T extends allForks.BeaconState>(
     );
     cachedInactivityScores = MutableVector.from(readonlyValues(altairState.inactivityScores));
   }
+
+  tracker.logDiff("CachedBeaconState - participation");
+
   return new Proxy(
     new BeaconStateContext(
       state.type as ContainerType<T>,

@@ -59,7 +59,7 @@ const epoch = 23638;
 export function getPubkeys(vc = numValidators) {
   const pubkeysMod = interopPubkeysCached(keypairsMod);
   const pubkeysModObj = pubkeysMod.map((pk) => bls.PublicKey.fromBytes(pk, CoordType.jacobian));
-  const pubkeys = Array.from({length: vc}, (_, i) => pubkeysMod[i % keypairsMod]);
+  const pubkeys = Array.from({length: vc}, (_, i) => interopSecretKey(i).toPublicKey().toBytes());
   return {pubkeysMod, pubkeysModObj, pubkeys};
 }
 
@@ -83,7 +83,7 @@ export function generatePerfTestCachedStatePhase0(opts?: {
   goBackOneSlot: boolean;
 }): allForks.CachedBeaconState<phase0.BeaconState> {
   // Generate only some publicKeys
-  const {pubkeys, pubkeysMod, pubkeysModObj} = getPubkeys();
+  const {pubkeysMod, pubkeysModObj} = getPubkeys();
 
   // Manually sync pubkeys to prevent doing BLS opts 110_000 times
   const pubkey2index = new PubkeyIndexMap();
@@ -95,7 +95,7 @@ export function generatePerfTestCachedStatePhase0(opts?: {
     index2pubkey.push(pubkeyObj);
   }
 
-  const origState = generatePerformanceStatePhase0(pubkeys);
+  const origState = generatePerformanceStatePhase0();
   if (!phase0CachedState23637) {
     const state = origState.clone();
     state.slot -= 1;
@@ -171,12 +171,14 @@ export function generatePerformanceStateAltair(pubkeysArg?: Uint8Array[]): TreeB
     if (fullParticpation !== 7) {
       throw new Error("Not correct fullParticipation");
     }
-    state.previousEpochParticipation = Array.from({length: pubkeys.length}, () => fullParticpation) as List<
-      ParticipationFlags
-    >;
-    state.currentEpochParticipation = Array.from({length: pubkeys.length}, () => fullParticpation) as List<
-      ParticipationFlags
-    >;
+    state.previousEpochParticipation = Array.from(
+      {length: pubkeys.length},
+      () => fullParticpation
+    ) as List<ParticipationFlags>;
+    state.currentEpochParticipation = Array.from(
+      {length: pubkeys.length},
+      () => fullParticpation
+    ) as List<ParticipationFlags>;
     state.inactivityScores = Array.from({length: pubkeys.length}, (_, i) => i % 2) as List<ParticipationFlags>;
     const epoch = computeEpochAtSlot(state.slot);
     const activeValidatorIndices = getActiveValidatorIndices(state, epoch);
@@ -194,55 +196,62 @@ export function generatePerformanceStateAltair(pubkeysArg?: Uint8Array[]): TreeB
   return altairState.clone();
 }
 
+export function addPendingAttestations(state: phase0.BeaconState): void {
+  const currentEpoch = computeEpochAtSlot(state.slot - 1);
+  const previousEpoch = currentEpoch - 1;
+  const numPrevAttestations = SLOTS_PER_EPOCH * MAX_ATTESTATIONS;
+  const activeValidatorCount = state.validators.length;
+  const committeesPerSlot = computeCommitteeCount(activeValidatorCount);
+
+  // previous epoch attestations
+  state.previousEpochAttestations = Array.from({length: numPrevAttestations}, (_, i) => {
+    const slotInEpoch = intDiv(i, MAX_ATTESTATIONS);
+    return {
+      aggregationBits: Array.from({length: MAX_VALIDATORS_PER_COMMITTEE}, () => true) as List<boolean>,
+      data: {
+        beaconBlockRoot: state.blockRoots[slotInEpoch % SLOTS_PER_HISTORICAL_ROOT],
+        index: i % committeesPerSlot,
+        slot: previousEpoch * SLOTS_PER_EPOCH + slotInEpoch,
+        source: state.previousJustifiedCheckpoint,
+        target: state.currentJustifiedCheckpoint,
+      },
+      inclusionDelay: 1,
+      proposerIndex: i,
+    };
+  }) as List<PendingAttestation>;
+
+  // current epoch attestations
+  const numCurAttestations = (SLOTS_PER_EPOCH - 1) * MAX_ATTESTATIONS;
+  state.currentEpochAttestations = Array.from({length: numCurAttestations}, (_, i) => {
+    const slotInEpoch = intDiv(i, MAX_ATTESTATIONS);
+    return {
+      aggregationBits: Array.from({length: MAX_VALIDATORS_PER_COMMITTEE}, () => true) as List<boolean>,
+      data: {
+        beaconBlockRoot: state.blockRoots[slotInEpoch % SLOTS_PER_HISTORICAL_ROOT],
+        index: i % committeesPerSlot,
+        slot: currentEpoch * SLOTS_PER_EPOCH + slotInEpoch,
+        source: state.currentJustifiedCheckpoint,
+        target: {
+          epoch: currentEpoch,
+          root: state.blockRoots[(currentEpoch * SLOTS_PER_EPOCH) % SLOTS_PER_HISTORICAL_ROOT],
+        },
+      },
+      inclusionDelay: 1,
+      proposerIndex: i,
+    };
+  }) as List<PendingAttestation>;
+}
+
 /**
  * This is generated from Medalla state 756416
  */
-export function generatePerformanceStatePhase0(pubkeysArg?: Uint8Array[]): TreeBacked<phase0.BeaconState> {
+export function generatePerformanceStatePhase0(): TreeBacked<phase0.BeaconState> {
   if (!phase0State) {
-    const pubkeys = pubkeysArg || getPubkeys().pubkeys;
     const defaultState = ssz.phase0.BeaconState.defaultValue();
     const state = buildPerformanceStateAllForks(defaultState) as phase0.BeaconState;
-    const currentEpoch = computeEpochAtSlot(state.slot - 1);
-    const previousEpoch = currentEpoch - 1;
-    // previous epoch attestations
-    const numPrevAttestations = SLOTS_PER_EPOCH * MAX_ATTESTATIONS;
-    const activeValidatorCount = pubkeys.length;
-    const committeesPerSlot = computeCommitteeCount(activeValidatorCount);
-    state.previousEpochAttestations = Array.from({length: numPrevAttestations}, (_, i) => {
-      const slotInEpoch = intDiv(i, MAX_ATTESTATIONS);
-      return {
-        aggregationBits: Array.from({length: MAX_VALIDATORS_PER_COMMITTEE}, () => true) as List<boolean>,
-        data: {
-          beaconBlockRoot: state.blockRoots[slotInEpoch % SLOTS_PER_HISTORICAL_ROOT],
-          index: i % committeesPerSlot,
-          slot: previousEpoch * SLOTS_PER_EPOCH + slotInEpoch,
-          source: state.previousJustifiedCheckpoint,
-          target: state.currentJustifiedCheckpoint,
-        },
-        inclusionDelay: 1,
-        proposerIndex: i,
-      };
-    }) as List<PendingAttestation>;
-    // current epoch attestations
-    const numCurAttestations = (SLOTS_PER_EPOCH - 1) * MAX_ATTESTATIONS;
-    state.currentEpochAttestations = Array.from({length: numCurAttestations}, (_, i) => {
-      const slotInEpoch = intDiv(i, MAX_ATTESTATIONS);
-      return {
-        aggregationBits: Array.from({length: MAX_VALIDATORS_PER_COMMITTEE}, () => true) as List<boolean>,
-        data: {
-          beaconBlockRoot: state.blockRoots[slotInEpoch % SLOTS_PER_HISTORICAL_ROOT],
-          index: i % committeesPerSlot,
-          slot: currentEpoch * SLOTS_PER_EPOCH + slotInEpoch,
-          source: state.currentJustifiedCheckpoint,
-          target: {
-            epoch: currentEpoch,
-            root: state.blockRoots[(currentEpoch * SLOTS_PER_EPOCH) % SLOTS_PER_HISTORICAL_ROOT],
-          },
-        },
-        inclusionDelay: 1,
-        proposerIndex: i,
-      };
-    }) as List<PendingAttestation>;
+
+    addPendingAttestations(state);
+
     // no justificationBits
     phase0State = ssz.phase0.BeaconState.createTreeBackedFromStruct(state);
     logger.verbose("Loaded phase0 state", {
@@ -276,7 +285,10 @@ export function generatePerformanceBlockPhase0(): TreeBacked<phase0.SignedBeacon
   return phase0SignedBlock.clone();
 }
 
-function buildPerformanceStateAllForks(state: allForks.BeaconState, pubkeysArg?: Uint8Array[]): allForks.BeaconState {
+export function buildPerformanceStateAllForks(
+  state: allForks.BeaconState,
+  pubkeysArg?: Uint8Array[]
+): allForks.BeaconState {
   const pubkeys = pubkeysArg || getPubkeys().pubkeys;
   state.genesisTime = 1596546008;
   state.genesisValidatorsRoot = fromHexString("0x04700007fabc8282644aed6d1c7c9e21d38a03a0c4ba193f3afe428824b3a673");
@@ -460,4 +472,27 @@ export async function getNetworkCachedState(
 
   const stateTB = config.getForkTypes(slot).BeaconState.createTreeBackedFromBytes(stateSsz);
   return createCachedBeaconState(config, stateTB);
+}
+
+/**
+ * Download a state from Infura. Caches states in local fs by network and slot to only download once.
+ */
+export async function getNetworkCachedStateStruct(
+  network: NetworkName,
+  slot: number,
+  timeout?: number
+): Promise<allForks.BeaconState> {
+  const config = getNetworkConfig(network);
+
+  const filepath = path.join(testCachePath, `state_${network}_${slot}.ssz`);
+  let stateSsz: Uint8Array;
+  if (fs.existsSync(filepath)) {
+    stateSsz = fs.readFileSync(filepath);
+  } else {
+    const client = getClient(config, {baseUrl: getInfuraUrl(network), timeoutMs: timeout || 300_000});
+    stateSsz = await client.debug.getState(String(slot), "ssz");
+    fs.writeFileSync(filepath, stateSsz);
+  }
+
+  return config.getForkTypes(slot).BeaconState.deserialize(stateSsz);
 }

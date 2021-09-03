@@ -88,6 +88,44 @@ export class PubkeyIndexMap {
   }
 }
 
+class MemoryTracker {
+  prev: NodeJS.MemoryUsage;
+
+  constructor() {
+    global.gc();
+    global.gc();
+    this.prev = process.memoryUsage();
+  }
+
+  logDiff(id: string): void {
+    global.gc();
+    global.gc();
+    const curr = process.memoryUsage();
+    const parts: string[] = [];
+    for (const key of Object.keys(this.prev) as (keyof NodeJS.MemoryUsage)[]) {
+      const prevVal = this.prev[key];
+      const currVal = curr[key];
+      const bytesDiff = currVal - prevVal;
+      const sign = bytesDiff < 0 ? "-" : bytesDiff > 0 ? "+" : " ";
+      parts.push(`${key} ${sign}${this.formatBytes(Math.abs(bytesDiff)).padEnd(15)}`);
+    }
+    this.prev = curr;
+    console.log(id.padEnd(20), parts.join(" "));
+  }
+
+  formatBytes(bytes: number, decimals = 2): string {
+    if (bytes === 0) return "0 B";
+
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  }
+}
+
 /**
  * Create an epoch cache
  * @param validators cached validators that matches `state.validators`
@@ -99,11 +137,15 @@ export function createEpochContext(
   state: allForks.BeaconState,
   opts?: EpochContextOpts
 ): EpochContext {
+  const tracker = new MemoryTracker();
+
   const pubkey2index = opts?.pubkey2index || new PubkeyIndexMap();
   const index2pubkey = opts?.index2pubkey || ([] as PublicKey[]);
   if (!opts?.skipSyncPubkeys) {
     syncPubkeys(state, pubkey2index, index2pubkey);
   }
+
+  tracker.logDiff("EpochContext - syncPubkeys");
 
   const currentEpoch = computeEpochAtSlot(state.slot);
   const previousEpoch = currentEpoch === GENESIS_EPOCH ? GENESIS_EPOCH : currentEpoch - 1;
@@ -149,6 +191,9 @@ export function createEpochContext(
     effectiveBalancesArr.push(validator.effectiveBalance);
   }
 
+  const effectiveBalances = MutableVector.from(effectiveBalancesArr);
+  tracker.logDiff("EpochContext - effectiveBalancesArr");
+
   // Spec: `EFFECTIVE_BALANCE_INCREMENT` Gwei minimum to avoid divisions by zero
   if (totalActiveBalance < EFFECTIVE_BALANCE_INCREMENT) {
     totalActiveBalance = EFFECTIVE_BALANCE_INCREMENT;
@@ -161,6 +206,8 @@ export function createEpochContext(
         currentShuffling
       : computeEpochShuffling(state, previousActiveIndices, previousEpoch);
   const nextShuffling = computeEpochShuffling(state, nextActiveIndices, nextEpoch);
+
+  tracker.logDiff("EpochContext - shufflings");
 
   // Allow to create CachedBeaconState for empty states
   const proposers = state.validators.length > 0 ? computeProposers(state, currentShuffling) : [];
@@ -206,7 +253,7 @@ export function createEpochContext(
     syncParticipantReward,
     syncProposerReward,
     baseRewardPerIncrement,
-    effectiveBalances: MutableVector.from(effectiveBalancesArr),
+    effectiveBalances,
     churnLimit,
     exitQueueEpoch,
     exitQueueChurn,
@@ -233,15 +280,20 @@ export function syncPubkeys(
   // Get the validators sub tree once for all the loop
   const validators = state.validators;
 
+  // typedef struct { blst_fp x, y, z; } blst_p1;
+  // typedef struct { blst_fp x, y; } blst_p1_affine;
+
+  const coordType = CoordType.jacobian;
   const newCount = state.validators.length;
   for (let i = currentCount; i < newCount; i++) {
     const pubkey = validators[i].pubkey.valueOf() as Uint8Array;
-    pubkey2index.set(pubkey, i);
+    // pubkey2index.set(pubkey, i);
     // Pubkeys must be checked for group + inf. This must be done only once when the validator deposit is processed.
     // Afterwards any public key is the state consider validated.
     // > Do not do any validation here
-    index2pubkey.push(bls.PublicKey.fromBytes(pubkey, CoordType.jacobian)); // Optimize for aggregation
+    index2pubkey.push(bls.PublicKey.fromBytes(pubkey, CoordType.affine)); // Optimize for aggregation
   }
+  console.log("index2pubkey.length", index2pubkey.length, "coordType", coordType);
 }
 
 /**
