@@ -4,11 +4,10 @@ import {ssz} from "@chainsafe/lodestar-types";
 import {LeafNode, Node, subtreeFillToContents, Tree} from "@chainsafe/persistent-merkle-tree";
 import {List, ListType} from "@chainsafe/ssz";
 
-describe("epochParticipation", () => {
+describe.skip("epochParticipation", () => {
   const vc = 250_016;
   const depth = 35 + 1;
   const currentFlags = 6;
-  const newFlags = 7;
 
   let flags = 0;
   for (let i = 0; i < 4; i++) {
@@ -39,26 +38,6 @@ describe("epochParticipation", () => {
   const epochParticipation = new ListType<List<number>>({
     elementType: ssz.ParticipationFlags,
     limit: VALIDATOR_REGISTRY_LIMIT,
-  });
-
-  it("test", () => {
-    const vIdx = 124_354;
-
-    const chunkIdx = Math.floor(vIdx / 32);
-    const bitstring = epochParticipation.getGindexBitStringAtChunkIndex(chunkIdx);
-    const node = tree.getNode(bitstring);
-    const hIdx = vIdx % 8;
-    const hValue = getHFromIdx(node, hIdx);
-    console.log(node, hIdx, hValue);
-
-    const vHIdx = vIdx % 4;
-    let vFlags = 0;
-    for (let i = 0; i < 4; i++) {
-      if (hValue & (1 << (8 * vHIdx + i))) {
-        vFlags |= 1 << i;
-      }
-    }
-    console.log({vFlags});
   });
 
   itBench("Read all flags for each flag index", () => {
@@ -96,7 +75,7 @@ describe("epochParticipation", () => {
     }
   });
 
-  itBench.skip("Read all nodes", () => {
+  itBench("Read all nodes", () => {
     for (let i = 0; i < vc; i++) {
       const chunkIdx = Math.floor(i / 32);
       const bitstring = epochParticipation.getGindexBitStringAtChunkIndex(chunkIdx);

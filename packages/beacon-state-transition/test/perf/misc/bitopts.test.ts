@@ -1,11 +1,8 @@
 import {itBench, setBenchOpts} from "@dapplion/benchmark";
-import {FLAG_PREV_SOURCE_ATTESTER, FLAG_UNSLASHED} from "../../../src/allForks";
 import {fromParticipationFlags, toParticipationFlags} from "../../../src/allForks/util/cachedEpochParticipation";
-import {profilerLogger} from "../../utils/logger";
 
 describe("bit opts", function () {
   setBenchOpts({noThreshold: true});
-  const logger = profilerLogger();
 
   const prevStatus = toParticipationFlags({
     timelyHead: false,
