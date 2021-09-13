@@ -48,6 +48,7 @@ export function finality(fork: ForkName): void {
       expectFunc: (testCase, expected, actual) => {
         expectEqualBeaconState(fork, expected, actual);
       },
+      shouldSkip: (a, n) => n !== "finality_no_updates_at_genesis",
     }
   );
 }

@@ -4,6 +4,16 @@ import {allForks} from "../../../../src";
 import {BlockAltairOpts, getBlockAltair} from "../../phase0/block/util";
 import {StateBlock} from "../../types";
 import {MAX_ATTESTATIONS} from "@chainsafe/lodestar-params";
+import {processAttestations} from "../../../../src/altair";
+import {altair, phase0, ssz} from "@chainsafe/lodestar-types";
+
+// Keep a regular array of h values
+// When iterating mark nodes in a new array as dirty
+// Rebuild the tree from the dirty nodes
+
+// Current time: 80ms (normalcase)
+// TODO:
+// - Benchmark the time to recreate the tree from scratch
 
 describe("altair processAttestations", () => {
   type BlockAltairOptsAtt = Pick<BlockAltairOpts, "attestationLen" | "bitsLen">;
@@ -32,17 +42,18 @@ describe("altair processAttestations", () => {
       id: `altair processAttestations - ${perfStateId} ${id}`,
       before: () => {
         const state = generatePerfTestCachedStateAltair() as allForks.CachedBeaconState<allForks.BeaconState>;
-        const block = getBlockAltair(state, opts);
+        const block = ssz.altair.SignedBeaconBlock.createTreeBackedFromStruct(getBlockAltair(state, opts));
         state.hashTreeRoot();
         return {state, block};
       },
       beforeEach: ({state, block}) => ({state: state.clone(), block}),
       fn: ({state, block}) => {
-        allForks.stateTransition(state, block, {
-          verifyProposer: false,
-          verifySignatures: false,
-          verifyStateRoot: false,
-        });
+        processAttestations(
+          state as allForks.CachedBeaconState<altair.BeaconState>,
+          block.message.body.attestations as phase0.Attestation[],
+          {},
+          false // verifySignatures
+        );
       },
     });
   }

@@ -3,7 +3,11 @@ import {intSqrt} from "@chainsafe/lodestar-utils";
 
 import {getBlockRoot, getBlockRootAtSlot, increaseBalance, verifySignatureSet} from "../../util";
 import {CachedBeaconState, EpochContext} from "../../allForks/util";
-import {IParticipationStatus} from "../../allForks/util/cachedEpochParticipation";
+import {
+  fromParticipationFlags,
+  IParticipationStatus,
+  toParticipationFlags,
+} from "../../allForks/util/cachedEpochParticipation";
 import {
   EFFECTIVE_BALANCE_INCREMENT,
   MIN_ATTESTATION_INCLUSION_DELAY,
@@ -19,6 +23,9 @@ import {BlockProcess} from "../../util/blockProcess";
 import {getAttestationWithIndicesSignatureSet} from "../../allForks";
 
 const PROPOSER_REWARD_DOMINATOR = ((WEIGHT_DENOMINATOR - PROPOSER_WEIGHT) * WEIGHT_DENOMINATOR) / PROPOSER_WEIGHT;
+const TIMELY_SOURCE_MASK = 1 << 0;
+const TIMELY_TARGET_MASK = 1 << 1;
+const TIMELY_HEAD_MASK = 1 << 2;
 
 export function processAttestations(
   state: CachedBeaconState<altair.BeaconState>,
@@ -61,33 +68,33 @@ export function processAttestations(
         ? state.currentEpochParticipation
         : state.previousEpochParticipation;
 
-    const {timelySource, timelyTarget, timelyHead} = getAttestationParticipationStatus(
-      data,
-      stateSlot - data.slot,
-      rootCache,
-      epochCtx
+    const attFlags = toParticipationFlags(
+      getAttestationParticipationStatus(data, stateSlot - data.slot, rootCache, epochCtx)
     );
 
     // For each participant, update their participation
     // In epoch processing, this participation info is used to calculate balance updates
     let totalBalancesWithWeight = 0;
     for (const index of attestingIndices) {
-      const status = epochParticipation.getStatus(index) as IParticipationStatus;
-      const newStatus = {
-        timelySource: status.timelySource || timelySource,
-        timelyTarget: status.timelyTarget || timelyTarget,
-        timelyHead: status.timelyHead || timelyHead,
-      };
-      epochParticipation.setStatus(index, newStatus);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const prevFlags = epochParticipation.get(index)!;
+      const newFlags = prevFlags | attFlags;
+      const changedFlags = prevFlags ^ newFlags;
+
+      if (prevFlags !== newFlags) {
+        // epochParticipation.setStatus(index, fromParticipationFlags(newFlags));
+        epochParticipation.setPending({index, flags: newFlags});
+      }
+
       /**
        * Spec:
        * baseReward = state.validators[index].effectiveBalance / EFFECTIVE_BALANCE_INCREMENT * baseRewardPerIncrement;
        * proposerRewardNumerator += baseReward * totalWeight
        */
-      const tsWeight: number = !status.timelySource && timelySource ? TIMELY_SOURCE_WEIGHT : 0;
-      const ttWeight: number = !status.timelyTarget && timelyTarget ? TIMELY_TARGET_WEIGHT : 0;
-      const thWeight: number = !status.timelyHead && timelyHead ? TIMELY_HEAD_WEIGHT : 0;
-      const totalWeight = tsWeight + ttWeight + thWeight;
+      let totalWeight = 0;
+      if ((changedFlags & TIMELY_SOURCE_MASK) !== 0) totalWeight += TIMELY_SOURCE_WEIGHT;
+      if ((changedFlags & TIMELY_TARGET_MASK) !== 0) totalWeight += TIMELY_TARGET_WEIGHT;
+      if ((changedFlags & TIMELY_HEAD_MASK) !== 0) totalWeight += TIMELY_HEAD_WEIGHT;
 
       if (totalWeight > 0) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -102,6 +109,9 @@ export function processAttestations(
   }
 
   increaseBalance(state, epochCtx.getBeaconProposer(state.slot), proposerReward);
+
+  state.currentEpochParticipation.applySetPending();
+  state.previousEpochParticipation.applySetPending();
 }
 
 /**
