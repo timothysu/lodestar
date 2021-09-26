@@ -1,11 +1,10 @@
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {allForks, RootHex, Slot} from "@chainsafe/lodestar-types";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {IChainForkConfig} from "@chainsafe/lodestar-config";
 import {routes} from "@chainsafe/lodestar-api";
 import {INetwork} from "../network";
 import {IBeaconChain} from "../chain";
 import {IMetrics} from "../metrics";
-import {IBeaconDb} from "../db";
 import {SyncChainDebugState} from "./range/chain";
 export {SyncChainDebugState};
 
@@ -49,9 +48,8 @@ export interface ISlotRange {
 }
 
 export interface ISyncModules {
-  config: IBeaconConfig;
+  config: IChainForkConfig;
   network: INetwork;
-  db: IBeaconDb;
   metrics: IMetrics | null;
   logger: ILogger;
   chain: IBeaconChain;

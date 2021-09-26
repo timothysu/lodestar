@@ -106,7 +106,7 @@ export function getGossipHandlers(modules: ValidatorFnsModules): GossipHandlers 
               case BlockErrorCode.PRESTATE_MISSING:
                 break;
               default:
-                network.peerRpcScores.applyAction(
+                network.reportPeer(
                   PeerId.createFromB58String(peerIdStr),
                   PeerAction.LowToleranceError,
                   "BadGossipBlock"

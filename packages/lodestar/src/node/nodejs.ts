@@ -148,7 +148,6 @@ export class BeaconNode {
     });
     const sync = new BeaconSync(opts.sync, {
       config,
-      db,
       chain,
       metrics,
       network,

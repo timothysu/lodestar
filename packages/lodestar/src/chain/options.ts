@@ -5,7 +5,7 @@ export type IChainOptions = BlockProcessOpts &
   ForkChoiceOpts & {
     useSingleThreadVerifier?: boolean;
     persistInvalidSszObjects?: boolean;
-    persistInvalidSszObjectsDir: string;
+    persistInvalidSszObjectsDir?: string;
   };
 
 export type BlockProcessOpts = {
