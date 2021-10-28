@@ -87,7 +87,7 @@ export class QueuedStateRegenerator implements IStateRegenerator {
         return state;
       }
     }
-    this.metrics?.regenFnQueuedTotal.inc({caller: rCaller, entrypoint: RegenFnName.getPreState});
+
     // The state is not immediately available in the caches, enqueue the job
     return this.jobQueue.push({key: "getPreState", args: [block, rCaller]});
   }
@@ -103,7 +103,7 @@ export class QueuedStateRegenerator implements IStateRegenerator {
     if (checkpointState) {
       return checkpointState;
     }
-    this.metrics?.regenFnQueuedTotal.inc({caller: rCaller, entrypoint: RegenFnName.getCheckpointState});
+
     // The state is not immediately available in the cache, enqueue the job
     return this.jobQueue.push({key: "getCheckpointState", args: [cp, rCaller]});
   }
@@ -114,7 +114,7 @@ export class QueuedStateRegenerator implements IStateRegenerator {
     rCaller: RegenCaller
   ): Promise<CachedBeaconState<allForks.BeaconState>> {
     this.metrics?.regenFnCallTotal.inc({caller: rCaller, entrypoint: RegenFnName.getBlockSlotState});
-    this.metrics?.regenFnQueuedTotal.inc({caller: rCaller, entrypoint: RegenFnName.getBlockSlotState});
+
     return this.jobQueue.push({key: "getBlockSlotState", args: [blockRoot, slot, rCaller]});
   }
 
@@ -126,7 +126,7 @@ export class QueuedStateRegenerator implements IStateRegenerator {
     if (state) {
       return state;
     }
-    this.metrics?.regenFnQueuedTotal.inc({caller: rCaller, entrypoint: RegenFnName.getState});
+
     // The state is not immediately available in the cache, enqueue the job
     return this.jobQueue.push({key: "getState", args: [stateRoot, rCaller]});
   }
