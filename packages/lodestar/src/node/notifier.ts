@@ -64,6 +64,11 @@ export async function runNodeNotifier({
       const skippedSlots = clockSlot - headInfo.slot;
       const clockSlotRow = `slot: ${clockSlot}` + (skippedSlots > 0 ? ` (skipped ${skippedSlots})` : "");
 
+      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+      const backfilledStat = sync?.backfillSync?.lastBackSyncedSlot
+        ? `backfilled: ${sync?.backfillSync?.lastBackSyncedSlot}`
+        : "";
+
       let nodeState: string[];
       switch (sync.state) {
         case SyncState.SyncingFinalized:
@@ -80,6 +85,7 @@ export async function runNodeNotifier({
             clockSlotRow,
             headRow,
             finalizedCheckpointRow,
+            backfilledStat,
             peersRow,
           ];
           break;
@@ -87,13 +93,13 @@ export async function runNodeNotifier({
 
         case SyncState.Synced: {
           // Synced - clock - head - finalized - peers
-          nodeState = ["Synced", clockSlotRow, headRow, finalizedCheckpointRow, peersRow];
+          nodeState = ["Synced", clockSlotRow, headRow, finalizedCheckpointRow, backfilledStat, peersRow];
           break;
         }
 
         case SyncState.Stalled: {
           // Searching peers - peers - head - finalized - clock
-          nodeState = ["Searching peers", peersRow, clockSlotRow, headRow, finalizedCheckpointRow];
+          nodeState = ["Searching peers", peersRow, clockSlotRow, headRow, finalizedCheckpointRow, backfilledStat];
         }
       }
       logger.info(nodeState.join(" - "));
