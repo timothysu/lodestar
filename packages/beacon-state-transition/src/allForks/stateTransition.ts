@@ -1,21 +1,26 @@
 /* eslint-disable import/namespace */
 import {allForks, Slot, ssz} from "@chainsafe/lodestar-types";
 import {ForkName, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
+import {toHexString} from "@chainsafe/ssz";
 import * as phase0 from "../phase0";
 import * as altair from "../altair";
 import * as merge from "../merge";
-import {IBeaconStateTransitionMetrics} from "../metrics";
+import {IBeaconStateTransitionMetrics, BlockPostData} from "../metrics";
 import {verifyProposerSignature} from "./signatureSets";
 import {beforeProcessEpoch, CachedBeaconState, IEpochProcess, afterProcessEpoch} from "./util";
 import {processSlot} from "./slot";
 import {computeEpochAtSlot} from "../util";
-import {toHexString} from "@chainsafe/ssz";
 
 type StateAllForks = CachedBeaconState<allForks.BeaconState>;
 type StatePhase0 = CachedBeaconState<phase0.BeaconState>;
 type StateAltair = CachedBeaconState<altair.BeaconState>;
 
-type ProcessBlockFn = (state: StateAllForks, block: allForks.BeaconBlock, verifySignatures: boolean) => void;
+type ProcessBlockFn = (
+  state: StateAllForks,
+  block: allForks.BeaconBlock,
+  verifySignatures: boolean,
+  blockPostData?: BlockPostData
+) => void;
 type ProcessEpochFn = (state: StateAllForks, epochProcess: IEpochProcess) => void;
 
 const processBlockByFork: Record<ForkName, ProcessBlockFn> = {
@@ -96,9 +101,13 @@ export function processBlock(
   const {verifySignatures = true} = options || {};
   const fork = postState.config.getForkName(block.slot);
 
+  const blockPostData: BlockPostData | undefined = metrics ? {attestationStatuses: []} : undefined;
   const timer = metrics?.stfnProcessBlock.startTimer();
+
   try {
-    processBlockByFork[fork](postState, block, verifySignatures);
+    processBlockByFork[fork](postState, block, verifySignatures, blockPostData);
+
+    if (blockPostData) metrics?.registerBlockPostData(block.slot, blockPostData);
   } finally {
     if (timer) timer();
   }

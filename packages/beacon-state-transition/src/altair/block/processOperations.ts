@@ -1,18 +1,20 @@
 import {readonlyValues} from "@chainsafe/ssz";
 import {altair} from "@chainsafe/lodestar-types";
+import {MAX_DEPOSITS} from "@chainsafe/lodestar-params";
 
+import {BlockPostData} from "../../metrics";
 import {CachedBeaconState} from "../../allForks/util";
 import {processProposerSlashing} from "./processProposerSlashing";
 import {processAttesterSlashing} from "./processAttesterSlashing";
 import {processAttestations} from "./processAttestation";
 import {processDeposit} from "./processDeposit";
 import {processVoluntaryExit} from "./processVoluntaryExit";
-import {MAX_DEPOSITS} from "@chainsafe/lodestar-params";
 
 export function processOperations(
   state: CachedBeaconState<altair.BeaconState>,
   body: altair.BeaconBlockBody,
-  verifySignatures = true
+  verifySignatures: boolean,
+  blockPostData?: BlockPostData
 ): void {
   // verify that outstanding deposits are processed up to the maximum number of deposits
   const maxDeposits = Math.min(MAX_DEPOSITS, state.eth1Data.depositCount - state.eth1DepositIndex);
@@ -29,7 +31,7 @@ export function processOperations(
     processAttesterSlashing(state, attesterSlashing, verifySignatures);
   }
 
-  processAttestations(state, Array.from(readonlyValues(body.attestations)), verifySignatures);
+  processAttestations(state, Array.from(readonlyValues(body.attestations)), verifySignatures, blockPostData);
 
   for (const deposit of readonlyValues(body.deposits)) {
     processDeposit(state, deposit);

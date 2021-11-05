@@ -22,7 +22,7 @@ const sync_aggregate: BlockProcessFn<altair.BeaconState> = (
 
 operations<altair.BeaconState>(ForkName.altair, {
   attestation: (state, testCase: IBaseSpecTest & {attestation: phase0.Attestation}) => {
-    altair.processAttestations(state, [testCase.attestation]);
+    altair.processAttestations(state, [testCase.attestation], true);
   },
 
   attester_slashing: (state, testCase: IBaseSpecTest & {attester_slashing: phase0.AttesterSlashing}) => {

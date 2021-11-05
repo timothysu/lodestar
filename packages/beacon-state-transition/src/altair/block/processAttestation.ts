@@ -1,6 +1,7 @@
 import {allForks, altair, Epoch, phase0, Root, Slot, ssz} from "@chainsafe/lodestar-types";
 import {intSqrt} from "@chainsafe/lodestar-utils";
 
+import {BlockPostData} from "../../metrics";
 import {getBlockRoot, getBlockRootAtSlot, increaseBalance, verifySignatureSet} from "../../util";
 import {CachedBeaconState, EpochContext} from "../../allForks/util";
 import {CachedEpochParticipation, IParticipationStatus} from "../../allForks/util/cachedEpochParticipation";
@@ -22,7 +23,8 @@ const PROPOSER_REWARD_DOMINATOR = ((WEIGHT_DENOMINATOR - PROPOSER_WEIGHT) * WEIG
 export function processAttestations(
   state: CachedBeaconState<altair.BeaconState>,
   attestations: phase0.Attestation[],
-  verifySignature = true
+  verifySignature: boolean,
+  blockPostData?: BlockPostData
 ): void {
   const {epochCtx} = state;
   const {effectiveBalances} = epochCtx;
@@ -62,12 +64,43 @@ export function processAttestations(
     const epochStatuses =
       data.target.epoch === epochCtx.currentShuffling.epoch ? currentEpochStatuses : previousEpochStatuses;
 
-    const {timelySource, timelyTarget, timelyHead} = getAttestationParticipationStatus(
-      data,
-      stateSlot - data.slot,
-      rootCache,
-      epochCtx
-    );
+    // Inlined getAttestationParticipationStatus()
+    // https://github.com/ethereum/eth2.0-specs/blob/v1.1.0-alpha.4/specs/altair/beacon-chain.md#get_attestation_participation_flag_indices
+    const justifiedCheckpoint =
+      data.target.epoch === epochCtx.currentShuffling.epoch
+        ? rootCache.currentJustifiedCheckpoint
+        : rootCache.previousJustifiedCheckpoint;
+
+    // The source and target votes are part of the FFG vote, the head vote is part of the fork choice vote
+    // Both are tracked to properly incentivise validators
+    //
+    // The source vote always matches the justified checkpoint (else its invalid)
+    // The target vote should match the most recent checkpoint (eg: the first root of the epoch)
+    // The head vote should match the root at the attestation slot (eg: the root at data.slot)
+    const isMatchingSource = ssz.phase0.Checkpoint.equals(data.source, justifiedCheckpoint);
+    if (!isMatchingSource) {
+      throw new Error(
+        `Attestation source does not equal justified checkpoint: source=${checkpointToStr(
+          data.source
+        )} justifiedCheckpoint=${checkpointToStr(justifiedCheckpoint)}`
+      );
+    }
+    const isMatchingTarget = ssz.Root.equals(data.target.root, rootCache.getBlockRoot(data.target.epoch));
+    // a timely head is only be set if the target is _also_ matching
+    const isMatchingHead =
+      isMatchingTarget && ssz.Root.equals(data.beaconBlockRoot, rootCache.getBlockRootAtSlot(data.slot));
+    const inclusionDelay = stateSlot - data.slot;
+    const timelySource = isMatchingSource && inclusionDelay <= intSqrt(SLOTS_PER_EPOCH);
+    const timelyTarget = isMatchingTarget && inclusionDelay <= SLOTS_PER_EPOCH;
+    const timelyHead = isMatchingHead && inclusionDelay === MIN_ATTESTATION_INCLUSION_DELAY;
+
+    // Register attestation status for validator monitor, to prevent doing duplicate work
+    blockPostData?.attestationStatuses.push({
+      attestingIndices,
+      inclusionDelay,
+      isMatchingTarget,
+      isMatchingHead,
+    });
 
     // For each participant, update their participation
     // In epoch processing, this participation info is used to calculate balance updates

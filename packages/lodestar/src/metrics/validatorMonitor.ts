@@ -1,4 +1,4 @@
-import {computeEpochAtSlot} from "@chainsafe/lodestar-beacon-state-transition";
+import {computeEpochAtSlot, BlockPostData} from "@chainsafe/lodestar-beacon-state-transition";
 import {allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {IChainForkConfig} from "@chainsafe/lodestar-config";
 import {MIN_ATTESTATION_INCLUSION_DELAY, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
@@ -20,6 +20,7 @@ export enum OpSource {
 export interface IValidatorMonitor {
   registerLocalValidator(index: number): void;
   registerValidatorStatuses(currentEpoch: Epoch, statuses: allForks.IAttesterStatus[]): void;
+  registerBlockPostData(slot: Slot, blockPostData: BlockPostData): void;
   registerBeaconBlock(src: OpSource, seenTimestampSec: Seconds, block: allForks.BeaconBlock): void;
   registerUnaggregatedAttestation(
     src: OpSource,
@@ -206,6 +207,20 @@ export function createValidatorMonitor(
         }
         if (summary.inclusionDistance) {
           metrics.validatorMonitor.prevEpochOnChainInclusionDistance.set({index}, summary.inclusionDistance);
+        }
+      }
+    },
+
+    registerBlockPostData(slot: Slot, blockPostData: BlockPostData) {
+      const {attestationStatuses} = blockPostData;
+      for (let n = 0, len = attestationStatuses.length; n < len; n++) {
+        const attestationStatus = attestationStatuses[n];
+        const {attestingIndices} = attestationStatus;
+        for (let i = 0, len = attestingIndices.length; i < len; i++) {
+          const validator = validators.get(attestingIndices[i]);
+          if (validator) {
+            // Register attestation in block
+          }
         }
       }
     },

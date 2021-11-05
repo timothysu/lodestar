@@ -2,6 +2,7 @@ import {allForks, altair} from "@chainsafe/lodestar-types";
 
 import {CachedBeaconState} from "../../allForks/util";
 import {processBlockHeader, processEth1Data, processRandao} from "../../allForks/block";
+import {BlockPostData} from "../../metrics";
 import {processOperations} from "./processOperations";
 import {processAttestations} from "./processAttestation";
 import {processAttesterSlashing} from "./processAttesterSlashing";
@@ -23,11 +24,12 @@ export {
 export function processBlock(
   state: CachedBeaconState<altair.BeaconState>,
   block: altair.BeaconBlock,
-  verifySignatures = true
+  verifySignatures: boolean,
+  blockPostData?: BlockPostData
 ): void {
   processBlockHeader(state as CachedBeaconState<allForks.BeaconState>, block);
   processRandao(state as CachedBeaconState<allForks.BeaconState>, block, verifySignatures);
   processEth1Data(state as CachedBeaconState<allForks.BeaconState>, block.body);
-  processOperations(state, block.body, verifySignatures);
+  processOperations(state, block.body, verifySignatures, blockPostData);
   processSyncAggregate(state, block, verifySignatures);
 }

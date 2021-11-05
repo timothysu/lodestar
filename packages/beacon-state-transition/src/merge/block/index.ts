@@ -1,5 +1,6 @@
 import {allForks, altair, merge} from "@chainsafe/lodestar-types";
 
+import {BlockPostData} from "../../metrics";
 import {CachedBeaconState} from "../../allForks/util";
 import {processBlockHeader, processEth1Data, processRandao} from "../../allForks/block";
 import {processOperations} from "../../altair/block/processOperations";
@@ -11,8 +12,9 @@ import {isExecutionEnabled} from "../utils";
 export function processBlock(
   state: CachedBeaconState<merge.BeaconState>,
   block: merge.BeaconBlock,
-  verifySignatures = true,
-  executionEngine: ExecutionEngine | null
+  verifySignatures: boolean,
+  blockPostData?: BlockPostData,
+  executionEngine?: ExecutionEngine
 ): void {
   processBlockHeader(state as CachedBeaconState<allForks.BeaconState>, block);
   // The call to the process_execution_payload must happen before the call to the process_randao as the former depends
@@ -23,6 +25,11 @@ export function processBlock(
 
   processRandao(state as CachedBeaconState<allForks.BeaconState>, block, verifySignatures);
   processEth1Data(state as CachedBeaconState<allForks.BeaconState>, block.body);
-  processOperations((state as unknown) as CachedBeaconState<altair.BeaconState>, block.body, verifySignatures);
+  processOperations(
+    (state as unknown) as CachedBeaconState<altair.BeaconState>,
+    block.body,
+    verifySignatures,
+    blockPostData
+  );
   processSyncAggregate((state as unknown) as CachedBeaconState<altair.BeaconState>, block, verifySignatures);
 }

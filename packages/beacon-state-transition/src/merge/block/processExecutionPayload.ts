@@ -33,7 +33,7 @@ function isValidGasLimit(payload: merge.ExecutionPayload, parent: merge.Executio
 export function processExecutionPayload(
   state: CachedBeaconState<merge.BeaconState>,
   payload: merge.ExecutionPayload,
-  executionEngine: ExecutionEngine | null
+  executionEngine?: ExecutionEngine
 ): void {
   // Verify consistency of the parent hash, block number, base fee per gas and gas limit
   // with respect to the previous execution payload header
