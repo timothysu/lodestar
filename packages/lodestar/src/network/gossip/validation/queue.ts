@@ -4,6 +4,7 @@ import {mapValues} from "@chainsafe/lodestar-utils";
 import {IMetrics} from "../../../metrics";
 import {JobItemQueue, JobQueueOpts, QueueType} from "../../../util/queue";
 import {GossipJobQueues, GossipTopic, GossipType, ValidatorFnsByType} from "../interface";
+import {GossipValidationCode} from "../errors";
 
 /**
  * Numbers from https://github.com/sigp/lighthouse/blob/b34a79dc0b02e04441ba01fd0f304d1e203d877d/beacon_node/network/src/beacon_processor/mod.rs#L69
@@ -43,7 +44,7 @@ export function createValidationQueues(
 ): GossipJobQueues {
   return mapValues(gossipQueueOpts, (opts, type) => {
     const gossipValidatorFn = gossipValidatorFns[type];
-    return new JobItemQueue<[GossipTopic, InMessage, number], void>(
+    return new JobItemQueue<[GossipTopic, InMessage, number], GossipValidationCode>(
       (topic, message, seenTimestampsMs) => gossipValidatorFn(topic, message, seenTimestampsMs),
       {signal, ...opts},
       metrics

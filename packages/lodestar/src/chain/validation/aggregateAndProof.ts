@@ -9,7 +9,7 @@ import {
 } from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconChain} from "..";
 import {getSelectionProofSignatureSet, getAggregateAndProofSignatureSet} from "./signatureSets";
-import {AttestationError, AttestationErrorCode, GossipAction} from "../errors";
+import {AttestationError, AttestationErrorType, AttestationErrorCode, GossipAction} from "../errors";
 import {getCommitteeIndices, verifyHeadBlockAndTargetRoot, verifyPropagationSlotRange} from "./attestation";
 import {RegenCaller} from "../regen";
 

@@ -1,6 +1,6 @@
 import {itBench} from "@dapplion/benchmark";
 
-describe("misc / throw vs return", () => {
+describe("misc / async throw vs return", () => {
   const count = 1000;
 
   type Status = {code: string; value: number};
@@ -11,60 +11,60 @@ describe("misc / throw vs return", () => {
     }
   }
 
-  function statusReturnObject(i: number): Status {
+  async function statusReturnObject(i: number): Promise<Status> {
     return {
       code: "OK",
       value: i,
     };
   }
 
-  function statusReturnError(i: number): Status {
+  async function statusReturnError(i: number): Promise<Status> {
     return new ErrorStatus("OK", i);
   }
 
-  function statusThrowObject(i: number): never {
+  async function statusThrowObject(i: number): Promise<never> {
     throw {
       code: "OK",
       value: i,
     };
   }
 
-  function statusThrowError(i: number): never {
+  async function statusThrowError(i: number): Promise<never> {
     throw new ErrorStatus("OK", i);
   }
 
   itBench({
-    id: `Return object ${count} times`,
+    id: `Resolve object ${count} times`,
     noThreshold: true,
     runsFactor: count,
-    fn: () => {
+    fn: async () => {
       for (let i = 0; i < count; i++) {
-        const res = statusReturnObject(i);
+        const res = await statusReturnObject(i);
         res.code;
       }
     },
   });
 
   itBench({
-    id: `Return Error ${count} times`,
+    id: `Resolve Error ${count} times`,
     noThreshold: true,
     runsFactor: count,
-    fn: () => {
+    fn: async () => {
       for (let i = 0; i < count; i++) {
-        const res = statusReturnError(i);
+        const res = await statusReturnError(i);
         res.code;
       }
     },
   });
 
-  itBench({
-    id: `Throw object ${count} times`,
+  itBench.skip({
+    id: `Reject object ${count} times`,
     noThreshold: true,
     runsFactor: count,
-    fn: () => {
+    fn: async () => {
       for (let i = 0; i < count; i++) {
         try {
-          statusThrowObject(i);
+          await statusThrowObject(i);
         } catch (e) {
           (e as Status).code;
         }
@@ -73,13 +73,13 @@ describe("misc / throw vs return", () => {
   });
 
   itBench({
-    id: `Throw Error ${count} times`,
+    id: `Reject Error ${count} times`,
     noThreshold: true,
     runsFactor: count,
-    fn: () => {
+    fn: async () => {
       for (let i = 0; i < count; i++) {
         try {
-          statusThrowError(i);
+          await statusThrowError(i);
         } catch (e) {
           (e as Status).code;
         }

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import Gossipsub from "libp2p-gossipsub";
-import {ERR_TOPIC_VALIDATOR_IGNORE, ERR_TOPIC_VALIDATOR_REJECT} from "libp2p-gossipsub/src/constants";
 import {InMessage} from "libp2p-interfaces/src/pubsub";
 import Libp2p from "libp2p";
 import {AbortSignal} from "@chainsafe/abort-controller";
@@ -23,7 +22,7 @@ import {
 import {getGossipSSZType, GossipTopicCache, stringifyGossipTopic} from "./topic";
 import {computeMsgId, encodeMessageData, UncompressCache} from "./encoding";
 import {DEFAULT_ENCODING} from "./constants";
-import {GossipValidationError} from "./errors";
+import {GossipValidationCode} from "./errors";
 import {GOSSIP_MAX_SIZE} from "../../constants";
 import {createValidatorFnsByType} from "./validation";
 import {Map2d, Map2dArr} from "../../util/map";
@@ -122,7 +121,7 @@ export class Eth2Gossipsub extends Gossipsub {
     try {
       super.stop();
     } catch (error) {
-      if ((error as GossipValidationError).code !== "ERR_HEARTBEAT_NO_RUNNING") {
+      if ((error as {code: string}).code !== "ERR_HEARTBEAT_NO_RUNNING") {
         throw error;
       }
     }
@@ -221,48 +220,87 @@ export class Eth2Gossipsub extends Gossipsub {
   // }
 
   /**
+   * Process incoming message,
+   * emitting locally and forwarding on to relevant floodsub and gossipsub peers
+   * @override
+   * @param {InMessage} msg
+   * @returns {Promise<void>}
+   */
+  async _processRpcMessage(msg: InMessage): Promise<void> {
+    // INLINED OVERRIDE
+    // From https://github.com/ChainSafe/js-libp2p-gossipsub/blob/3c3c46595f65823fcd7900ed716f43f76c6b355c/ts/index.ts#L405
+    const msgID = this.getMsgId(msg);
+    const msgIdStr = messageIdToString(msgID);
+
+    // Ignore if we've already seen the message
+    if (this.seenCache.has(msgIdStr)) {
+      this.score.duplicateMessage(msg);
+      return;
+    }
+    this.seenCache.put(msgIdStr);
+
+    this.score.validateMessage(msg);
+
+    // INLINED OVERRIDE
+    // From https://github.com/libp2p/js-libp2p-interfaces/blob/ff3bd10704a4c166ce63135747e3736915b0be8d/src/pubsub/index.js#L405
+    if (this.peerId.toB58String() === msg.from && !this.emitSelf) {
+      return;
+    }
+
+    // Ensure the message is valid before processing it
+    const validationCode = await this.validateNoThrow(msg).catch((e) => {
+      this.logger.error("Unexpected error in gossip.validate()", {}, e as Error);
+      return GossipValidationCode.ignore;
+    });
+
+    if (validationCode !== GossipValidationCode.accept) {
+      this.log("Message is invalid, dropping it. %O", validationCode);
+      // async to compute msgId with sha256 from multiformats/hashes/sha2
+      await this.score.rejectMessage(msg, validationCode);
+      await this.gossipTracer.rejectMessage(msg, validationCode);
+      return;
+    }
+
+    // Emit to self
+    this._emitMessage(msg);
+
+    this._publish(utils.normalizeOutRpcMessage(msg));
+  }
+
+  /**
    * @override https://github.com/ChainSafe/js-libp2p-gossipsub/blob/3c3c46595f65823fcd7900ed716f43f76c6b355c/ts/index.ts#L436
    * @override https://github.com/libp2p/js-libp2p-interfaces/blob/ff3bd10704a4c166ce63135747e3736915b0be8d/src/pubsub/index.js#L513
    * Note: this does not call super. All logic is re-implemented below
    */
-  async validate(message: InMessage): Promise<void> {
-    try {
-      // messages must have a single topicID
-      const topicStr = Array.isArray(message.topicIDs) ? message.topicIDs[0] : undefined;
+  async validateNoThrow(message: InMessage): Promise<GossipValidationCode> {
+    // messages must have a single topicID
+    const topicStr = Array.isArray(message.topicIDs) ? message.topicIDs[0] : undefined;
 
-      // message sanity check
-      if (!topicStr || message.topicIDs.length > 1) {
-        throw new GossipValidationError(ERR_TOPIC_VALIDATOR_REJECT, "Not exactly one topicID");
-      }
-      if (message.data === undefined) {
-        throw new GossipValidationError(ERR_TOPIC_VALIDATOR_REJECT, "No message.data");
-      }
-      if (message.data.length > GOSSIP_MAX_SIZE) {
-        throw new GossipValidationError(ERR_TOPIC_VALIDATOR_REJECT, "message.data too big");
-      }
-
-      if (message.from || message.signature || message.key || message.seqno) {
-        throw new GossipValidationError(ERR_TOPIC_VALIDATOR_REJECT, "StrictNoSigning invalid");
-      }
-
-      // We use 'StrictNoSign' policy, no need to validate message signature
-
-      // Also validates that the topicStr is known
-      const topic = this.gossipTopicCache.getTopic(topicStr);
-
-      // Get seenTimestamp before adding the message to the queue or add async delays
-      const seenTimestampSec = Date.now() / 1000;
-
-      // No error here means that the incoming object is valid
-      await this.validatorFnsByType[topic.type](topic, message, seenTimestampSec);
-    } catch (e) {
-      // JobQueue may throw non-typed errors
-      const code = e instanceof GossipValidationError ? e.code : ERR_TOPIC_VALIDATOR_IGNORE;
-      // async to compute msgId with sha256 from multiformats/hashes/sha2
-      await this.score.rejectMessage(message, code);
-      await this.gossipTracer.rejectMessage(message, code);
-      throw e;
+    // message sanity check
+    if (!topicStr || message.topicIDs.length > 1) {
+      return GossipValidationCode.reject; // Not exactly one topicID
     }
+    if (message.data === undefined) {
+      return GossipValidationCode.reject; // No message.data
+    }
+    if (message.data.length > GOSSIP_MAX_SIZE) {
+      return GossipValidationCode.reject; // message.data too big
+    }
+    if (message.from || message.signature || message.key || message.seqno) {
+      return GossipValidationCode.reject; // StrictNoSigning invalid
+    }
+
+    // We use 'StrictNoSign' policy, no need to validate message signature
+
+    // Also validates that the topicStr is known
+    const topic = this.gossipTopicCache.getTopic(topicStr);
+
+    // Get seenTimestamp before adding the message to the queue or add async delays
+    const seenTimestampSec = Date.now() / 1000;
+
+    // No error here means that the incoming object is valid
+    // TODO: JobQueue may throw non-typed errors
+    return await this.validatorFnsByType[topic.type](topic, message, seenTimestampSec);
   }
 
   /**
