@@ -38,6 +38,12 @@ type ValidatorFnsModules = {
 };
 
 /**
+ * WARNING - NEVER MERGE THIS CODE.
+ * This Set causes a forced leak to test heapsnapshot tooling
+ */
+const leakOnPurposeRetainedAggregates = new Set<phase0.SignedAggregateAndProof>();
+
+/**
  * Gossip handlers perform validation + handling in a single function.
  * - This gossip handlers MUST only be registered as validator functions. No handler is registered for any topic.
  * - All `chain/validation/*` functions MUST throw typed GossipActionError instances so they gossip action is captured
@@ -120,6 +126,8 @@ export function getGossipHandlers(modules: ValidatorFnsModules): GossipHandlers 
 
     [GossipType.beacon_aggregate_and_proof]: async (signedAggregateAndProof, _topic, _peer, seenTimestampSec) => {
       try {
+        leakOnPurposeRetainedAggregates.add(signedAggregateAndProof);
+
         const {indexedAttestation, committeeIndices} = await validateGossipAggregateAndProof(
           chain,
           signedAggregateAndProof
