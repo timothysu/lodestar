@@ -18,9 +18,15 @@ enum TestType {
   Uint8Array,
   ArrayBuffer,
   Number,
+
+  // Boolean efficiency
+  ObjectOfBooleans, // 75 bytes (true or false)
+  ObjectOfNumbers, // 75 bytes
+
   // From Proto
-  FixedObject8,
+  FixedObject8, // 110 bytes
   FixedObject4,
+  FixedObject8Constructor, // 110 bytes
   FixedArray,
   FixedObject4BigInt,
   String32BytesHex,
@@ -31,7 +37,7 @@ enum TestType {
   FinalizationRegistry,
 }
 
-const testType = TestType.FixedObject4;
+const testType = TestType.ObjectOfNumbers;
 const size = 32;
 
 const zero = Buffer.alloc(32, 1);
@@ -45,6 +51,30 @@ let registry;
 // 128 - 390
 // 160 - 421
 // 192 - 447
+
+class FixedObject8 {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+  g: number;
+  h: number;
+
+  constructor(t: number) {
+    this.a = t;
+    this.b = t + 1;
+    this.c = t + 2;
+    this.d = t + 3;
+    this.e = t + 4;
+    this.f = t + 5;
+    this.g = t + 6;
+    this.h = t + 7;
+  }
+}
+
+Object.defineProperty(FixedObject8, "name", {value: "Hello", writable: false});
 
 for (let i = 0; i < 1e8; i++) {
   switch (testType as TestType) {
@@ -88,6 +118,24 @@ for (let i = 0; i < 1e8; i++) {
       refs.push(i);
       break;
 
+    case TestType.ObjectOfBooleans:
+      refs.push({
+        a: true,
+        b: true,
+        c: true,
+        d: true,
+      });
+      break;
+
+    case TestType.ObjectOfNumbers:
+      refs.push({
+        a: 1,
+        b: 1,
+        c: 1,
+        d: 1,
+      });
+      break;
+
     case TestType.FixedObject8: {
       const t = 1 << 31;
       const obj = {
@@ -116,7 +164,13 @@ for (let i = 0; i < 1e8; i++) {
       break;
     }
 
-    //
+    case TestType.FixedObject8Constructor: {
+      const t = 1 << 31;
+      const obj = new FixedObject8(t);
+      refs.push(obj);
+      break;
+    }
+
     case TestType.FixedArray: {
       const t = 1 << 31;
       const obj = [t + i, t + i + 1, t + i + 2, t + i + 3, t + i + 4, t + i + 5, t + i + 6, t + i + 7];
