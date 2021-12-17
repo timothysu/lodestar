@@ -1,3 +1,4 @@
+import {ILogger} from "@chainsafe/lodestar-utils";
 import {computeEpochAtSlot, altair} from "@chainsafe/lodestar-beacon-state-transition";
 import {allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {IChainForkConfig} from "@chainsafe/lodestar-config";
@@ -24,7 +25,8 @@ export interface IValidatorMonitor {
   registerUnaggregatedAttestation(
     src: OpSource,
     seenTimestampSec: Seconds,
-    indexedAttestation: IndexedAttestation
+    indexedAttestation: IndexedAttestation,
+    subnet: number
   ): void;
   registerAggregatedAttestation(
     src: OpSource,
@@ -161,7 +163,8 @@ type MonitoredValidator = {
 export function createValidatorMonitor(
   metrics: ILodestarMetrics,
   config: IChainForkConfig,
-  genesisTime: number
+  genesisTime: number,
+  logger: ILogger
 ): IValidatorMonitor {
   /** The validators that require additional monitoring. */
   const validators = new Map<ValidatorIndex, MonitoredValidator>();
@@ -252,7 +255,7 @@ export function createValidatorMonitor(
       }
     },
 
-    registerUnaggregatedAttestation(src, seenTimestampSec, indexedAttestation) {
+    registerUnaggregatedAttestation(src, seenTimestampSec, indexedAttestation, subnet) {
       const data = indexedAttestation.data;
       const epoch = computeEpochAtSlot(data.slot);
       // Returns the duration between when the attestation `data` could be produced (1/3rd through the slot) and `seenTimestamp`.
@@ -266,6 +269,12 @@ export function createValidatorMonitor(
           withEpochSummary(validator, epoch, (summary) => {
             summary.attestations += 1;
             summary.attestationMinDelay = Math.min(delaySec, summary.attestationMinDelay ?? Infinity);
+          });
+          logger.verbose("Local validator published attestation", {
+            validatorIndex: validator.index,
+            slot: data.slot,
+            committeeIndex: data.index,
+            subnet,
           });
         }
       }
@@ -296,6 +305,11 @@ export function createValidatorMonitor(
           metrics.validatorMonitor.attestationInAggregateDelaySeconds.observe({src, index}, delaySec);
           withEpochSummary(validator, epoch, (summary) => {
             summary.attestationAggregateIncusions += 1;
+          });
+          logger.verbose("Local validator attestation is included in AggregatedAndProof", {
+            validatorIndex: validator.index,
+            slot: data.slot,
+            committeeIndex: data.index,
           });
         }
       }
@@ -330,6 +344,14 @@ export function createValidatorMonitor(
               correctHead = ssz.Root.equals(rootCache.getBlockRootAtSlot(data.slot), data.beaconBlockRoot);
             }
             summary.attestationCorrectHead = correctHead;
+          });
+
+          logger.verbose("Local validator attestation is included in block", {
+            validatorIndex: validator.index,
+            slot: data.slot,
+            committeeIndex: data.index,
+            inclusionDistance,
+            correctHead,
           });
         }
       }

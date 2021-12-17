@@ -52,7 +52,7 @@ export function getBeaconPoolApi({
           try {
             const {indexedAttestation, subnet} = await validateGossipAttestation(chain, attestation, null);
 
-            metrics?.registerUnaggregatedAttestation(OpSource.api, seenTimestampSec, indexedAttestation);
+            metrics?.registerUnaggregatedAttestation(OpSource.api, seenTimestampSec, indexedAttestation, subnet);
 
             await Promise.all([
               network.gossip.publishBeaconAttestation(attestation, subnet),
