@@ -36,6 +36,7 @@ export interface INetwork {
   hasSomeConnectedPeer(): boolean;
   /** Subscribe, search peers, join long-lived attnets */
   prepareBeaconCommitteeSubnet(subscriptions: CommitteeSubscription[]): void;
+  hasBeaconCommitteeSubnetPeer(subnet: number): boolean;
   /** Subscribe, search peers, join long-lived syncnets */
   prepareSyncCommitteeSubnets(subscriptions: CommitteeSubscription[]): void;
   reStatusPeers(peers: PeerId[]): void;

@@ -193,6 +193,10 @@ export class Network implements INetwork {
     if (subscriptions.length > 0) this.peerManager.onCommitteeSubscriptions();
   }
 
+  hasBeaconCommitteeSubnetPeer(subnet: number): boolean {
+    return this.peerManager.hasBeaconCommitteeSubnetPeer(subnet);
+  }
+
   prepareSyncCommitteeSubnets(subscriptions: CommitteeSubscription[]): void {
     this.syncnetsService.addCommitteeSubscriptions(subscriptions);
     if (subscriptions.length > 0) this.peerManager.onCommitteeSubscriptions();

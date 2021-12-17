@@ -215,6 +215,19 @@ export class PeerManager {
     this.pingAndStatusTimeouts();
   }
 
+  hasBeaconCommitteeSubnetPeer(subnet: number): boolean {
+    const connectedHealthyPeers = this.getConnectedHealthyPeers();
+
+    for (const peer of connectedHealthyPeers) {
+      const attnets = this.peerMetadata.metadata.get(peer)?.attnets ?? [];
+      if (attnets[subnet]) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /**
    * Must be called when network ReqResp receives incoming requests
    */
@@ -338,12 +351,7 @@ export class PeerManager {
     }
   }
 
-  /**
-   * The Peer manager's heartbeat maintains the peer count and maintains peer reputations.
-   * It will request discovery queries if the peer count has not reached the desired number of peers.
-   * NOTE: Discovery should only add a new query if one isn't already queued.
-   */
-  private heartbeat(): void {
+  private getConnectedHealthyPeers(): PeerId[] {
     const connectedPeers = this.getConnectedPeerIds();
 
     // ban and disconnect peers with bad score, collect rest of healthy peers
@@ -360,6 +368,17 @@ export class PeerManager {
           connectedHealthyPeers.push(peer);
       }
     }
+
+    return connectedHealthyPeers;
+  }
+
+  /**
+   * The Peer manager's heartbeat maintains the peer count and maintains peer reputations.
+   * It will request discovery queries if the peer count has not reached the desired number of peers.
+   * NOTE: Discovery should only add a new query if one isn't already queued.
+   */
+  private heartbeat(): void {
+    const connectedHealthyPeers = this.getConnectedHealthyPeers();
 
     const {peersToDisconnect, peersToConnect, attnetQueries, syncnetQueries} = prioritizePeers(
       connectedHealthyPeers.map((peer) => ({

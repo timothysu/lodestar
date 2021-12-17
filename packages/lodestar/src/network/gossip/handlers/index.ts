@@ -180,7 +180,7 @@ export function getGossipHandlers(modules: ValidatorFnsModules): GossipHandlers 
         throw e;
       }
 
-      metrics?.registerUnaggregatedAttestation(OpSource.gossip, seenTimestampSec, indexedAttestation, subnet);
+      metrics?.registerUnaggregatedAttestation(OpSource.gossip, seenTimestampSec, indexedAttestation, subnet, true);
 
       // Handler
 

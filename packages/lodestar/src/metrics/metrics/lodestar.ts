@@ -530,6 +530,11 @@ export function createLodestarMetrics(
         help: "The delay between when the validator should send the attestation and when it was received",
         labelNames: ["index", "src"],
       }),
+      unaggregatedAttestationMissed: register.gauge<"index" | "subnet">({
+        name: "validator_monitor_unaggregated_attestation_miss_total",
+        help: "Number of unaggregated attestations submitted by local validator missed",
+        labelNames: ["index", "subnet"],
+      }),
       aggregatedAttestationTotal: register.gauge<"index" | "src">({
         name: "validator_monitor_aggregated_attestation_total",
         help: "Number of aggregated attestations seen",

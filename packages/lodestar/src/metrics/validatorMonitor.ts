@@ -26,7 +26,8 @@ export interface IValidatorMonitor {
     src: OpSource,
     seenTimestampSec: Seconds,
     indexedAttestation: IndexedAttestation,
-    subnet: number
+    subnet: number,
+    hasSubnetPeer: boolean
   ): void;
   registerAggregatedAttestation(
     src: OpSource,
@@ -255,7 +256,7 @@ export function createValidatorMonitor(
       }
     },
 
-    registerUnaggregatedAttestation(src, seenTimestampSec, indexedAttestation, subnet) {
+    registerUnaggregatedAttestation(src, seenTimestampSec, indexedAttestation, subnet, hasSubnetPeer) {
       const data = indexedAttestation.data;
       const epoch = computeEpochAtSlot(data.slot);
       // Returns the duration between when the attestation `data` could be produced (1/3rd through the slot) and `seenTimestamp`.
@@ -266,6 +267,9 @@ export function createValidatorMonitor(
         if (validator) {
           metrics.validatorMonitor.unaggregatedAttestationTotal.inc({src, index});
           metrics.validatorMonitor.unaggregatedAttestationDelaySeconds.observe({src, index}, delaySec);
+          if (!hasSubnetPeer) {
+            metrics.validatorMonitor.unaggregatedAttestationMissed.inc({index, subnet});
+          }
           withEpochSummary(validator, epoch, (summary) => {
             summary.attestations += 1;
             summary.attestationMinDelay = Math.min(delaySec, summary.attestationMinDelay ?? Infinity);
@@ -275,6 +279,7 @@ export function createValidatorMonitor(
             slot: data.slot,
             committeeIndex: data.index,
             subnet,
+            hasSubnetPeer,
           });
         }
       }
