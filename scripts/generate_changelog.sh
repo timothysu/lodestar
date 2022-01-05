@@ -1,6 +1,6 @@
 # Must set ENV CHANGELOG_GITHUB_TOKEN to the Github token
 
-docker run -it --rm -v "$(pwd)":/usr/local/src/your-app githubchangeloggenerator/github-changelog-generator \
+docker run --rm -v "$(pwd)":/usr/local/src/your-app githubchangeloggenerator/github-changelog-generator \
   --user chainsafe \
   --project lodestar \
   --issues false \
