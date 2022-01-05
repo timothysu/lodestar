@@ -1,0 +1,20 @@
+name: Changelog
+
+on:
+  push:
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      # <common-build> - Uses YAML anchors in the future
+      - uses: actions/checkout@v2
+      - run: scripts/generate_changelog.sh
+        env:
+          CHANGELOG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: cat ./CHANGELOG.md
+      - name: Upload changelog
+        uses: actions/upload-artifact@v2
+        with:
+          name: changelog
+          path: ./CHANGELOG.md
