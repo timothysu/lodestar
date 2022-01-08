@@ -11,7 +11,7 @@ import {
 } from "@chainsafe/lodestar-params";
 
 import {ZERO_HASH} from "../../constants";
-import {computeDomain, computeSigningRoot, increaseBalance} from "../../util";
+import {computeDomain, computeSigningRoot} from "../../util";
 import {CachedBeaconState} from "../../allForks/util";
 
 /**
@@ -78,7 +78,7 @@ export function processDeposit(
       effectiveBalance,
       slashed: false,
     });
-    state.balanceList.push(Number(amount));
+    state.balanceList.push(amount);
     epochCtx.effectiveBalances.push(effectiveBalance);
 
     // add participation caches
@@ -94,6 +94,6 @@ export function processDeposit(
     epochCtx.addPubkey(validators.length - 1, pubkey);
   } else {
     // increase balance by deposit amount
-    increaseBalance(state, cachedIndex, Number(amount));
+    state.balanceList.applyDelta(cachedIndex, amount);
   }
 }
