@@ -1,16 +1,17 @@
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {ssz} from "@chainsafe/lodestar-types";
-import {TreeBacked} from "@chainsafe/ssz";
+import {toHexString, TreeBacked} from "@chainsafe/ssz";
+import {getClient} from "@chainsafe/lodestar-api";
 import {createIBeaconConfig, IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
 import {fromHex, ILogger} from "@chainsafe/lodestar-utils";
 import {computeEpochAtSlot, allForks} from "@chainsafe/lodestar-beacon-state-transition";
-import {IBeaconDb, IBeaconNodeOptions, initStateFromAnchorState, initStateFromEth1} from "@chainsafe/lodestar";
+import {IBeaconDb, IBeaconNodeOptions, initStateFromEth1AndPersist, persistAnchorState} from "@chainsafe/lodestar";
 // eslint-disable-next-line no-restricted-imports
 import {getStateTypeFromBytes} from "@chainsafe/lodestar/lib/util/multifork";
 import {downloadOrLoadFile} from "../../util";
 import {IBeaconArgs} from "./options";
 import {defaultNetwork, IGlobalArgs} from "../../options/globalOptions";
-import {fetchWeakSubjectivityState, getGenesisFileUrl} from "../../networks";
+import {getGenesisFileUrl} from "../../networks";
 import {Checkpoint} from "@chainsafe/lodestar-types/phase0";
 import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 
@@ -64,7 +65,14 @@ async function initAndVerifyWeakSubjectivityState(
     throw new Error("Fetched weak subjectivity checkpoint not within weak subjectivity period.");
   }
 
-  anchorState = await initStateFromAnchorState(config, db, logger, anchorState);
+  logger.info("Initializing beacon state from anchor state", {
+    slot: anchorState.slot,
+    epoch: computeEpochAtSlot(anchorState.slot),
+    stateRoot: toHexString(config.getForkTypes(anchorState.slot).BeaconState.hashTreeRoot(anchorState)),
+  });
+
+  // TODO: Why is the state only persisted here?
+  await persistAnchorState(config, db, anchorState);
 
   // Return the latest anchorState but still return original wsCheckpoint to validate in backfill
   return {anchorState, wsCheckpoint};
@@ -91,10 +99,10 @@ export async function initBeaconState(
   // this will be used in all cases, if it exists, either used during verification of a weak subjectivity state, or used directly as the anchor state
   const lastDbState = await db.stateArchive.lastValue();
 
+  // weak subjectivity sync from a provided state file:
+  // if a weak subjectivity checkpoint has been provided, it is used for additional verification
+  // otherwise, the state itself is used for verification (not bad, because the trusted state has been explicitly provided)
   if (args.weakSubjectivityStateFile) {
-    // weak subjectivity sync from a provided state file:
-    // if a weak subjectivity checkpoint has been provided, it is used for additional verification
-    // otherwise, the state itself is used for verification (not bad, because the trusted state has been explicitly provided)
     const stateBytes = await downloadOrLoadFile(args.weakSubjectivityStateFile);
     const wsState = getStateTypeFromBytes(chainForkConfig, stateBytes).createTreeBackedFromBytes(stateBytes);
     const config = createIBeaconConfig(chainForkConfig, wsState.genesisValidatorsRoot);
@@ -103,10 +111,12 @@ export async function initBeaconState(
       ? getCheckpointFromArg(args.weakSubjectivityCheckpoint)
       : getCheckpointFromState(config, wsState);
     return initAndVerifyWeakSubjectivityState(config, db, logger, store, wsState, checkpoint);
-  } else if (args.weakSubjectivitySyncLatest) {
-    // weak subjectivity sync from a state that needs to be fetched:
-    // if a weak subjectivity checkpoint has been provided, it is used to inform which state to download and used for additional verification
-    // otherwise, the 'finalized' state is downloaded and the state itself is used for verification (all trust delegated to the remote beacon node)
+  }
+
+  // weak subjectivity sync from a state that needs to be fetched:
+  // if a weak subjectivity checkpoint has been provided, it is used to inform which state to download and used for additional verification
+  // otherwise, the 'finalized' state is downloaded and the state itself is used for verification (all trust delegated to the remote beacon node)
+  else if (args.weakSubjectivitySyncLatest) {
     const remoteBeaconUrl = args.weakSubjectivityServerUrl;
     if (!remoteBeaconUrl) {
       throw Error(`Must set arg --weakSubjectivityServerUrl for network ${args.network}`);
@@ -118,10 +128,13 @@ export async function initBeaconState(
       checkpoint = getCheckpointFromArg(args.weakSubjectivityCheckpoint);
       stateId = (checkpoint.epoch * SLOTS_PER_EPOCH).toString();
     }
-    const url = `${remoteBeaconUrl}/eth/v1/debug/beacon/states/${stateId}`;
 
-    logger.info("Fetching weak subjectivity state from " + url);
-    const wsState = await fetchWeakSubjectivityState(chainForkConfig, url);
+    logger.info("Fetching weak subjectivity state", {url: remoteBeaconUrl, stateId});
+
+    const api = getClient(chainForkConfig, {baseUrl: remoteBeaconUrl});
+    const wsStateBytes = await api.debug.getStateV2(stateId, "ssz");
+
+    const wsState = getStateTypeFromBytes(chainForkConfig, wsStateBytes).createTreeBackedFromBytes(wsStateBytes);
     const config = createIBeaconConfig(chainForkConfig, wsState.genesisValidatorsRoot);
     const store = lastDbState ?? wsState;
     return initAndVerifyWeakSubjectivityState(
@@ -132,21 +145,44 @@ export async function initBeaconState(
       wsState,
       checkpoint || getCheckpointFromState(config, wsState)
     );
-  } else if (lastDbState) {
-    // start the chain from the latest stored state in the db
+  }
+
+  // start the chain from the latest stored state in the db
+  else if (lastDbState) {
     const config = createIBeaconConfig(chainForkConfig, lastDbState.genesisValidatorsRoot);
-    const anchorState = await initStateFromAnchorState(config, db, logger, lastDbState);
-    return {anchorState};
-  } else {
+    logger.info("Initializing beacon state from anchor state", {
+      slot: lastDbState.slot,
+      epoch: computeEpochAtSlot(lastDbState.slot),
+      stateRoot: toHexString(config.getForkTypes(lastDbState.slot).BeaconState.hashTreeRoot(lastDbState)),
+    });
+    return {anchorState: lastDbState};
+  }
+
+  // Get genesis from file or construct genesis from Eth1 chain
+  else {
     const genesisStateFile = args.genesisStateFile || getGenesisFileUrl(args.network || defaultNetwork);
     if (genesisStateFile && !args.forceGenesis) {
       const stateBytes = await downloadOrLoadFile(genesisStateFile);
-      let anchorState = getStateTypeFromBytes(chainForkConfig, stateBytes).createTreeBackedFromBytes(stateBytes);
+      const anchorState = getStateTypeFromBytes(chainForkConfig, stateBytes).createTreeBackedFromBytes(stateBytes);
       const config = createIBeaconConfig(chainForkConfig, anchorState.genesisValidatorsRoot);
-      anchorState = await initStateFromAnchorState(config, db, logger, anchorState);
+      logger.info("Initializing beacon state from anchor state", {
+        slot: anchorState.slot,
+        epoch: computeEpochAtSlot(anchorState.slot),
+        stateRoot: toHexString(config.getForkTypes(anchorState.slot).BeaconState.hashTreeRoot(anchorState)),
+      });
+
+      // TODO: Why is the state only persisted here?
+      await persistAnchorState(config, db, anchorState);
+
       return {anchorState};
     } else {
-      const anchorState = await initStateFromEth1({config: chainForkConfig, db, logger, opts: options.eth1, signal});
+      const anchorState = await initStateFromEth1AndPersist({
+        config: chainForkConfig,
+        db,
+        logger,
+        opts: options.eth1,
+        signal,
+      });
       return {anchorState};
     }
   }

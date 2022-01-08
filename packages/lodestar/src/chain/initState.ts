@@ -5,7 +5,6 @@
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {
   blockToHeader,
-  computeEpochAtSlot,
   createCachedBeaconState,
   phase0,
   CachedBeaconState,
@@ -72,7 +71,7 @@ export function createGenesisBlock(
 /**
  * Initialize and persist a genesis state and related data
  */
-export async function initStateFromEth1({
+export async function initStateFromEth1AndPersist({
   config,
   db,
   logger,
@@ -131,48 +130,6 @@ export async function initStateFromEth1({
     }
     throw e;
   }
-}
-
-/**
- * Restore the latest beacon state from db
- */
-export async function initStateFromDb(
-  config: IChainForkConfig,
-  db: IBeaconDb,
-  logger: ILogger
-): Promise<TreeBacked<allForks.BeaconState>> {
-  const state = await db.stateArchive.lastValue();
-  if (!state) {
-    throw new Error("No state exists in database");
-  }
-
-  logger.info("Initializing beacon state from db", {
-    slot: state.slot,
-    epoch: computeEpochAtSlot(state.slot),
-    stateRoot: toHexString(config.getForkTypes(state.slot).BeaconState.hashTreeRoot(state)),
-  });
-
-  return state as TreeBacked<allForks.BeaconState>;
-}
-
-/**
- * Initialize and persist an anchor state (either weak subjectivity or genesis)
- */
-export async function initStateFromAnchorState(
-  config: IChainForkConfig,
-  db: IBeaconDb,
-  logger: ILogger,
-  anchorState: TreeBacked<allForks.BeaconState>
-): Promise<TreeBacked<allForks.BeaconState>> {
-  logger.info("Initializing beacon state from anchor state", {
-    slot: anchorState.slot,
-    epoch: computeEpochAtSlot(anchorState.slot),
-    stateRoot: toHexString(config.getForkTypes(anchorState.slot).BeaconState.hashTreeRoot(anchorState)),
-  });
-
-  await persistAnchorState(config, db, anchorState);
-
-  return anchorState;
 }
 
 /**

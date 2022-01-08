@@ -3,7 +3,6 @@ import {GENESIS_SLOT, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {phase0, Slot} from "@chainsafe/lodestar-types";
 import {initBLS} from "@chainsafe/lodestar-cli/src/util";
 import {IChainConfig} from "@chainsafe/lodestar-config";
-import {fetchWeakSubjectivityState} from "@chainsafe/lodestar-cli/src/networks";
 import {config} from "@chainsafe/lodestar-config/default";
 import {getDevBeaconNode} from "../../utils/node/beacon";
 import {waitForEvent} from "../../utils/events/resolver";
@@ -16,6 +15,8 @@ import {Network} from "../../../src/network";
 import {BackfillSyncEvent} from "../../../src/sync/backfill";
 import {TimestampFormatCode} from "@chainsafe/lodestar-utils";
 import {computeEpochAtSlot, allForks} from "@chainsafe/lodestar-beacon-state-transition";
+import {getClient} from "@chainsafe/lodestar-api";
+import {getStateTypeFromBytes} from "../../../src/util/multifork";
 
 /* eslint-disable @typescript-eslint/naming-convention */
 describe("Start from WSS", function () {
@@ -102,10 +103,14 @@ describe("Start from WSS", function () {
       throw e;
     }
 
-    const url = "http://127.0.0.1:9596/eth/v1/debug/beacon/states/finalized";
+    const baseUrl = "http://127.0.0.1:9596";
+    const stateId = "finalized";
+    loggerNodeB.important("Fetching weak subjectivity state", {baseUrl, stateId});
 
-    loggerNodeB.important("Fetching weak subjectivity state from " + url);
-    const wsState = await fetchWeakSubjectivityState(config, url);
+    const api = getClient(config, {baseUrl});
+    const wsStateBytes = await api.debug.getStateV2(stateId, "ssz");
+    const wsState = getStateTypeFromBytes(config, wsStateBytes).createTreeBackedFromBytes(wsStateBytes);
+
     const wsCheckpoint = {
       epoch: computeEpochAtSlot(wsState.latestBlockHeader.slot),
       root: allForks.getLatestBlockRoot(config, wsState),

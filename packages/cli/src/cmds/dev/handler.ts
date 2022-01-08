@@ -2,14 +2,14 @@ import fs from "fs";
 import {promisify} from "util";
 import rimraf from "rimraf";
 import path from "path";
-import {fromHexString} from "@chainsafe/ssz";
+import {fromHexString, toHexString} from "@chainsafe/ssz";
 import {AbortController} from "@chainsafe/abort-controller";
 import {GENESIS_SLOT} from "@chainsafe/lodestar-params";
-import {BeaconNode, BeaconDb, initStateFromAnchorState, createNodeJsLibp2p, nodeUtils} from "@chainsafe/lodestar";
+import {BeaconNode, BeaconDb, persistAnchorState, createNodeJsLibp2p, nodeUtils} from "@chainsafe/lodestar";
 import {SlashingProtection, Validator} from "@chainsafe/lodestar-validator";
 import {LevelDbController} from "@chainsafe/lodestar-db";
 import {SecretKey} from "@chainsafe/bls";
-import {interopSecretKey} from "@chainsafe/lodestar-beacon-state-transition";
+import {computeEpochAtSlot, interopSecretKey} from "@chainsafe/lodestar-beacon-state-transition";
 import {createIBeaconConfig} from "@chainsafe/lodestar-config";
 import {ACTIVE_PRESET, PresetName} from "@chainsafe/lodestar-params";
 import {onGracefulShutdown} from "../../util/process";
@@ -72,22 +72,22 @@ export async function devHandler(args: IDevArgs & IGlobalArgs): Promise<void> {
   const db = new BeaconDb({config, controller: new LevelDbController(options.db, {logger})});
   await db.start();
 
-  let anchorState;
-  if (args.genesisStateFile) {
-    const state = config
-      .getForkTypes(GENESIS_SLOT)
-      .BeaconState.createTreeBackedFromBytes(await fs.promises.readFile(args.genesisStateFile));
-    anchorState = await initStateFromAnchorState(config, db, logger, state);
-  } else {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const eth1BlockHash = args.genesisEth1Hash ? fromHexString(args.genesisEth1Hash!) : undefined;
-    anchorState = await initStateFromAnchorState(
-      config,
-      db,
-      logger,
-      await nodeUtils.initDevState(config, db, validatorCount, {genesisTime, eth1BlockHash})
-    );
-  }
+  const anchorState = args.genesisStateFile
+    ? config
+        .getForkTypes(GENESIS_SLOT)
+        .BeaconState.createTreeBackedFromBytes(await fs.promises.readFile(args.genesisStateFile))
+    : await nodeUtils.initDevState(config, db, validatorCount, {
+        genesisTime,
+        eth1BlockHash: args.genesisEth1Hash ? fromHexString(args.genesisEth1Hash) : undefined,
+      });
+
+  logger.info("Initializing beacon state from anchor state", {
+    slot: anchorState.slot,
+    epoch: computeEpochAtSlot(anchorState.slot),
+    stateRoot: toHexString(config.getForkTypes(anchorState.slot).BeaconState.hashTreeRoot(anchorState)),
+  });
+  await persistAnchorState(config, db, anchorState);
+
   const beaconConfig = createIBeaconConfig(config, anchorState.genesisValidatorsRoot);
 
   const validators: Validator[] = [];
