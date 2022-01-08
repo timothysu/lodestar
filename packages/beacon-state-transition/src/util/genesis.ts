@@ -136,12 +136,12 @@ export function applyDeposits(
   const depositDatas = fullDepositDataRootList ? null : newDeposits.map((deposit) => deposit.data);
   const {DepositData, DepositDataRootList} = ssz.phase0;
 
-  for (const [index, deposit] of newDeposits.entries()) {
+  for (let i = 0; i < newDeposits.length; i++) {
     if (fullDepositDataRootList) {
-      depositDataRootList.push(fullDepositDataRootList[index + initDepositCount]);
+      depositDataRootList.push(fullDepositDataRootList[i + initDepositCount]);
       state.eth1Data.depositRoot = DepositDataRootList.hashTreeRoot(depositDataRootList as List<Root>);
     } else if (depositDatas) {
-      const depositDataList = depositDatas.slice(0, index + 1);
+      const depositDataList = depositDatas.slice(0, i + 1);
       state.eth1Data.depositRoot = DepositDataRootList.hashTreeRoot(
         depositDataList.map((d) => DepositData.hashTreeRoot(d)) as List<Root>
       );
@@ -150,7 +150,7 @@ export function applyDeposits(
     state.eth1Data.depositCount += 1;
 
     const forkName = config.getForkName(GENESIS_SLOT);
-    processDeposit(forkName, state, deposit);
+    processDeposit(forkName, state, newDeposits[i]);
   }
 
   const activeValidatorIndices: ValidatorIndex[] = [];
