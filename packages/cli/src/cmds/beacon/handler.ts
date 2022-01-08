@@ -6,8 +6,9 @@ import {BeaconNode, BeaconDb, createNodeJsLibp2p} from "@chainsafe/lodestar";
 import {createDbMetrics} from "@chainsafe/lodestar/lib/metrics";
 import {createIBeaconConfig} from "@chainsafe/lodestar-config";
 import {ACTIVE_PRESET, PresetName} from "@chainsafe/lodestar-params";
-import {IGlobalArgs} from "../../options";
+import {defaultNetwork, IGlobalArgs} from "../../options";
 import {parseEnrArgs} from "../../options/enrOptions";
+import {NetworkName} from "../../networks";
 import {initBLS, onGracefulShutdown, getCliLogger} from "../../util";
 import {FileENR, overwriteEnrWithCliArgs, readPeerId} from "../../config";
 import {initializeOptionsAndConfig, persistOptionsAndConfig} from "../init/handler";
@@ -24,6 +25,12 @@ export async function beaconHandler(args: IBeaconArgs & IGlobalArgs): Promise<vo
 
   const {beaconNodeOptions, config} = await initializeOptionsAndConfig(args);
   await persistOptionsAndConfig(args);
+
+  // If used a custom config file, use CONFIG_NAME as network name
+  // TODO: Review if args.network is used somewhere else
+  if (args.paramsFile && args.network === defaultNetwork) {
+    args.network = config.CONFIG_NAME as NetworkName;
+  }
 
   const version = getVersion();
   const gitData = getVersionGitData();
@@ -52,7 +59,7 @@ export async function beaconHandler(args: IBeaconArgs & IGlobalArgs): Promise<vo
     abortController.abort();
   }, logger.info.bind(logger));
 
-  logger.info("Lodestar", {version: version, network: args.network});
+  logger.info("Lodestar", {version, network: args.network});
   if (ACTIVE_PRESET === PresetName.minimal) logger.info("ACTIVE_PRESET == minimal preset");
 
   let dbMetrics: null | ReturnType<typeof createDbMetrics> = null;
