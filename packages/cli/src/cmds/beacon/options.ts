@@ -129,6 +129,11 @@ export const beaconPathsOptions: ICliCommandOptions<IBeaconPaths> = {
     type: "string",
   },
 
+  bootnodesFile: {
+    description: "Bootnodes file path",
+    type: "string",
+  },
+
   peerStoreDir: {
     hidden: true,
     description: "Peer store directory",
@@ -152,12 +157,6 @@ export const beaconPathsOptions: ICliCommandOptions<IBeaconPaths> = {
 
   logFile: {
     description: "Path to output all logs to a persistent log file",
-    type: "string",
-  },
-
-  bootnodesFile: {
-    hidden: true,
-    description: "Bootnodes file path",
     type: "string",
   },
 };
