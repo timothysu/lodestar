@@ -111,6 +111,11 @@ export class GenesisBuilder implements IGenesisBuilder {
 
       if (isValidGenesisState(this.config, this.state)) {
         this.logger.info("Found genesis state", {blockNumber: block.blockNumber});
+
+        // Correct genesis state before returning. For some reason .balances is not populated
+        const stateTB = this.config.getForkTypes(this.state.slot).BeaconState.createTreeBacked(this.state.tree);
+        stateTB.balances = ssz.phase0.Balances.createTreeBacked(this.state.balanceList.tree);
+
         return {
           state: this.state,
           depositTree: this.depositTree,
