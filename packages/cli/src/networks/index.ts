@@ -22,7 +22,7 @@ function getNetworkData(
   genesisFileUrl: string | null;
   bootnodesFileUrl: string;
   bootEnrs: string[];
-} {
+} | null {
   switch (network) {
     case "mainnet":
       return mainnet;
@@ -31,24 +31,32 @@ function getNetworkData(
     case "prater":
       return prater;
     default:
-      throw Error(`Network not supported: ${network}`);
+      return null;
   }
 }
 
 export function getNetworkBeaconParams(network: NetworkName): IChainConfig {
-  return getNetworkData(network).chainConfig;
+  const networkData = getNetworkData(network);
+  if (!networkData) {
+    throw Error(`Network not supported: ${network}`);
+  }
+  return networkData.chainConfig;
 }
 
 export function getNetworkBeaconNodeOptions(network: NetworkName): RecursivePartial<IBeaconNodeOptions> {
-  const {depositContractDeployBlock, bootEnrs} = getNetworkData(network);
+  const networkData = getNetworkData(network);
+  if (!networkData) {
+    throw Error(`Network not supported: ${network}`);
+  }
+
   return {
     eth1: {
-      depositContractDeployBlock,
+      depositContractDeployBlock: networkData.depositContractDeployBlock,
     },
     network: {
       discv5: {
         enabled: true,
-        bootEnrs,
+        bootEnrs: networkData.bootEnrs,
       },
     },
   };
@@ -58,7 +66,8 @@ export function getNetworkBeaconNodeOptions(network: NetworkName): RecursivePart
  * Get genesisStateFile URL to download. Returns null if not available
  */
 export function getGenesisFileUrl(network: NetworkName): string | null {
-  return getNetworkData(network).genesisFileUrl;
+  const networkData = getNetworkData(network);
+  return networkData && networkData.genesisFileUrl;
 }
 
 /**
@@ -66,7 +75,12 @@ export function getGenesisFileUrl(network: NetworkName): string | null {
  * Bootnodes file is expected to contain bootnode ENR's concatenated by newlines
  */
 export async function fetchBootnodes(network: NetworkName): Promise<string[]> {
-  const bootnodesFileUrl = getNetworkData(network).bootnodesFileUrl;
+  const networkData = getNetworkData(network);
+  if (!networkData) {
+    throw Error(`Network not supported: ${network}`);
+  }
+
+  const bootnodesFileUrl = networkData.bootnodesFileUrl;
   const bootnodesFile = await got.get(bootnodesFileUrl).text();
 
   const enrs: string[] = [];
