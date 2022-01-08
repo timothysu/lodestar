@@ -3,6 +3,9 @@
 
 import {IPhase0Preset} from "../../preset";
 
+const processEnv = typeof process !== undefined ? process.env : {};
+const SLOTS_PER_EPOCH = processEnv["CONFIG_SLOTS_PER_EPOCH"] ?? "";
+
 export const phase0: IPhase0Preset = {
   // Misc
   // ---------------------------------------------------------------
@@ -40,7 +43,7 @@ export const phase0: IPhase0Preset = {
   // 2**0 (= 1) slots 12 seconds
   MIN_ATTESTATION_INCLUSION_DELAY: 1,
   // 2**5 (= 32) slots 6.4 minutes
-  SLOTS_PER_EPOCH: 32,
+  SLOTS_PER_EPOCH: parseInt(SLOTS_PER_EPOCH) || 32,
   // 2**0 (= 1) epochs 6.4 minutes
   MIN_SEED_LOOKAHEAD: 1,
   // 2**2 (= 4) epochs 25.6 minutes
