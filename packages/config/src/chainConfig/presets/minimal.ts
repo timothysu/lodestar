@@ -6,6 +6,7 @@ import {IChainConfig} from "../types";
 export const chainConfig: IChainConfig = {
   // Extends the minimal preset
   PRESET_BASE: PresetName.minimal,
+  CONFIG_NAME: "minimal",
 
   // Transition
   // TBD, 2**256-1 is a placeholder

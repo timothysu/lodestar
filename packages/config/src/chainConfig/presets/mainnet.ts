@@ -5,6 +5,7 @@ import {IChainConfig} from "../types";
 
 export const chainConfig: IChainConfig = {
   PRESET_BASE: PresetName.mainnet,
+  CONFIG_NAME: "mainnet",
 
   // Transition
   // TBD, 2**256-1 is a placeholder

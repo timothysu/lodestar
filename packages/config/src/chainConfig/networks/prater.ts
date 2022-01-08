@@ -7,6 +7,7 @@ import {chainConfig as mainnet} from "../presets/mainnet";
 
 export const praterChainConfig: IChainConfig = {
   ...mainnet,
+  CONFIG_NAME: "prater",
 
   // Ethereum Goerli testnet
   DEPOSIT_CHAIN_ID: 5,

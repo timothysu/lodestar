@@ -10,6 +10,8 @@ const ByteVector20 = new ByteVectorType({
 export const ChainConfig = new ContainerType<IChainConfig>({
   fields: {
     PRESET_BASE: new StringType(),
+    // This field is not implemented by all clients. Will the api throw if this is not specified?
+    // CONFIG_NAME: new StringType(),
 
     // Transition
     TERMINAL_TOTAL_DIFFICULTY: ssz.Uint256,

@@ -7,6 +7,7 @@ import {chainConfig as mainnet} from "../presets/mainnet";
 
 export const pyrmontChainConfig: IChainConfig = {
   ...mainnet,
+  CONFIG_NAME: "pyrmont",
 
   DEPOSIT_CONTRACT_ADDRESS: b("0x8c5fecdC472E27Bc447696F431E425D02dd46a8c"),
 

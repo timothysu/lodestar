@@ -6,6 +6,7 @@ import {PresetName} from "@chainsafe/lodestar-params";
  */
 export interface IChainConfig {
   PRESET_BASE: PresetName;
+  CONFIG_NAME: string;
 
   // Transition
   TERMINAL_TOTAL_DIFFICULTY: bigint;
