@@ -17,6 +17,12 @@ const presets = {
 // Once this file is imported, freeze the preset so calling setActivePreset() will throw an error
 presetStatus.frozen = true;
 
+// If LODESTAR_PRESET is set to a non-empty string, ensure its value if known
+const envSelectedPreset = process?.env?.LODESTAR_PRESET as PresetName | undefined;
+if (envSelectedPreset && !PresetName[envSelectedPreset]) {
+  throw Error(`Unknown ENV LODESTAR_PRESET '${envSelectedPreset}'`);
+}
+
 /**
  * The preset name currently exported by this library
  *
@@ -26,7 +32,7 @@ presetStatus.frozen = true;
  * The active preset can be manually overridden with `setActivePreset`
  */
 export const ACTIVE_PRESET: PresetName =
-  userSelectedPreset || PresetName[process?.env?.LODESTAR_PRESET as PresetName] || PresetName.mainnet;
+  userSelectedPreset || PresetName[envSelectedPreset as PresetName] || PresetName.mainnet;
 export const activePreset = presets[ACTIVE_PRESET];
 
 // These variables must be exported individually and explicitly
