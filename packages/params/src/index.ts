@@ -1,6 +1,7 @@
 import {PresetName} from "./preset";
 import {preset as mainnet} from "./presets/mainnet";
 import {preset as minimal} from "./presets/minimal";
+import {preset as mainnetGnosis} from "./presets/mainnetGnosis";
 import {presetStatus} from "./presetStatus";
 import {userSelectedPreset} from "./setPreset";
 
@@ -10,6 +11,7 @@ export {ForkName} from "./forkName";
 const presets = {
   [PresetName.mainnet]: mainnet,
   [PresetName.minimal]: minimal,
+  [PresetName.mainnetGnosis]: mainnetGnosis,
 };
 
 // Once this file is imported, freeze the preset so calling setActivePreset() will throw an error
