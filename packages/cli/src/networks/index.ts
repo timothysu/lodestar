@@ -10,9 +10,10 @@ import got from "got";
 import * as mainnet from "./mainnet";
 import * as pyrmont from "./pyrmont";
 import * as prater from "./prater";
+import * as gnosis from "./gnosis";
 
-export type NetworkName = "mainnet" | "pyrmont" | "prater" | "dev";
-export const networkNames: NetworkName[] = ["mainnet", "pyrmont", "prater"];
+export type NetworkName = "mainnet" | "pyrmont" | "prater" | "gnosis" | "dev";
+export const networkNames: NetworkName[] = ["mainnet", "pyrmont", "prater", "gnosis"];
 
 function getNetworkData(
   network: NetworkName
@@ -20,7 +21,7 @@ function getNetworkData(
   chainConfig: IChainConfig;
   depositContractDeployBlock: number;
   genesisFileUrl: string | null;
-  bootnodesFileUrl: string;
+  bootnodesFileUrl: string | null;
   bootEnrs: string[];
 } | null {
   switch (network) {
@@ -30,6 +31,8 @@ function getNetworkData(
       return pyrmont;
     case "prater":
       return prater;
+    case "gnosis":
+      return gnosis;
     default:
       return null;
   }
@@ -80,16 +83,16 @@ export async function fetchBootnodes(network: NetworkName): Promise<string[]> {
     throw Error(`Network not supported: ${network}`);
   }
 
-  const bootnodesFileUrl = networkData.bootnodesFileUrl;
-  const bootnodesFile = await got.get(bootnodesFileUrl).text();
+  const bootnodeENRs = new Set<string>(networkData.bootEnrs);
 
-  const enrs: string[] = [];
-  for (const line of bootnodesFile.trim().split(/\r?\n/)) {
-    // File may contain a row with '### Ethereum Node Records'
-    // File may be YAML, with `- enr:-KG4QOWkRj`
-    if (line.includes("enr:")) enrs.push("enr:" + line.split("enr:")[1]);
+  if (networkData.bootnodesFileUrl) {
+    const bootnodesFromUrlStr = await got.get(networkData.bootnodesFileUrl).text();
+    for (const bootnodeENR of parseBootnodesFile(bootnodesFromUrlStr)) {
+      bootnodeENRs.add(bootnodeENR);
+    }
   }
-  return enrs;
+
+  return Array.from(bootnodeENRs.values());
 }
 
 /**
@@ -118,6 +121,8 @@ export function parseBootnodesFile(bootnodesFile: string): string[] {
     for (const entry of line.split(",")) {
       const sanitizedEntry = entry.replace(/['",[\]{}.]+/g, "").trim();
 
+      // File may contain a row with '### Ethereum Node Records'
+      // File may be YAML, with `- enr:-KG4QOWkRj`
       if (sanitizedEntry.includes("enr:-")) {
         const parsedEnr = `enr:-${sanitizedEntry.split("enr:-")[1]}`;
         enrs.push(parsedEnr);

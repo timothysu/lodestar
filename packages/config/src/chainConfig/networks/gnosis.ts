@@ -1,12 +1,13 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import {fromHexString as b} from "@chainsafe/ssz";
+import {PresetName} from "@chainsafe/lodestar-params";
 import {IChainConfig} from "../types";
 import {chainConfig as mainnet} from "../presets/mainnet";
 
-/* eslint-disable max-len */
+/* eslint-disable @typescript-eslint/naming-convention */
 
 export const gnosisChainConfig: IChainConfig = {
   ...mainnet,
+  PRESET_BASE: PresetName.mainnetGnosis,
   CONFIG_NAME: "gnosis",
 
   CHURN_LIMIT_QUOTIENT: 4096,
