@@ -1,9 +1,9 @@
 import {PresetName} from "./preset";
 import {preset as mainnet} from "./presets/mainnet";
 import {preset as minimal} from "./presets/minimal";
-import {preset as mainnetGnosis} from "./presets/mainnetGnosis";
 import {presetStatus} from "./presetStatus";
 import {userSelectedPreset} from "./setPreset";
+import {IBeaconPreset} from "./preset/interface";
 
 export * from "./preset";
 export {ForkName} from "./forkName";
@@ -11,7 +11,6 @@ export {ForkName} from "./forkName";
 const presets = {
   [PresetName.mainnet]: mainnet,
   [PresetName.minimal]: minimal,
-  [PresetName.mainnetGnosis]: mainnetGnosis,
 };
 
 // Once this file is imported, freeze the preset so calling setActivePreset() will throw an error
@@ -50,7 +49,6 @@ export const {
   MAX_EFFECTIVE_BALANCE,
   EFFECTIVE_BALANCE_INCREMENT,
   MIN_ATTESTATION_INCLUSION_DELAY,
-  SLOTS_PER_EPOCH,
   MIN_SEED_LOOKAHEAD,
   MAX_SEED_LOOKAHEAD,
   EPOCHS_PER_ETH1_VOTING_PERIOD,
@@ -72,7 +70,6 @@ export const {
   MAX_DEPOSITS,
   MAX_VOLUNTARY_EXITS,
   SYNC_COMMITTEE_SIZE,
-  EPOCHS_PER_SYNC_COMMITTEE_PERIOD,
   INACTIVITY_PENALTY_QUOTIENT_ALTAIR,
   MIN_SLASHING_PENALTY_QUOTIENT_ALTAIR,
   PROPORTIONAL_SLASHING_MULTIPLIER_ALTAIR,
@@ -85,6 +82,19 @@ export const {
   BYTES_PER_LOGS_BLOOM,
   MAX_EXTRA_DATA_BYTES,
 } = presets[ACTIVE_PRESET];
+
+/**
+ * Some params not used for types MAY be mutated latter to allow for runtime.
+ * Changing this values not immediatelly on start-up will have dangerous un-intended consequences.
+ */
+export type IBeaconPresetMutable = Pick<IBeaconPreset, "SLOTS_PER_EPOCH" | "EPOCHS_PER_SYNC_COMMITTEE_PERIOD">;
+
+export let {SLOTS_PER_EPOCH, EPOCHS_PER_SYNC_COMMITTEE_PERIOD} = presets[ACTIVE_PRESET] as IBeaconPresetMutable;
+
+export function setMutablePreset(presetValues: IBeaconPresetMutable): void {
+  SLOTS_PER_EPOCH = presetValues.SLOTS_PER_EPOCH;
+  EPOCHS_PER_SYNC_COMMITTEE_PERIOD = presetValues.EPOCHS_PER_SYNC_COMMITTEE_PERIOD;
+}
 
 ////////////
 // Constants

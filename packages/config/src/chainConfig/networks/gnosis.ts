@@ -7,7 +7,7 @@ import {chainConfig as mainnet} from "../presets/mainnet";
 
 export const gnosisChainConfig: IChainConfig = {
   ...mainnet,
-  PRESET_BASE: PresetName.mainnetGnosis,
+  PRESET_BASE: PresetName.mainnet,
   CONFIG_NAME: "gnosis",
 
   CHURN_LIMIT_QUOTIENT: 4096,
