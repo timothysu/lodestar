@@ -22,6 +22,7 @@ import {
   renderIrrelevantPeerType,
 } from "./utils";
 import {SubnetType} from "../metadata";
+import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 
 /** heartbeat performs regular updates such as updating reputations and performing discovery requests */
 const HEARTBEAT_INTERVAL_MS = 30 * 1000;
@@ -83,6 +84,9 @@ type PeerData = {
   lastStatusUnixTsMs: number;
   connectedUnixTsMs: number;
   relevantStatus: RelevantPeerStatus;
+  // similar to our sync,
+  // a peer is considered synced if its head >= currentSlot - SLOTS_PER_EPOCH
+  isSynced: boolean;
   direction: Connection["stat"]["direction"];
   peerId: PeerId;
 };
@@ -172,6 +176,15 @@ export class PeerManager {
    */
   getConnectedPeerIds(): PeerId[] {
     return getConnectedPeerIds(this.libp2p);
+  }
+
+  /**
+   * Return synced peers.
+   */
+  getSyncedPeers(): PeerId[] {
+    return Array.from(this.connectedPeers.values())
+      .filter((peerData) => peerData.isSynced)
+      .map((peerData) => peerData.peerId);
   }
 
   /**
@@ -307,6 +320,7 @@ export class PeerManager {
     // NOTE: Peer may not be connected anymore at this point, potential race condition
     // libp2p.connectionManager.get() returns not null if there's +1 open connections with `peer`
     if (peerData) peerData.relevantStatus = RelevantPeerStatus.relevant;
+    if (peerData) peerData.isSynced = status.headSlot >= this.chain.clock.currentSlot - SLOTS_PER_EPOCH;
     if (this.libp2p.connectionManager.get(peer)) {
       this.networkEventBus.emit(NetworkEvent.peerConnected, peer, status);
     }
@@ -472,6 +486,7 @@ export class PeerManager {
         lastStatusUnixTsMs: direction === "outbound" ? 0 : now - STATUS_INTERVAL_MS + STATUS_INBOUND_GRACE_PERIOD,
         connectedUnixTsMs: now,
         relevantStatus: RelevantPeerStatus.Unknown,
+        isSynced: false,
         direction,
         peerId: peer,
       });

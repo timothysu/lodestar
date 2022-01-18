@@ -137,25 +137,25 @@ export class UnknownBlockSync {
    * Gather tip parent blocks with unknown parent and do a search for all of them
    */
   private triggerUnknownBlockSearch = (): void => {
-    // Cheap early stop to prevent calling the network.getConnectedPeers()
+    // Cheap early stop to prevent calling the network.getSyncedPeers()
     if (this.pendingBlocks.size === 0) {
       return;
     }
 
     // If the node loses all peers with pending unknown blocks, the sync will stall
-    const connectedPeers = this.network.getConnectedPeers();
-    if (connectedPeers.length === 0) {
+    const syncedPeers = this.network.getSyncedPeers();
+    if (syncedPeers.length === 0) {
       return;
     }
 
     for (const block of getLowestPendingUnknownParents(this.pendingBlocks)) {
-      this.downloadUnknownBlock(block, connectedPeers).catch((e) => {
+      this.downloadUnknownBlock(block, syncedPeers).catch((e) => {
         this.logger.error("Unexpect error - downloadParentBlock", {}, e);
       });
     }
   };
 
-  private async downloadUnknownBlock(block: PendingBlock, connectedPeers: PeerId[]): Promise<void> {
+  private async downloadUnknownBlock(block: PendingBlock, syncedPeers: PeerId[]): Promise<void> {
     if (block.status !== PendingBlockStatus.pending) {
       return;
     }
@@ -163,7 +163,7 @@ export class UnknownBlockSync {
     block.status = PendingBlockStatus.fetching;
     const unknownBlockHex =
       block.type === PendingBlockType.UNKNOWN_PARENT ? block.parentBlockRootHex : block.blockRootHex;
-    const res = await wrapError(this.fetchUnknownBlockRoot(fromHexString(unknownBlockHex), connectedPeers));
+    const res = await wrapError(this.fetchUnknownBlockRoot(fromHexString(unknownBlockHex), syncedPeers));
     block.status = PendingBlockStatus.pending;
 
     if (res.err) this.metrics?.syncUnknownBlock.downloadedBlocksError.inc({type: block.type});
@@ -263,9 +263,9 @@ export class UnknownBlockSync {
    */
   private async fetchUnknownBlockRoot(
     blockRoot: Root,
-    connectedPeers: PeerId[]
+    syncedPeers: PeerId[]
   ): Promise<{signedBlock: allForks.SignedBeaconBlock; peerIdStr: string}> {
-    const shuffledPeers = shuffle(connectedPeers);
+    const shuffledPeers = shuffle(syncedPeers);
     const blockRootHex = toHexString(blockRoot);
 
     let lastError: Error | null = null;
