@@ -58,14 +58,25 @@ export interface ISyncModules {
   wsCheckpoint?: phase0.Checkpoint;
 }
 
+export enum PendingBlockType {
+  UNKNOWN_BLOCK = "UNKNOWN_BLOCK",
+  UNKNOWN_PARENT = "UNKNOWN_PARENT",
+}
+
 export type PendingBlock = {
   blockRootHex: RootHex;
-  parentBlockRootHex: RootHex;
-  signedBlock: allForks.SignedBeaconBlock;
   peerIdStrs: Set<string>;
   status: PendingBlockStatus;
   downloadAttempts: number;
-};
+} & (
+  | {
+      type: PendingBlockType.UNKNOWN_PARENT;
+      parentBlockRootHex: RootHex;
+      signedBlock: allForks.SignedBeaconBlock;
+    }
+  | {type: PendingBlockType.UNKNOWN_BLOCK}
+);
+
 export enum PendingBlockStatus {
   pending = "pending",
   fetching = "fetching",

@@ -11,7 +11,7 @@ import PeerId from "peer-id";
 import {BlockError, BlockErrorCode} from "../chain/errors";
 import {wrapError} from "../util/wrapError";
 import {pruneSetToMax} from "../util/map";
-import {PendingBlock, PendingBlockStatus} from "./interface";
+import {PendingBlock, PendingBlockStatus, PendingBlockType} from "./interface";
 import {getDescendantBlocks, getAllDescendantBlocks, getLowestPendingUnknownParents} from "./utils/pendingBlocksTree";
 import {SyncOptions} from "./options";
 
@@ -35,7 +35,8 @@ export class UnknownBlockSync {
     opts?: SyncOptions
   ) {
     if (!opts?.disableUnknownBlockSync) {
-      this.network.events.on(NetworkEvent.unknownBlockParent, this.onUnknownBlock);
+      this.network.events.on(NetworkEvent.unknownBlock, this.onUnknownBlock);
+      this.network.events.on(NetworkEvent.unknownBlockParent, this.onUnknownBlockParent);
       this.network.events.on(NetworkEvent.peerConnected, this.triggerUnknownBlockSearch);
     }
 
@@ -50,24 +51,56 @@ export class UnknownBlockSync {
   }
 
   close(): void {
-    this.network.events.off(NetworkEvent.unknownBlockParent, this.onUnknownBlock);
+    this.network.events.off(NetworkEvent.unknownBlock, this.onUnknownBlock);
+    this.network.events.off(NetworkEvent.unknownBlockParent, this.onUnknownBlockParent);
     this.network.events.off(NetworkEvent.peerConnected, this.triggerUnknownBlockSearch);
   }
 
   /**
+   * Process an unknownBlock event and register the block in `pendingBlocks` Map.
+   */
+  private onUnknownBlock = (rootHex: RootHex, peerIdStr: string): void => {
+    try {
+      this.addUnknownBlock(rootHex, peerIdStr);
+      this.triggerUnknownBlockSearch();
+      this.metrics?.syncUnknownBlock.requests.inc({type: PendingBlockType.UNKNOWN_BLOCK});
+    } catch (e) {
+      this.logger.error("Error handling unknownBlock event", {}, e as Error);
+    }
+  };
+
+  /**
    * Process an unknownBlockParent event and register the block in `pendingBlocks` Map.
    */
-  private onUnknownBlock = (signedBlock: allForks.SignedBeaconBlock, peerIdStr: string): void => {
+  private onUnknownBlockParent = (signedBlock: allForks.SignedBeaconBlock, peerIdStr: string): void => {
     try {
-      this.addToPendingBlocks(signedBlock, peerIdStr);
+      this.addUnknownBlockParent(signedBlock, peerIdStr);
       this.triggerUnknownBlockSearch();
-      this.metrics?.syncUnknownBlock.requests.inc();
+      this.metrics?.syncUnknownBlock.requests.inc({type: PendingBlockType.UNKNOWN_PARENT});
     } catch (e) {
       this.logger.error("Error handling unknownBlockParent event", {}, e as Error);
     }
   };
 
-  private addToPendingBlocks(signedBlock: allForks.SignedBeaconBlock, peerIdStr: string): PendingBlock {
+  private addUnknownBlock(blockRootHex: RootHex, peerIdStr: string): PendingBlock {
+    let pendingBlock = this.pendingBlocks.get(blockRootHex);
+    if (!pendingBlock) {
+      pendingBlock = {
+        type: PendingBlockType.UNKNOWN_BLOCK,
+        blockRootHex,
+        peerIdStrs: new Set(),
+        status: PendingBlockStatus.pending,
+        downloadAttempts: 0,
+      };
+      this.pendingBlocks.set(blockRootHex, pendingBlock);
+    }
+    pendingBlock.peerIdStrs.add(peerIdStr);
+    this.prunePendingBlocks();
+
+    return pendingBlock;
+  }
+
+  private addUnknownBlockParent(signedBlock: allForks.SignedBeaconBlock, peerIdStr: string): PendingBlock {
     const block = signedBlock.message;
     const blockRoot = this.config.getForkTypes(block.slot).BeaconBlock.hashTreeRoot(block);
     const blockRootHex = toHexString(blockRoot);
@@ -76,6 +109,7 @@ export class UnknownBlockSync {
     let pendingBlock = this.pendingBlocks.get(blockRootHex);
     if (!pendingBlock) {
       pendingBlock = {
+        type: PendingBlockType.UNKNOWN_PARENT,
         blockRootHex,
         parentBlockRootHex,
         signedBlock,
@@ -86,14 +120,17 @@ export class UnknownBlockSync {
       this.pendingBlocks.set(blockRootHex, pendingBlock);
     }
     pendingBlock.peerIdStrs.add(peerIdStr);
+    this.prunePendingBlocks();
 
+    return pendingBlock;
+  }
+
+  private prunePendingBlocks(): void {
     // Limit pending blocks to prevent DOS attacks that cause OOM
     const prunedItemCount = pruneSetToMax(this.pendingBlocks, MAX_PENDING_BLOCKS);
     if (prunedItemCount > 0) {
       this.logger.warn(`Pruned ${prunedItemCount} pending blocks from UnknownBlockSync`);
     }
-
-    return pendingBlock;
   }
 
   /**
@@ -112,37 +149,39 @@ export class UnknownBlockSync {
     }
 
     for (const block of getLowestPendingUnknownParents(this.pendingBlocks)) {
-      this.downloadParentBlock(block, connectedPeers).catch((e) => {
+      this.downloadUnknownBlock(block, connectedPeers).catch((e) => {
         this.logger.error("Unexpect error - downloadParentBlock", {}, e);
       });
     }
   };
 
-  private async downloadParentBlock(block: PendingBlock, connectedPeers: PeerId[]): Promise<void> {
+  private async downloadUnknownBlock(block: PendingBlock, connectedPeers: PeerId[]): Promise<void> {
     if (block.status !== PendingBlockStatus.pending) {
       return;
     }
 
     block.status = PendingBlockStatus.fetching;
-    const res = await wrapError(this.fetchUnknownBlockRoot(fromHexString(block.parentBlockRootHex), connectedPeers));
+    const unknownBlockHex =
+      block.type === PendingBlockType.UNKNOWN_PARENT ? block.parentBlockRootHex : block.blockRootHex;
+    const res = await wrapError(this.fetchUnknownBlockRoot(fromHexString(unknownBlockHex), connectedPeers));
     block.status = PendingBlockStatus.pending;
 
-    if (res.err) this.metrics?.syncUnknownBlock.downloadedBlocksError.inc();
-    else this.metrics?.syncUnknownBlock.downloadedBlocksSuccess.inc();
+    if (res.err) this.metrics?.syncUnknownBlock.downloadedBlocksError.inc({type: block.type});
+    else this.metrics?.syncUnknownBlock.downloadedBlocksSuccess.inc({type: block.type});
 
     if (!res.err) {
       const {signedBlock, peerIdStr} = res.result;
       if (this.chain.forkChoice.hasBlock(signedBlock.message.parentRoot)) {
         // Bingo! Process block. Add to pending blocks anyway for recycle the cache that prevents duplicate processing
-        this.processBlock(this.addToPendingBlocks(signedBlock, peerIdStr)).catch((e) => {
+        this.processBlock(this.addUnknownBlockParent(signedBlock, peerIdStr)).catch((e) => {
           this.logger.error("Unexpect error - processBlock", {}, e);
         });
       } else {
-        this.onUnknownBlock(signedBlock, peerIdStr);
+        this.onUnknownBlockParent(signedBlock, peerIdStr);
       }
     } else {
       block.downloadAttempts++;
-      const errorData = {root: block.parentBlockRootHex, attempts: block.downloadAttempts};
+      const errorData = {root: unknownBlockHex, type: block.type, attempts: block.downloadAttempts};
       if (block.downloadAttempts > MAX_ATTEMPTS_PER_BLOCK) {
         // Give up on this block and assume it does not exist, penalizing all peers as if it was a bad block
         this.logger.error("Ignoring unknown block root after many failed downloads", errorData, res.err);
@@ -159,6 +198,10 @@ export class UnknownBlockSync {
    * On error, remove and downscore all descendants.
    */
   private async processBlock(pendingBlock: PendingBlock): Promise<void> {
+    if (pendingBlock.type === PendingBlockType.UNKNOWN_BLOCK) {
+      // never happen
+      throw Error("Cannot process UNKNOWN_BLOCK type");
+    }
     if (pendingBlock.status === PendingBlockStatus.processing) {
       return;
     }
@@ -271,14 +314,15 @@ export class UnknownBlockSync {
    * referenced more than one bad block.
    */
   private removeAndDownscoreAllDescendants(block: PendingBlock): void {
-    // Get all blocks that are a descendat of this one
+    // Get all blocks that are a descendant of this one
     const badPendingBlocks = this.removeAllDescendants(block);
 
     for (const block of badPendingBlocks) {
       this.knownBadBlocks.add(block.blockRootHex);
       this.logger.error("Banning unknown parent block", {
         root: block.blockRootHex,
-        slot: block.signedBlock.message.slot,
+        type: block.type,
+        slot: block.type === PendingBlockType.UNKNOWN_PARENT ? block.signedBlock.message.slot : "unknown",
       });
 
       for (const peerIdStr of block.peerIdStrs) {
@@ -302,7 +346,8 @@ export class UnknownBlockSync {
       this.pendingBlocks.delete(block.blockRootHex);
       this.logger.error("Removing unknown parent block", {
         root: block.blockRootHex,
-        slot: block.signedBlock.message.slot,
+        type: block.type,
+        slot: block.type === PendingBlockType.UNKNOWN_PARENT ? block.signedBlock.message.slot : "unknown",
       });
     }
 
