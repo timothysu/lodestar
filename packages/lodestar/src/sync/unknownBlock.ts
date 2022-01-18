@@ -173,7 +173,7 @@ export class UnknownBlockSync {
       const {signedBlock, peerIdStr} = res.result;
       if (this.chain.forkChoice.hasBlock(signedBlock.message.parentRoot)) {
         // Bingo! Process block. Add to pending blocks anyway for recycle the cache that prevents duplicate processing
-        this.processBlock(this.addUnknownBlockParent(signedBlock, peerIdStr)).catch((e) => {
+        this.processBlock(this.addUnknownBlockParent(signedBlock, peerIdStr), signedBlock).catch((e) => {
           this.logger.error("Unexpect error - processBlock", {}, e);
         });
       } else {
@@ -197,17 +197,13 @@ export class UnknownBlockSync {
    * Send block to the processor awaiting completition. If processed successfully, send all children to the processor.
    * On error, remove and downscore all descendants.
    */
-  private async processBlock(pendingBlock: PendingBlock): Promise<void> {
-    if (pendingBlock.type === PendingBlockType.UNKNOWN_BLOCK) {
-      // never happen
-      throw Error("Cannot process UNKNOWN_BLOCK type");
-    }
+  private async processBlock(pendingBlock: PendingBlock, signedBlock: allForks.SignedBeaconBlock): Promise<void> {
     if (pendingBlock.status === PendingBlockStatus.processing) {
       return;
     }
 
     pendingBlock.status = PendingBlockStatus.processing;
-    const res = await wrapError(this.chain.processBlock(pendingBlock.signedBlock, {ignoreIfKnown: true}));
+    const res = await wrapError(this.chain.processBlock(signedBlock, {ignoreIfKnown: true}));
     pendingBlock.status = PendingBlockStatus.pending;
 
     if (res.err) this.metrics?.syncUnknownBlock.processedBlocksError.inc();
@@ -218,12 +214,14 @@ export class UnknownBlockSync {
 
       // Send child blocks to the processor
       for (const descendantBlock of getDescendantBlocks(pendingBlock.blockRootHex, this.pendingBlocks)) {
-        this.processBlock(descendantBlock).catch((e) => {
-          this.logger.error("Unexpect error - processBlock", {}, e);
-        });
+        if (descendantBlock.type === PendingBlockType.UNKNOWN_PARENT) {
+          this.processBlock(descendantBlock, descendantBlock.signedBlock).catch((e) => {
+            this.logger.error("Unexpect error - processBlock", {}, e);
+          });
+        }
       }
     } else {
-      const errorData = {root: pendingBlock.blockRootHex, slot: pendingBlock.signedBlock.message.slot};
+      const errorData = {root: pendingBlock.blockRootHex, slot: signedBlock.message.slot};
       if (res.err instanceof BlockError) {
         switch (res.err.type.code) {
           // This cases are already handled with `{ignoreIfKnown: true}`
