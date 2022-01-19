@@ -53,6 +53,10 @@ export function createLodestarMetrics(
       name: "lodestar_peers_sync_count",
       help: "Current count of peers useful for sync",
     }),
+    peersRelevant: register.gauge({
+      name: "lodestar_peers_relevant_count",
+      help: "Current count of peers relevant to this node",
+    }),
     peerConnectedEvent: register.gauge<"direction">({
       name: "lodestar_peer_connected_total",
       help: "Total number of peer:connected event, labeled by direction",

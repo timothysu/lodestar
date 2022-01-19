@@ -560,14 +560,17 @@ export class PeerManager {
       metrics.peersByClient.set({client}, peers);
     }
 
-    let syncPeers = 0;
+    let relevantPeers = 0;
+    let syncedPeers = 0;
     for (const peer of this.connectedPeers.values()) {
       if (peer.relevantStatus === RelevantPeerStatus.relevant) {
-        syncPeers++;
+        relevantPeers++;
       }
+      if (peer.isSynced) syncedPeers++;
     }
 
     metrics.peers.set(total);
-    metrics.peersSync.set(syncPeers);
+    metrics.peersRelevant.set(relevantPeers);
+    metrics.peersSync.set(syncedPeers);
   }
 }
