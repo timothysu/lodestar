@@ -2,6 +2,7 @@ import {ILogger} from "@chainsafe/lodestar-utils";
 import {allForks, RootHex, Slot, phase0} from "@chainsafe/lodestar-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {routes} from "@chainsafe/lodestar-api";
+import PeerId from "peer-id";
 import {INetwork} from "../network";
 import {IBeaconChain} from "../chain";
 import {IMetrics} from "../metrics";
@@ -68,6 +69,7 @@ export type PendingBlock = {
   peerIdStrs: Set<string>;
   status: PendingBlockStatus;
   downloadAttempts: number;
+  lastQueriedTimeByPeer: Map<PeerId, number>;
 } & (
   | {
       type: PendingBlockType.UNKNOWN_PARENT;

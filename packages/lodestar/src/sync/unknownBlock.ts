@@ -18,6 +18,7 @@ import {SyncOptions} from "./options";
 const MAX_ATTEMPTS_PER_BLOCK = 5;
 const MAX_KNOWN_BAD_BLOCKS = 500;
 const MAX_PENDING_BLOCKS = 100;
+const MIN_TIME_SINCE_LAST_QUERY_MS = 500;
 
 export class UnknownBlockSync {
   /**
@@ -91,6 +92,7 @@ export class UnknownBlockSync {
         peerIdStrs: new Set(),
         status: PendingBlockStatus.pending,
         downloadAttempts: 0,
+        lastQueriedTimeByPeer: new Map(),
       };
       this.pendingBlocks.set(blockRootHex, pendingBlock);
     }
@@ -116,6 +118,7 @@ export class UnknownBlockSync {
         peerIdStrs: new Set(),
         status: PendingBlockStatus.pending,
         downloadAttempts: 0,
+        lastQueriedTimeByPeer: new Map(),
       };
       this.pendingBlocks.set(blockRootHex, pendingBlock);
     }
@@ -163,14 +166,12 @@ export class UnknownBlockSync {
     block.status = PendingBlockStatus.fetching;
     const unknownBlockHex =
       block.type === PendingBlockType.UNKNOWN_PARENT ? block.parentBlockRootHex : block.blockRootHex;
-    const res = await wrapError(this.fetchUnknownBlockRoot(fromHexString(unknownBlockHex), syncedPeers));
+    const res = await this.fetchUnknownBlockRoot(block, fromHexString(unknownBlockHex), syncedPeers);
     block.status = PendingBlockStatus.pending;
 
-    if (res.err) this.metrics?.syncUnknownBlock.downloadedBlocksError.inc({type: block.type});
-    else this.metrics?.syncUnknownBlock.downloadedBlocksSuccess.inc({type: block.type});
-
-    if (!res.err) {
-      const {signedBlock, peerIdStr} = res.result;
+    if (res.signedBlock !== undefined) {
+      this.metrics?.syncUnknownBlock.downloadedBlocksSuccess.inc({type: block.type});
+      const {signedBlock, peerIdStr} = res;
       if (this.chain.forkChoice.hasBlock(signedBlock.message.parentRoot)) {
         // Bingo! Process block. Add to pending blocks anyway for recycle the cache that prevents duplicate processing
         this.processBlock(this.addUnknownBlockParent(signedBlock, peerIdStr), signedBlock).catch((e) => {
@@ -180,15 +181,28 @@ export class UnknownBlockSync {
         this.onUnknownBlockParent(signedBlock, peerIdStr);
       }
     } else {
-      block.downloadAttempts++;
-      const errorData = {root: unknownBlockHex, type: block.type, attempts: block.downloadAttempts};
-      if (block.downloadAttempts > MAX_ATTEMPTS_PER_BLOCK) {
-        // Give up on this block and assume it does not exist, penalizing all peers as if it was a bad block
-        this.logger.error("Ignoring unknown block root after many failed downloads", errorData, res.err);
-        this.removeAndDownscoreAllDescendants(block);
+      const errorData = {
+        root: unknownBlockHex,
+        type: block.type,
+        attempts: block.downloadAttempts,
+        queriedCount: res.attempt,
+      };
+
+      if (res.attempt > 0) {
+        block.downloadAttempts++;
+        this.metrics?.syncUnknownBlock.downloadedBlocksError.inc({type: block.type});
+        if (block.downloadAttempts > MAX_ATTEMPTS_PER_BLOCK) {
+          // Give up on this block and assume it does not exist, penalizing all peers as if it was a bad block
+          this.logger.error("Ignoring unknown block root after many failed downloads", errorData, res.err);
+          this.removeAndDownscoreAllDescendants(block);
+        } else {
+          // Try again when a new peer connects, its status changes, or a new unknownBlockParent event happens
+          this.logger.debug("Error downloading unknown block root", errorData, res.err);
+        }
       } else {
-        // Try again when a new peer connects, its status changes, or a new unknownBlockParent event happens
-        this.logger.debug("Error downloading unknown block root", errorData, res.err);
+        // else attempt = 0: maybe too few peers and we asked them in recent MIN_TIME_SINCE_LAST_QUERY_MS
+        // do not increase downloadAttempts in this case
+        this.logger.debug("No attempt to download unknown block root", errorData);
       }
     }
   }
@@ -262,16 +276,31 @@ export class UnknownBlockSync {
    * Also verifies the received block root + returns the peer that provided the block for future downscoring.
    */
   private async fetchUnknownBlockRoot(
+    pendingBlock: PendingBlock,
     blockRoot: Root,
     syncedPeers: PeerId[]
-  ): Promise<{signedBlock: allForks.SignedBeaconBlock; peerIdStr: string}> {
+  ): Promise<
+    {signedBlock: allForks.SignedBeaconBlock; peerIdStr: string} | {signedBlock: undefined; attempt: number; err: Error}
+  > {
     const shuffledPeers = shuffle(syncedPeers);
     const blockRootHex = toHexString(blockRoot);
+    const {lastQueriedTimeByPeer} = pendingBlock;
 
     let lastError: Error | null = null;
-    for (let i = 0; i < MAX_ATTEMPTS_PER_BLOCK; i++) {
-      const peer = shuffledPeers[i % shuffledPeers.length];
+    const now = Date.now();
+    let attempt = 0;
+    for (const peer of shuffledPeers) {
+      if (attempt >= MAX_ATTEMPTS_PER_BLOCK) break;
+      const lastQueriedTime = lastQueriedTimeByPeer.get(peer) ?? 0;
+      // unknown block root attestations come before unknown parent block
+      // it's likely we'll ask for same root in a short period repeatedly
+      // we don't want to keep querying same peer in this case
+      // otherwise, this leads to banning the sent peerIds by just querying only 1-2 synced peers
+      if (now - lastQueriedTime <= MIN_TIME_SINCE_LAST_QUERY_MS) continue;
+      lastQueriedTimeByPeer.set(peer, now);
+
       try {
+        attempt++;
         const [signedBlock] = await this.network.reqResp.beaconBlocksByRoot(peer, [blockRoot] as List<Root>);
 
         // Peer does not have the block, try with next peer
@@ -290,19 +319,22 @@ export class UnknownBlockSync {
       } catch (e) {
         this.logger.debug(
           "Error fetching UnknownBlockRoot",
-          {attempt: i, blockRootHex, peer: peer.toB58String()},
+          {attempt, blockRootHex, peer: peer.toB58String()},
           e as Error
         );
         lastError = e as Error;
       }
     }
 
+    let err: Error;
     if (lastError) {
-      lastError.message = `Error fetching UnknownBlockRoot after ${MAX_ATTEMPTS_PER_BLOCK} attempts: ${lastError.message}`;
-      throw lastError;
+      lastError.message = `Error fetching UnknownBlockRoot after ${attempt} attempts: ${lastError.message}`;
+      err = lastError;
     } else {
-      throw Error(`Error fetching UnknownBlockRoot after ${MAX_ATTEMPTS_PER_BLOCK}: unknown error`);
+      err = Error(`Error fetching UnknownBlockRoot after ${attempt} attempts: unknown error`);
+      this.logger.error("Error fetching UnknownBlockRoot", {blockRootHex, queriedCount: attempt});
     }
+    return {signedBlock: undefined, attempt, err};
   }
 
   /**
