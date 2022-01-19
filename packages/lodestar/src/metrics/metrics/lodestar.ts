@@ -310,6 +310,11 @@ export function createLodestarMetrics(
       help: "Time to process a single block in seconds",
       buckets: [0.1, 1, 10],
     }),
+    stfnElappsedTimeTillProcessed: register.histogram({
+      name: "lodestar_stfn_elappsed_time_until_processed_seconds",
+      help: "Duration from slot time until block is processed in seconds",
+      buckets: [0.1, 1, 10],
+    }),
 
     // BLS verifier thread pool and queue
 
@@ -401,6 +406,16 @@ export function createLodestarMetrics(
       processedBlocksSuccess: register.gauge<"type">({
         name: "lodestar_sync_unknown_block_processed_blocks_success_total",
         help: "Total number of processed blocks successes in UnknownBlockSync",
+        labelNames: ["type"],
+      }),
+      elappsedTimeTillProcessed: register.gauge<"type">({
+        name: "lodestar_sync_unknown_block_elappsed_time_till_processed",
+        help: "Duration from received time until the block is processed",
+        labelNames: ["type"],
+      }),
+      slotTimeTillProcessed: register.gauge<"type">({
+        name: "lodestar_sync_unknown_block_slot_time_till_processed",
+        help: "Duration from slot time until the block is processed",
         labelNames: ["type"],
       }),
       processedBlocksError: register.gauge({

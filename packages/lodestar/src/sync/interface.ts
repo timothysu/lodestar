@@ -70,6 +70,7 @@ export type PendingBlock = {
   status: PendingBlockStatus;
   downloadAttempts: number;
   lastQueriedTimeByPeer: Map<PeerId, number>;
+  receivedTimeSec: number;
 } & (
   | {
       type: PendingBlockType.UNKNOWN_PARENT;
