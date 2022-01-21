@@ -1,5 +1,5 @@
 import {IChainForkConfig} from "@chainsafe/lodestar-config";
-import {ILogger} from "@chainsafe/lodestar-utils";
+import {ILogger, prettyBytes} from "@chainsafe/lodestar-utils";
 import {allForks, Root, RootHex} from "@chainsafe/lodestar-types";
 import {fromHexString, List, toHexString} from "@chainsafe/ssz";
 import {INetwork, NetworkEvent, PeerAction} from "../network";
@@ -171,7 +171,7 @@ export class UnknownBlockSync {
     const res = await this.fetchUnknownBlockRoot(block, fromHexString(unknownBlockHex), syncedPeers);
     block.status = PendingBlockStatus.pending;
     const logCtx = {
-      root: unknownBlockHex,
+      root: prettyBytes(unknownBlockHex),
       type: block.type,
       attempts: block.downloadAttempts,
       queriedCount: res.attempt,
