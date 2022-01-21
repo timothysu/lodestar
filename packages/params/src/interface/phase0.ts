@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-
 export interface IPhase0Preset {
   // Misc
   MAX_COMMITTEES_PER_SLOT: number;
@@ -16,7 +15,7 @@ export interface IPhase0Preset {
   SAFE_SLOTS_TO_UPDATE_JUSTIFIED: number;
 
   // Gwei Values
-  MIN_DEPOSIT_AMOUNT: bigint;
+  MIN_DEPOSIT_AMOUNT: number;
   MAX_EFFECTIVE_BALANCE: number;
   EFFECTIVE_BALANCE_INCREMENT: number;
 

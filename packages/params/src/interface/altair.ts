@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-
 export interface IAltairPreset {
   SYNC_COMMITTEE_SIZE: number;
   EPOCHS_PER_SYNC_COMMITTEE_PERIOD: number;

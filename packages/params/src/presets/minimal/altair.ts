@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-import {IAltairPreset} from "../../preset";
+import {IAltairPreset} from "../../interface/altair";
 
+/* eslint-disable @typescript-eslint/naming-convention */
 export const altair: IAltairPreset = {
   SYNC_COMMITTEE_SIZE: 32,
   EPOCHS_PER_SYNC_COMMITTEE_PERIOD: 8,

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-
 export interface IBellatrixPreset {
   INACTIVITY_PENALTY_QUOTIENT_BELLATRIX: number;
   MIN_SLASHING_PENALTY_QUOTIENT_BELLATRIX: number;
