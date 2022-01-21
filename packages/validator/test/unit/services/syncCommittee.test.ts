@@ -3,7 +3,7 @@ import {expect} from "chai";
 import sinon from "sinon";
 import bls from "@chainsafe/bls";
 import {toHexString} from "@chainsafe/ssz";
-import {createIChainForkConfig} from "@chainsafe/lodestar-config";
+import {createChainForkConfig} from "@chainsafe/lodestar-config";
 import {config as mainnetConfig} from "@chainsafe/lodestar-config/default";
 import {SyncCommitteeService} from "../../../src/services/syncCommittee";
 import {SyncDutyAndProofs} from "../../../src/services/syncCommitteeDuties";
@@ -29,7 +29,7 @@ describe("SyncCommitteeService", function () {
     sinon.SinonStubbedInstance<ChainHeaderTracker>;
   let pubkeys: Uint8Array[]; // Initialize pubkeys in before() so bls is already initialized
 
-  const config = createIChainForkConfig({
+  const config = createChainForkConfig({
     ...mainnetConfig,
     SECONDS_PER_SLOT: 1 / 1000, // Make slot time super short: 1 ms
     ALTAIR_FORK_EPOCH: 0, // Activate Altair immediatelly

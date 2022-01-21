@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Breaking change
 
-- presets now export {params: IBeaconPreset} instead of {...IBeaconPreset}
+- presets now export {params: BeaconPreset} instead of {...BeaconPreset}
 
 ## [0.2.0]
 

@@ -1,6 +1,6 @@
 import {bls, SecretKey} from "@chainsafe/bls";
 import {initBLS} from "@chainsafe/lodestar-cli/src/util";
-import {createIChainForkConfig, defaultChainConfig} from "@chainsafe/lodestar-config";
+import {createChainForkConfig, defaultChainConfig} from "@chainsafe/lodestar-config";
 import {allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {List} from "@chainsafe/ssz";
@@ -22,7 +22,7 @@ describe("AggregatedAttestationPool", function () {
   const currentEpoch = altairForkEpoch + 10;
   const currentSlot = SLOTS_PER_EPOCH * currentEpoch;
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  const config = createIChainForkConfig(Object.assign({}, defaultChainConfig, {ALTAIR_FORK_EPOCH: altairForkEpoch}));
+  const config = createChainForkConfig(Object.assign({}, defaultChainConfig, {ALTAIR_FORK_EPOCH: altairForkEpoch}));
   const originalState = generateCachedState({slot: currentSlot + 1}, config, true);
   let altairState: allForks.CachedBeaconState<allForks.BeaconState>;
   const attestation = generateAttestation({data: {slot: currentSlot, target: {epoch: currentEpoch}}});

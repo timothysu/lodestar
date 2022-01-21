@@ -2,7 +2,7 @@
 import {ForkName} from "@chainsafe/lodestar-params";
 import {allForks, Epoch, Slot, Version} from "@chainsafe/lodestar-types";
 
-export interface IForkInfo {
+export interface ForkInfo {
   name: ForkName;
   epoch: Epoch;
   version: Version;
@@ -11,14 +11,14 @@ export interface IForkInfo {
 /**
  * Fork schedule and helper methods
  */
-export interface IForkConfig {
+export interface ForkConfig {
   /** Forks in order order of occurence, `phase0` first */
-  forks: {[K in ForkName]: IForkInfo};
-  forksAscendingEpochOrder: IForkInfo[];
-  forksDescendingEpochOrder: IForkInfo[];
+  forks: {[K in ForkName]: ForkInfo};
+  forksAscendingEpochOrder: ForkInfo[];
+  forksDescendingEpochOrder: ForkInfo[];
 
   /** Get the hard-fork info for the active fork at `slot` */
-  getForkInfo(slot: Slot): IForkInfo;
+  getForkInfo(slot: Slot): ForkInfo;
 
   /** Get the hard-fork name at a given slot */
   getForkName(slot: Slot): ForkName;

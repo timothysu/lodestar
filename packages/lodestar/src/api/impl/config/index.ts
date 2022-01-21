@@ -12,6 +12,7 @@ export function getConfigApi({config}: Pick<ApiModules, "config">): routes.confi
   ] as (keyof routes.config.ISpec)[]).forEach((fieldName) => {
     ((spec as unknown) as Record<string, unknown>)[fieldName] = specWithExtraKeys[fieldName];
   });
+
   return {
     async getForkSchedule() {
       const forkInfos = Object.values(config.forks);

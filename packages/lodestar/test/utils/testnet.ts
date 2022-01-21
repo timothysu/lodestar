@@ -1,5 +1,5 @@
 import {phase0} from "@chainsafe/lodestar-types";
-import {createIChainForkConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {createChainForkConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
 import {chainConfig} from "@chainsafe/lodestar-config/default";
 import {fromHexString} from "@chainsafe/ssz";
 
@@ -12,7 +12,7 @@ export const medallaTestnetConfig = {
 
 /** Testnet specs for the Medalla testnet */
 export function getTestnetConfig(): IChainForkConfig {
-  const config = createIChainForkConfig(chainConfig);
+  const config = createChainForkConfig(chainConfig);
   config.DEPOSIT_NETWORK_ID = 5;
   config.DEPOSIT_CONTRACT_ADDRESS = Buffer.from("07b39F4fDE4A38bACe212b546dAc87C58DfE3fDC", "hex");
   config.MIN_GENESIS_TIME = 1596546000;

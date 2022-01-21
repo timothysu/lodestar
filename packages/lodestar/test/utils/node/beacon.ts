@@ -3,7 +3,7 @@ import tmp from "tmp";
 import PeerId from "peer-id";
 import {createEnr} from "@chainsafe/lodestar-cli/src/config";
 import {config as minimalConfig} from "@chainsafe/lodestar-config/default";
-import {createIBeaconConfig, createIChainForkConfig, IChainConfig} from "@chainsafe/lodestar-config";
+import {createIBeaconConfig, createChainForkConfig, IChainConfig} from "@chainsafe/lodestar-config";
 import {ILogger, RecursivePartial} from "@chainsafe/lodestar-utils";
 import {LevelDbController} from "@chainsafe/lodestar-db";
 import {BeaconNode} from "../../../src/node";
@@ -36,7 +36,7 @@ export async function getDevBeaconNode(
 
   if (!peerId) peerId = await createPeerId();
   const tmpDir = tmp.dirSync({unsafeCleanup: true});
-  const config = createIChainForkConfig({...minimalConfig, ...params});
+  const config = createChainForkConfig({...minimalConfig, ...params});
   logger = logger ?? testLogger();
 
   const db = new BeaconDb({config, controller: new LevelDbController({name: tmpDir.name}, {logger})});

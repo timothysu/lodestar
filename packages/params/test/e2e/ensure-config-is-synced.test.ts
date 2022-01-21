@@ -2,7 +2,7 @@ import {expect} from "chai";
 import axios from "axios";
 import * as mainnet from "../../src/presets/mainnet";
 import * as minimal from "../../src/presets/minimal";
-import {ForkName, IBeaconPreset} from "../../src";
+import {ForkName, BeaconPreset} from "../../src";
 import {loadConfigYaml} from "../yaml";
 
 // Not e2e, but slow. Run with e2e tests
@@ -21,16 +21,16 @@ describe("Ensure config is synced", function () {
   });
 });
 
-function assertCorrectPreset(localPreset: IBeaconPreset, remotePreset: IBeaconPreset): void {
+function assertCorrectPreset(localPreset: BeaconPreset, remotePreset: BeaconPreset): void {
   // Check each key for better debuggability
-  for (const key of Object.keys(remotePreset) as (keyof IBeaconPreset)[]) {
+  for (const key of Object.keys(remotePreset) as (keyof BeaconPreset)[]) {
     expect(localPreset[key]).to.equal(remotePreset[key], `Wrong ${key} value`);
   }
 
   expect(localPreset).to.deep.equal(remotePreset);
 }
 
-async function downloadRemoteConfig(preset: "mainnet" | "minimal", commit: string): Promise<IBeaconPreset> {
+async function downloadRemoteConfig(preset: "mainnet" | "minimal", commit: string): Promise<BeaconPreset> {
   const urlByFork: Record<ForkName, string> = {
     [ForkName.phase0]: `https://raw.githubusercontent.com/ethereum/eth2.0-specs/${commit}/presets/${preset}/phase0.yaml`,
     [ForkName.altair]: `https://raw.githubusercontent.com/ethereum/eth2.0-specs/${commit}/presets/${preset}/altair.yaml`,
@@ -50,9 +50,9 @@ async function downloadRemoteConfig(preset: "mainnet" | "minimal", commit: strin
   );
 
   // As of December 2021 the presets don't include any hex strings
-  const beaconPreset = {} as IBeaconPreset;
+  const beaconPreset = {} as BeaconPreset;
   for (const key of Object.keys(beaconPresetRaw)) {
-    beaconPreset[key as keyof IBeaconPreset] = parseInt(beaconPresetRaw[key] as string, 10);
+    beaconPreset[key as keyof BeaconPreset] = parseInt(beaconPresetRaw[key] as string, 10);
   }
 
   return beaconPreset;

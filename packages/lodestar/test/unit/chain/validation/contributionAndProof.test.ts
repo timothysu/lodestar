@@ -13,7 +13,7 @@ import * as syncCommitteeUtils from "@chainsafe/lodestar-beacon-state-transition
 import {SinonStubFn} from "../../../utils/types";
 import {generateCachedStateWithPubkeys} from "../../../utils/state";
 import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
-import {createIChainForkConfig} from "@chainsafe/lodestar-config";
+import {createChainForkConfig} from "@chainsafe/lodestar-config";
 import {SeenContributionAndProof} from "../../../../src/chain/seenCache";
 
 // https://github.com/ethereum/eth2.0-specs/blob/v1.1.0-alpha.3/specs/altair/p2p-interface.md
@@ -26,7 +26,7 @@ describe("Sync Committee Contribution And Proof validation", function () {
   const altairForkEpoch = 2020;
   const currentSlot = SLOTS_PER_EPOCH * (altairForkEpoch + 1);
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  const config = createIChainForkConfig(Object.assign({}, defaultChainConfig, {ALTAIR_FORK_EPOCH: altairForkEpoch}));
+  const config = createChainForkConfig(Object.assign({}, defaultChainConfig, {ALTAIR_FORK_EPOCH: altairForkEpoch}));
 
   before(async function () {
     await initBLS();

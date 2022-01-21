@@ -1,7 +1,7 @@
-import {IPhase0Preset} from "../../interface/phase0";
+import {Phase0Preset} from "../../interface/phase0";
 
 /* eslint-disable @typescript-eslint/naming-convention */
-export const phase0: IPhase0Preset = {
+export const phase0: Phase0Preset = {
   // Misc
   // ---------------------------------------------------------------
   // 2**6 (= 64)

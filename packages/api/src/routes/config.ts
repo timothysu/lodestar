@@ -1,9 +1,9 @@
-import {IBeaconPreset, BeaconPreset, activePreset} from "@chainsafe/lodestar-params";
+import {BeaconPreset, activePreset} from "@chainsafe/lodestar-params";
 import {IChainConfig, ChainConfig} from "@chainsafe/lodestar-config";
 import {Bytes32, Number64, phase0, ssz} from "@chainsafe/lodestar-types";
-import {mapValues} from "@chainsafe/lodestar-utils";
-import {ByteVectorType, ContainerType, Json, Type} from "@chainsafe/ssz";
-import {ArrayOf, ContainerData, ReqEmpty, reqEmpty, ReturnTypes, ReqSerializers, RoutesData, TypeJson} from "../utils";
+import {mapValues, toHexString} from "@chainsafe/lodestar-utils";
+import {ByteVectorType, ContainerType, fromHexString, Json, Type} from "@chainsafe/ssz";
+import {ArrayOf, ContainerData, ReqEmpty, reqEmpty, ReturnTypes, ReqSerializers, RoutesData, sameType} from "../utils";
 
 // See /packages/api/src/routes/index.ts for reasoning and instructions to add new routes
 
@@ -12,7 +12,7 @@ export type DepositContract = {
   address: Bytes32;
 };
 
-export type ISpec = IBeaconPreset & IChainConfig;
+export type ISpec = BeaconPreset & IChainConfig;
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const Spec = new ContainerType<ISpec>({
@@ -37,9 +37,10 @@ export type Api = {
   getForkSchedule(): Promise<{data: phase0.Fork[]}>;
 
   /**
-   * Get spec params.
-   * Retrieve specification configuration used on this node.
-   * [Specification params list](https://github.com/ethereum/eth2.0-specs/blob/v1.0.0-rc.0/configs/mainnet/phase0.yaml)
+   * Retrieve specification configuration used on this node.  The configuration should include:
+   *  - Constants for all hard forks known by the beacon node, for example the [phase 0](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/phase0/beacon-chain.md#constants) and [altair](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/beacon-chain.md#constants) values
+   *  - Presets for all hard forks supplied to the beacon node, for example the [phase 0](https://github.com/ethereum/eth2.0-specs/blob/dev/presets/mainnet/phase0.yaml) and [altair](https://github.com/ethereum/eth2.0-specs/blob/dev/presets/mainnet/altair.yaml) values
+   *  - Configuration for the beacon node, for example the [mainnet](https://github.com/ethereum/eth2.0-specs/blob/dev/configs/mainnet.yaml) values
    *
    * Values are returned with following format:
    * - any value starting with 0x in the spec is returned as a hex string
@@ -63,15 +64,8 @@ export function getReqSerializers(): ReqSerializers<Api, ReqTypes> {
   return mapValues(routesData, () => reqEmpty);
 }
 
-function withJsonFilled<T>(dataType: Type<T>, fillWith: Json): TypeJson<{data: T}> {
-  return {
-    toJson: ({data}, opts) => ({data: dataType.toJson(data, opts)}),
-    fromJson: ({data}: {data: Json}, opts) => ({data: dataType.fromJson(Object.assign({}, fillWith, data), opts)}),
-  };
-}
-
 /* eslint-disable @typescript-eslint/naming-convention */
-export function getReturnTypes(config: IChainConfig): ReturnTypes<Api> {
+export function getReturnTypes(): ReturnTypes<Api> {
   const DepositContract = new ContainerType<DepositContract>({
     fields: {
       chainId: ssz.Number64,
@@ -87,6 +81,28 @@ export function getReturnTypes(config: IChainConfig): ReturnTypes<Api> {
   return {
     getDepositContract: ContainerData(DepositContract),
     getForkSchedule: ContainerData(ArrayOf(ssz.phase0.Fork)),
-    getSpec: withJsonFilled(Spec, Spec.toJson({...config, ...activePreset})),
+    getSpec: sameType(),
   };
+}
+
+export function serializeSpecValue(value: IChainConfig[keyof IChainConfig] | BeaconPreset[keyof BeaconPreset]): string {
+  if (typeof value === "string") {
+    return value;
+  } else if (typeof value === "number" || typeof value === "bigint") {
+    return value.toString(10);
+  } else if (value instanceof Uint8Array) {
+    return toHexString(value);
+  } else {
+    throw Error(`Unknown value type ${value}`);
+  }
+}
+
+export function deserializeSpecValue(
+  valueStr: string,
+  key: string
+): IChainConfig[keyof IChainConfig] | BeaconPreset[keyof BeaconPreset] {
+  if (valueStr.startsWith("0x")) {
+    return fromHexString(valueStr);
+  } else {
+  }
 }

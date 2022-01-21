@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {fromHexString as b} from "@chainsafe/ssz";
 import {PresetName} from "@chainsafe/lodestar-params";
-import {IChainConfig} from "../types";
+import {ChainConfig} from "../types";
 
-export const chainConfig: IChainConfig = {
+export const chainConfig: ChainConfig = {
   // Extends the minimal preset
   PRESET_BASE: PresetName.minimal,
 

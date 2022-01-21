@@ -1,5 +1,5 @@
-import {IPhase0Preset} from "./phase0";
-import {IAltairPreset} from "./altair";
-import {IBellatrixPreset} from "./bellatrix";
+import {Phase0Preset} from "./phase0";
+import {AltairPreset} from "./altair";
+import {BellatrixPreset} from "./bellatrix";
 
-export type IBeaconPreset = IPhase0Preset & IAltairPreset & IBellatrixPreset;
+export type BeaconPreset = Phase0Preset & AltairPreset & BellatrixPreset;

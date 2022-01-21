@@ -1,11 +1,11 @@
 import {GENESIS_EPOCH, ForkName, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {Slot, allForks, Version, ssz} from "@chainsafe/lodestar-types";
 import {IChainConfig} from "../chainConfig";
-import {IForkConfig, IForkInfo} from "./types";
+import {ForkConfig, ForkInfo} from "./types";
 
 export * from "./types";
 
-export function createIForkConfig(config: IChainConfig): IForkConfig {
+export function createForkConfig(config: IChainConfig): ForkConfig {
   const phase0 = {name: ForkName.phase0, epoch: GENESIS_EPOCH, version: config.GENESIS_FORK_VERSION};
   const altair = {name: ForkName.altair, epoch: config.ALTAIR_FORK_EPOCH, version: config.ALTAIR_FORK_VERSION};
   const bellatrix = {
@@ -28,7 +28,7 @@ export function createIForkConfig(config: IChainConfig): IForkConfig {
     forksDescendingEpochOrder,
 
     // Fork convenience methods
-    getForkInfo(slot: Slot): IForkInfo {
+    getForkInfo(slot: Slot): ForkInfo {
       const epoch = Math.floor(slot / SLOTS_PER_EPOCH);
       // NOTE: forks must be sorted by descending epoch, latest fork first
       for (const fork of forksDescendingEpochOrder) {

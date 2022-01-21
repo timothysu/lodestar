@@ -1,6 +1,6 @@
-import {createIChainForkConfig} from "./beaconConfig";
+import {createChainForkConfig} from "./beaconConfig";
 import {defaultChainConfig} from "./chainConfig";
 
 export const chainConfig = defaultChainConfig;
 // for testing purpose only
-export const config = createIChainForkConfig(defaultChainConfig);
+export const config = createChainForkConfig(defaultChainConfig);

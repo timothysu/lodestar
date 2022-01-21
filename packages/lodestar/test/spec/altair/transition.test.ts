@@ -2,7 +2,7 @@ import {join} from "path";
 import {allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {altair, phase0, Uint64, Epoch, ssz} from "@chainsafe/lodestar-types";
 import {describeDirectorySpecTest} from "@chainsafe/lodestar-spec-test-util";
-import {createIChainForkConfig} from "@chainsafe/lodestar-config";
+import {createChainForkConfig} from "@chainsafe/lodestar-config";
 import {ForkName, ACTIVE_PRESET} from "@chainsafe/lodestar-params";
 import {TreeBacked} from "@chainsafe/ssz";
 import {SPEC_TEST_LOCATION} from "../specTestVersioning";
@@ -17,7 +17,7 @@ describeDirectorySpecTest<ITransitionTestCase, allForks.BeaconState>(
     const {forkEpoch, blocksCount, forkBlock} = meta;
     // testConfig is used here to load forkEpoch from meta.yaml
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const testConfig = createIChainForkConfig({ALTAIR_FORK_EPOCH: Number(forkEpoch)});
+    const testConfig = createChainForkConfig({ALTAIR_FORK_EPOCH: Number(forkEpoch)});
     let wrappedState = allForks.createCachedBeaconState<allForks.BeaconState>(
       testConfig,
       testcase.pre as TreeBacked<allForks.BeaconState>

@@ -1,10 +1,9 @@
 import {
   ChainConfig,
-  createIChainForkConfig,
-  createIChainConfig,
+  createChainForkConfig,
+  createChainConfig,
   IChainForkConfig,
   IChainConfig,
-  parsePartialIChainConfigJson,
 } from "@chainsafe/lodestar-config";
 import {writeFile, readFile} from "../util";
 import {getNetworkBeaconParams, NetworkName} from "../networks";
@@ -28,7 +27,7 @@ interface IBeaconParamsArgs {
  * @see getBeaconConfig
  */
 export function getBeaconConfigFromArgs(args: IBeaconParamsCliArgs): IChainForkConfig {
-  return createIChainForkConfig(getBeaconParamsFromArgs(args));
+  return createChainForkConfig(getBeaconParamsFromArgs(args));
 }
 
 /**
@@ -51,7 +50,7 @@ export function getBeaconParamsFromArgs(args: IBeaconParamsCliArgs): IChainConfi
  * @see getBeaconParams
  */
 export function getBeaconConfig(args: IBeaconParamsArgs): IChainForkConfig {
-  return createIChainForkConfig(getBeaconParams(args));
+  return createChainForkConfig(getBeaconParams(args));
 }
 
 /**
@@ -64,13 +63,11 @@ export function getBeaconParams({network, paramsFile, additionalParamsCli}: IBea
   // Default network params
   const networkParams: Partial<IChainConfig> = network ? getNetworkBeaconParams(network) : {};
   // Existing user custom params from file
-  const fileParams: Partial<IChainConfig> = paramsFile
-    ? parsePartialIChainConfigJson(readBeaconParams(paramsFile))
-    : {};
+  const fileParams: Partial<IChainConfig> = paramsFile ? parsePartialChainConfigJson(readBeaconParams(paramsFile)) : {};
   // Params from CLI flags
-  const cliParams: Partial<IChainConfig> = parsePartialIChainConfigJson(additionalParamsCli);
+  const cliParams: Partial<IChainConfig> = parsePartialChainConfigJson(additionalParamsCli);
 
-  return createIChainConfig({
+  return createChainConfig({
     ...networkParams,
     ...fileParams,
     ...cliParams,
@@ -83,4 +80,30 @@ export function writeBeaconParams(filepath: string, params: IChainConfig): void 
 
 function readBeaconParams(filepath: string): IBeaconParamsUnparsed {
   return readFile(filepath) ?? {};
+}
+
+export function parsePartialChainConfigJson(input: Record<string, unknown>): Partial<ChainConfig> {
+  const config = {};
+
+  // Parse config input values, if they exist
+  for (const [fieldName, fieldType] of Object.entries(input)) {
+    if (input[fieldName] != null) {
+      (config as Record<string, unknown>)[fieldName] = fieldType.fromJson(input[fieldName] as Json);
+    }
+  }
+
+  return config;
+}
+
+function parseSpecValue(valueStr: string, typeName: SpecValueTypeName): SpecValue {
+  switch (typeName) {
+    case "bigint":
+      return BigInt(valueStr);
+    case "bytes":
+      return fromHexString(valueStr);
+    case "string":
+      return valueStr;
+    default:
+      return parseInt(valueStr);
+  }
 }

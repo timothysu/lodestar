@@ -1,9 +1,9 @@
 import {ACTIVE_PRESET, PresetName} from "@chainsafe/lodestar-params";
-import {IChainConfig} from "./types";
+import {ChainConfig} from "./types";
 import {chainConfig as mainnet} from "./presets/mainnet";
 import {chainConfig as minimal} from "./presets/minimal";
 
-let defaultChainConfig: IChainConfig;
+let defaultChainConfig: ChainConfig;
 
 switch (ACTIVE_PRESET) {
   case PresetName.minimal:

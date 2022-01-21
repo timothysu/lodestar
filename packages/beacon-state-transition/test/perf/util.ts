@@ -5,7 +5,7 @@ import {phase0, ssz, Slot, altair, ParticipationFlags} from "@chainsafe/lodestar
 import bls, {CoordType, PublicKey, SecretKey} from "@chainsafe/bls";
 import {fromHexString, List, TreeBacked} from "@chainsafe/ssz";
 import {allForks, interopSecretKey, computeEpochAtSlot, getActiveValidatorIndices} from "../../src";
-import {createIChainForkConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {createChainForkConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
 import {CachedBeaconState, computeCommitteeCount, createCachedBeaconState, PubkeyIndexMap} from "../../src/allForks";
 import {profilerLogger} from "../utils/logger";
 import {interopPubkeysCached} from "../utils/interop";
@@ -123,7 +123,7 @@ export function generatePerfTestCachedStateAltair(opts?: {
 }): allForks.CachedBeaconState<altair.BeaconState> {
   const {pubkeys, pubkeysMod, pubkeysModObj} = getPubkeys();
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  const altairConfig = createIChainForkConfig({ALTAIR_FORK_EPOCH: 0});
+  const altairConfig = createChainForkConfig({ALTAIR_FORK_EPOCH: 0});
 
   // Manually sync pubkeys to prevent doing BLS opts 110_000 times
   const pubkey2index = new PubkeyIndexMap();
@@ -439,7 +439,7 @@ export function beforeValue<T>(fn: () => T | Promise<T>, timeout?: number): Lazy
  */
 export function getNetworkConfig(network: NetworkName): IChainForkConfig {
   const configNetwork = networksChainConfig[network];
-  return createIChainForkConfig(configNetwork);
+  return createChainForkConfig(configNetwork);
 }
 
 /**

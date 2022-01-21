@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import {PresetName} from "@chainsafe/lodestar-params";
+import {PresetName, SpecTypes} from "@chainsafe/lodestar-params";
 
 /**
  * Run-time chain configuration
  */
-export interface IChainConfig {
+export type ChainConfig = {
   PRESET_BASE: PresetName;
 
   // Transition
@@ -47,4 +47,15 @@ export interface IChainConfig {
   DEPOSIT_CHAIN_ID: number;
   DEPOSIT_NETWORK_ID: number;
   DEPOSIT_CONTRACT_ADDRESS: Uint8Array;
-}
+};
+
+export const chainConfigTypes: SpecTypes<ChainConfig> = {
+  PRESET_BASE: "string",
+  TERMINAL_TOTAL_DIFFICULTY: "bigint",
+  TERMINAL_BLOCK_HASH: "bytes",
+  GENESIS_FORK_VERSION: "bytes",
+  ALTAIR_FORK_VERSION: "bytes",
+  BELLATRIX_FORK_VERSION: "bytes",
+  SHARDING_FORK_VERSION: "bytes",
+  DEPOSIT_CONTRACT_ADDRESS: "bytes",
+};
