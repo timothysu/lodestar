@@ -1,13 +1,11 @@
-import {BeaconPreset, SpecValueTypeName, SpecValue, beaconPresetTypes} from "@chainsafe/lodestar-params";
-import {ChainConfig, chainConfigTypes} from "@chainsafe/lodestar-config";
+import {BeaconPreset} from "@chainsafe/lodestar-params";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {Bytes32, Number64, phase0, ssz} from "@chainsafe/lodestar-types";
-import {mapValues, toHexString} from "@chainsafe/lodestar-utils";
-import {ByteVectorType, ContainerType, fromHexString} from "@chainsafe/ssz";
-import {ArrayOf, ContainerData, ReqEmpty, reqEmpty, ReturnTypes, ReqSerializers, RoutesData, TypeJson} from "../utils";
+import {mapValues} from "@chainsafe/lodestar-utils";
+import {ByteVectorType, ContainerType} from "@chainsafe/ssz";
+import {ArrayOf, ContainerData, ReqEmpty, reqEmpty, ReturnTypes, ReqSerializers, RoutesData, sameType} from "../utils";
 
 // See /packages/api/src/routes/index.ts for reasoning and instructions to add new routes
-
-const MAX_UINT64_JSON = "18446744073709551615";
 
 export type DepositContract = {
   chainId: Number64;
@@ -39,7 +37,7 @@ export type Api = {
    * - any value starting with 0x in the spec is returned as a hex string
    * - numeric values are returned as a quoted integer
    */
-  getSpec(): Promise<{data: Spec}>;
+  getSpec(): Promise<{data: Record<string, string>}>;
 };
 
 /**
@@ -59,32 +57,6 @@ export function getReqSerializers(): ReqSerializers<Api, ReqTypes> {
 
 /* eslint-disable @typescript-eslint/naming-convention */
 export function getReturnTypes(): ReturnTypes<Api> {
-  const specTypes: Partial<Record<keyof Spec, SpecValueTypeName>> = {
-    ...beaconPresetTypes,
-    ...chainConfigTypes,
-  };
-
-  const specTypeJson: TypeJson<Spec> = {
-    toJson(spec) {
-      const json = {} as Record<string, string>;
-      for (const key of Object.keys(spec) as (keyof Spec)[]) {
-        json[key] = serializeSpecValue(spec[key], specTypes[key]);
-      }
-      return json;
-    },
-    fromJson(json) {
-      if (typeof json !== "object" || json === null || Array.isArray(json)) {
-        throw Error("Invalid JSON value");
-      }
-
-      const spec = {} as Spec;
-      for (const key of Object.keys(json) as (keyof Spec)[]) {
-        spec[key] = deserializeSpecValue(json[key], specTypes[key]) as never;
-      }
-      return spec;
-    },
-  };
-
   const DepositContract = new ContainerType<DepositContract>({
     fields: {
       chainId: ssz.Number64,
@@ -100,60 +72,6 @@ export function getReturnTypes(): ReturnTypes<Api> {
   return {
     getDepositContract: ContainerData(DepositContract),
     getForkSchedule: ContainerData(ArrayOf(ssz.phase0.Fork)),
-    getSpec: ContainerData(specTypeJson),
+    getSpec: ContainerData(sameType()),
   };
-}
-
-export function serializeSpecValue(value: SpecValue, typeName?: SpecValueTypeName): string {
-  switch (typeName) {
-    case undefined:
-      if (typeof value !== "number") {
-        throw Error(`Invalid value ${value} expected number`);
-      }
-      if (value === Infinity) {
-        return MAX_UINT64_JSON;
-      }
-      return value.toString(10);
-
-    case "bigint":
-      if (typeof value !== "bigint") {
-        throw Error(`Invalid value ${value} expected bigint`);
-      }
-      return value.toString(10);
-
-    case "bytes":
-      if (!(value instanceof Uint8Array)) {
-        throw Error(`Invalid value ${value} expected Uint8Array`);
-      }
-      return toHexString(value);
-
-    case "string":
-      if (typeof value !== "string") {
-        throw Error(`Invalid value ${value} expected string`);
-      }
-      return value;
-  }
-}
-
-export function deserializeSpecValue(valueStr: unknown, typeName?: SpecValueTypeName): SpecValue {
-  if (typeof valueStr !== "string") {
-    throw Error(`Invalid value ${valueStr} expected string`);
-  }
-
-  switch (typeName) {
-    case undefined:
-      if (valueStr === MAX_UINT64_JSON) {
-        return Infinity;
-      }
-      return parseInt(valueStr, 10);
-
-    case "bigint":
-      return BigInt(valueStr);
-
-    case "bytes":
-      return fromHexString(valueStr);
-
-    case "string":
-      return valueStr;
-  }
 }

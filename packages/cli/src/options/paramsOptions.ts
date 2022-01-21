@@ -1,5 +1,5 @@
 import {Options} from "yargs";
-import {ChainConfig, ChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig, chainConfigTypes} from "@chainsafe/lodestar-config";
 import {IBeaconParamsUnparsed} from "../config/types";
 import {ObjectKeys, ICliCommandOptions} from "../util";
 
@@ -17,17 +17,14 @@ export type IParamsArgs = Record<never, never> & ITerminalPowArgs;
 const getArgKey = (key: keyof IBeaconParamsUnparsed): string => `params.${key}`;
 
 export function parseBeaconParamsArgs(args: Record<string, string | number>): IBeaconParamsUnparsed {
-  return ((ObjectKeys(ChainConfig.fields) as unknown) as (keyof ChainConfig)[]).reduce(
-    (beaconParams: Partial<IBeaconParamsUnparsed>, key) => {
-      const value = args[getArgKey(key)];
-      if (value != null) beaconParams[key] = value;
-      return beaconParams;
-    },
-    {}
-  );
+  return ObjectKeys(chainConfigTypes).reduce((beaconParams: Partial<IBeaconParamsUnparsed>, key) => {
+    const value = args[getArgKey(key)];
+    if (value != null) beaconParams[key] = value;
+    return beaconParams;
+  }, {});
 }
 
-const paramsOptionsByName = ((ObjectKeys(ChainConfig.fields) as unknown) as (keyof ChainConfig)[]).reduce(
+const paramsOptionsByName = ObjectKeys(chainConfigTypes).reduce(
   (options: Record<string, Options>, key): Record<string, Options> => ({
     ...options,
     [getArgKey(key)]: {

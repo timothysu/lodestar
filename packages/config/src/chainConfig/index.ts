@@ -2,6 +2,7 @@ import {ACTIVE_PRESET} from "@chainsafe/lodestar-params";
 import {ChainConfig} from "./types";
 import {defaultChainConfig} from "./default";
 
+export {chainConfigToJson, chainConfigFromJson} from "./json";
 export * from "./types";
 export * from "./default";
 

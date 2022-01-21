@@ -3,9 +3,9 @@ import {
   createChainForkConfig,
   createChainConfig,
   ChainForkConfig,
-  ChainConfig,
+  chainConfigFromJson,
 } from "@chainsafe/lodestar-config";
-import {writeFile, readFile} from "../util";
+import {readFile} from "../util";
 import {getNetworkBeaconParams, NetworkName} from "../networks";
 import {getGlobalPaths, IGlobalPaths} from "../paths/global";
 import {IBeaconParamsUnparsed} from "./types";
@@ -74,36 +74,10 @@ export function getBeaconParams({network, paramsFile, additionalParamsCli}: IBea
   });
 }
 
-export function writeBeaconParams(filepath: string, params: ChainConfig): void {
-  writeFile(filepath, ChainConfig.toJson(params));
-}
-
 function readBeaconParams(filepath: string): IBeaconParamsUnparsed {
   return readFile(filepath) ?? {};
 }
 
 export function parsePartialChainConfigJson(input: Record<string, unknown>): Partial<ChainConfig> {
-  const config = {};
-
-  // Parse config input values, if they exist
-  for (const [fieldName, fieldType] of Object.entries(input)) {
-    if (input[fieldName] != null) {
-      (config as Record<string, unknown>)[fieldName] = fieldType.fromJson(input[fieldName] as Json);
-    }
-  }
-
-  return config;
-}
-
-function parseSpecValue(valueStr: string, typeName: SpecValueTypeName): SpecValue {
-  switch (typeName) {
-    case "bigint":
-      return BigInt(valueStr);
-    case "bytes":
-      return fromHexString(valueStr);
-    case "string":
-      return valueStr;
-    default:
-      return parseInt(valueStr);
-  }
+  return chainConfigFromJson(input);
 }
