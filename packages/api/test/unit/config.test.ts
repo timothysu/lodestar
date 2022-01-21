@@ -1,6 +1,6 @@
 import {ssz} from "@chainsafe/lodestar-types";
 import {chainConfigToJson} from "@chainsafe/lodestar-config";
-import {config} from "@chainsafe/lodestar-config/default";
+import {config, chainConfig} from "@chainsafe/lodestar-config/default";
 import {activePreset, presetToJson} from "@chainsafe/lodestar-params";
 import {Api, ReqTypes, getReturnTypes} from "../../src/routes/config";
 import {getClient} from "../../src/client/config";
@@ -11,7 +11,7 @@ import {expect} from "chai";
 /* eslint-disable @typescript-eslint/naming-convention */
 
 describe("config", () => {
-  const configJson = chainConfigToJson(config);
+  const configJson = chainConfigToJson(chainConfig);
   const presetJson = presetToJson(activePreset);
   const jsonSpec = {...configJson, ...presetJson};
 
@@ -47,7 +47,7 @@ describe("config", () => {
     };
 
     const jsonRes = returnTypes.getSpec.toJson({data: partialJsonSpec});
-    const specRes = returnTypes.getSpec.fromJson({data: jsonRes});
+    const specRes = returnTypes.getSpec.fromJson(jsonRes);
 
     expect(specRes).to.deep.equal({data: partialJsonSpec}, "Wrong toJson -> fromJson");
   });

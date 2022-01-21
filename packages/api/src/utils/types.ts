@@ -1,4 +1,4 @@
-import {ContainerType, IJsonOptions, Json, ListType, Type} from "@chainsafe/ssz";
+import {IJsonOptions, Json, ListType, Type} from "@chainsafe/ssz";
 import {ForkName} from "@chainsafe/lodestar-params";
 import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {objectToExpectedCase} from "@chainsafe/lodestar-utils";
