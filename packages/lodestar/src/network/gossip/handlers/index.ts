@@ -1,6 +1,6 @@
 import {toHexString} from "@chainsafe/ssz";
 import PeerId from "peer-id";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {phase0, ssz, ValidatorIndex} from "@chainsafe/lodestar-types";
 import {ILogger, prettyBytes} from "@chainsafe/lodestar-utils";
 import {IMetrics} from "../../../metrics";
@@ -47,7 +47,7 @@ export const defaultGossipHandlerOpts = {
 
 type ValidatorFnsModules = {
   chain: IBeaconChain;
-  config: IBeaconConfig;
+  config: BeaconConfig;
   logger: ILogger;
   network: INetwork;
   metrics: IMetrics | null;

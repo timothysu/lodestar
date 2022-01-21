@@ -11,7 +11,7 @@ import {
   Gwei,
   Number64,
 } from "@chainsafe/lodestar-types";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {
   BASE_REWARD_FACTOR,
   DOMAIN_BEACON_PROPOSER,
@@ -113,7 +113,7 @@ export class PubkeyIndexMap {
  * SLOW CODE - 🐢
  */
 export function createEpochContext(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   state: allForks.BeaconState,
   opts?: EpochContextOpts
 ): EpochContext {
@@ -295,7 +295,7 @@ export function computeProposers(
 /**
  * Same logic in https://github.com/ethereum/eth2.0-specs/blob/v1.1.0-alpha.5/specs/altair/beacon-chain.md#sync-committee-processing
  */
-export function computeSyncParticipantReward(config: IBeaconConfig, totalActiveBalance: Gwei): number {
+export function computeSyncParticipantReward(config: BeaconConfig, totalActiveBalance: Gwei): number {
   // TODO: manage totalActiveBalance in eth
   const totalActiveIncrements = Number(totalActiveBalance / BigInt(EFFECTIVE_BALANCE_INCREMENT));
   const baseRewardPerIncrement = Math.floor(
@@ -363,7 +363,7 @@ export function afterProcessEpoch(state: CachedBeaconState<allForks.BeaconState>
 }
 
 interface IEpochContextData {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   pubkey2index: PubkeyIndexMap;
   index2pubkey: Index2PubkeyCache;
   proposers: number[];
@@ -389,7 +389,7 @@ interface IEpochContextData {
  * This data is used for faster processing of the beacon-state-transition-function plus gossip and API validation.
  **/
 export class EpochContext {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   /**
    * Unique globally shared pubkey registry. There should only exist one for the entire application.
    *

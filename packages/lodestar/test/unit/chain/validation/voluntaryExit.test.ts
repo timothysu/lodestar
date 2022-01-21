@@ -21,7 +21,7 @@ import {OpPool} from "../../../../src/chain/opPools";
 import {expectRejectedWithLodestarError} from "../../../utils/errors";
 import {DOMAIN_VOLUNTARY_EXIT, FAR_FUTURE_EPOCH, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {PointFormat, SecretKey} from "@chainsafe/bls";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 
 describe("validate voluntary exit", () => {
   const sandbox = sinon.createSandbox();
@@ -63,7 +63,7 @@ describe("validate voluntary exit", () => {
     signedVoluntaryExit = {message: voluntaryExit, signature: sk.sign(signingRoot).toBytes()};
     const _state = generateState(stateEmpty, config);
 
-    state = createCachedBeaconState(createIBeaconConfig(config, _state.genesisValidatorsRoot), _state);
+    state = createCachedBeaconState(createBeaconConfig(config, _state.genesisValidatorsRoot), _state);
   });
 
   beforeEach(() => {

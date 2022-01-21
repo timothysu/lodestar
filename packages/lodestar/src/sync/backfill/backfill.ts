@@ -3,7 +3,7 @@ import {EventEmitter} from "events";
 import PeerId from "peer-id";
 import {StrictEventEmitter} from "strict-event-emitter-types";
 import {blockToHeader} from "@chainsafe/lodestar-beacon-state-transition";
-import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {phase0, Root, Slot, allForks, ssz} from "@chainsafe/lodestar-types";
 import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
 import {List, toHexString} from "@chainsafe/ssz";
@@ -28,7 +28,7 @@ export type BackfillSyncModules = {
   chain: IBeaconChain;
   db: IBeaconDb;
   network: INetwork;
-  config: IBeaconConfig;
+  config: BeaconConfig;
   logger: ILogger;
   metrics: IMetrics | null;
   anchorState: TreeBacked<allForks.BeaconState>;
@@ -107,7 +107,7 @@ export class BackfillSync extends (EventEmitter as {new (): BackfillSyncEmitter}
   private readonly chain: IBeaconChain;
   private readonly network: INetwork;
   private readonly db: IBeaconDb;
-  private readonly config: IBeaconConfig;
+  private readonly config: BeaconConfig;
   private readonly logger: ILogger;
   private readonly metrics: IMetrics | null;
 

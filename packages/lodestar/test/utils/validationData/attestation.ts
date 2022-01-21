@@ -23,7 +23,7 @@ import {ClockStatic} from "../clock";
 import {toSingleBit} from "../aggregationBits";
 import {toHexString} from "@chainsafe/ssz";
 import {config} from "@chainsafe/lodestar-config/default";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 
 export type AttestationValidDataOpts = {
   currentSlot?: Slot;
@@ -116,7 +116,7 @@ export function getAttestationValidData(
 
   const chain = ({
     clock,
-    config: config as IBeaconConfig,
+    config: config as BeaconConfig,
     forkChoice,
     regen,
     seenAttesters: new SeenAttesters(),

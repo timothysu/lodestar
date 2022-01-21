@@ -4,7 +4,7 @@ import pipe from "it-pipe";
 import all from "it-all";
 import {ForkName, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {chainConfig} from "@chainsafe/lodestar-config/default";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 import {LodestarError} from "@chainsafe/lodestar-utils";
 import {
   Method,
@@ -53,7 +53,7 @@ describe("network / reqresp / encoders / response - Success and error cases", ()
   }
   const ALTAIR_FORK_EPOCH = Math.floor(slotBlockAltair / SLOTS_PER_EPOCH);
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  const config = createIBeaconConfig({...chainConfig, ALTAIR_FORK_EPOCH}, ZERO_HASH);
+  const config = createBeaconConfig({...chainConfig, ALTAIR_FORK_EPOCH}, ZERO_HASH);
 
   const testCases: {
     id: string;

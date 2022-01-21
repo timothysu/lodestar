@@ -1,7 +1,7 @@
 import sinon from "sinon";
 import {expect} from "chai";
 import {AbortController} from "@chainsafe/abort-controller";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 import {config} from "@chainsafe/lodestar-config/default";
 import {phase0, ssz} from "@chainsafe/lodestar-types";
 import {sleep} from "@chainsafe/lodestar-utils";
@@ -56,7 +56,7 @@ describe("network", function () {
       },
     });
 
-    const beaconConfig = createIBeaconConfig(config, state.genesisValidatorsRoot);
+    const beaconConfig = createBeaconConfig(config, state.genesisValidatorsRoot);
     const chain = new MockBeaconChain({genesisTime: 0, chainId: 0, networkId: BigInt(0), state, config: beaconConfig});
     const db = new StubbedBeaconDb(config);
     const reqRespHandlers = getReqRespHandlers({db, chain});

@@ -1,4 +1,4 @@
-import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {allForks, phase0, ssz} from "@chainsafe/lodestar-types";
 import {interopDeposits} from "./interop/deposits";
 import {getInteropState, InteropStateOpts} from "./interop/state";
@@ -28,7 +28,7 @@ export async function initDevState(
   return state;
 }
 
-export function storeSSZState(config: IBeaconConfig, state: TreeBacked<allForks.BeaconState>, path: string): void {
+export function storeSSZState(config: BeaconConfig, state: TreeBacked<allForks.BeaconState>, path: string): void {
   mkdirSync(dirname(path), {recursive: true});
   writeFileSync(path, config.getForkTypes(state.slot).BeaconState.serialize(state));
 }

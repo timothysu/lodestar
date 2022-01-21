@@ -1,5 +1,5 @@
 import {List, TreeBacked} from "@chainsafe/ssz";
-import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {
   EFFECTIVE_BALANCE_INCREMENT,
   EPOCHS_PER_HISTORICAL_VECTOR,
@@ -55,7 +55,7 @@ export function isValidGenesisValidators(config: ChainForkConfig, state: allFork
  * SLOW CODE - 🐢
  */
 export function getGenesisBeaconState(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   genesisEth1Data: phase0.Eth1Data,
   latestBlockHeader: phase0.BeaconBlockHeader
 ): CachedBeaconState<allForks.BeaconState> {
@@ -212,7 +212,7 @@ export function initializeBeaconStateFromEth1(
   const state = getGenesisBeaconState(
     // CachedBeaconcState is used for convinience only, we return TreeBacked<allForks.BeaconState> anyway
     // so it's safe to do a cast here, we can't use get domain until we have genesisValidatorRoot
-    config as IBeaconConfig,
+    config as BeaconConfig,
     ssz.phase0.Eth1Data.defaultValue(),
     getTemporaryBlockHeader(config, config.getForkTypes(GENESIS_SLOT).BeaconBlock.defaultValue())
   );

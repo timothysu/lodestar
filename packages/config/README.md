@@ -24,7 +24,7 @@ The Lodestar config package contains several interfaces used in downstream Lodes
 - `ForkConfig` - A fork helper object that's structured around the fork schedule
 - `ChainForkConfig` A wrapper object that implements `ChainConfig` and `ForkConfig`
 - `CachedGenesis` - A helper object for caching domains (which relies on the genesis validators root)
-- `IBeaconConfig` - A wrapper object that implements all above interfaces
+- `BeaconConfig` - A wrapper object that implements all above interfaces
 
 ### Chain config
 
@@ -101,17 +101,17 @@ const version = config.getForkVersion(GENESIS_SLOT);
 
 ### Cached genesis
 
-For signing Ethereum consensus objects, a cryptographic "domain" is computed and mixed into the signed message. This domain separates signatures made for the Ethereum mainnet from testnets or other instances of the chain. The `CachedGenesis` interface is used to provide a cache for this purpose. Practically, the domain rarely changes, only per-fork, and so the value can be easily cached. Since the genesis validators root is part of the domain, it is required input to instantiate an `CachedGenesis`. In practice, the `ChainForkConfig` and `CachedGenesis` are usually combined as a `IBeaconConfig`. This is the 'highest level' object exported by the Lodestar config library.
+For signing Ethereum consensus objects, a cryptographic "domain" is computed and mixed into the signed message. This domain separates signatures made for the Ethereum mainnet from testnets or other instances of the chain. The `CachedGenesis` interface is used to provide a cache for this purpose. Practically, the domain rarely changes, only per-fork, and so the value can be easily cached. Since the genesis validators root is part of the domain, it is required input to instantiate an `CachedGenesis`. In practice, the `ChainForkConfig` and `CachedGenesis` are usually combined as a `BeaconConfig`. This is the 'highest level' object exported by the Lodestar config library.
 
 ```typescript
 import {DOMAIN_DEPOSIT, GENESIS_SLOT} from "@chainsafe/lodestar-params";
-import {createIBeaconConfig, IBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig, BeaconConfig} from "@chainsafe/lodestar-config";
 import {config as chainConfig} from "@chainsafe/lodestar-config/default";
 
 // dummy test root
 let genesisValidatorsRoot: Uint8Array = new Uint8Array();
 
-const config: IBeaconConfig = createIBeaconConfig(chainConfig, genesisValidatorsRoot);
+const config: BeaconConfig = createBeaconConfig(chainConfig, genesisValidatorsRoot);
 
 const domain = config.getDomain(DOMAIN_DEPOSIT, GENESIS_SLOT);
 ```

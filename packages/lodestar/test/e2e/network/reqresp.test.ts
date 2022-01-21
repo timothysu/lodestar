@@ -2,7 +2,7 @@ import chai, {expect} from "chai";
 import chaiAsPromised from "chai-as-promised";
 import {AbortController} from "@chainsafe/abort-controller";
 import PeerId from "peer-id";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 import {config} from "@chainsafe/lodestar-config/default";
 import {sleep as _sleep} from "@chainsafe/lodestar-utils";
 import {altair, phase0, ssz} from "@chainsafe/lodestar-types";
@@ -47,7 +47,7 @@ describe("network / ReqResp", function () {
     discv5: null,
   };
   const state = generateState();
-  const beaconConfig = createIBeaconConfig(config, state.genesisValidatorsRoot);
+  const beaconConfig = createBeaconConfig(config, state.genesisValidatorsRoot);
   const chain = new MockBeaconChain({genesisTime: 0, chainId: 0, networkId: BigInt(0), state, config: beaconConfig});
   const db = new StubbedBeaconDb();
 

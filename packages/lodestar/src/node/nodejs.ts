@@ -7,7 +7,7 @@ import LibP2p from "libp2p";
 import {Registry} from "prom-client";
 
 import {TreeBacked} from "@chainsafe/ssz";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {Api} from "@chainsafe/lodestar-api";
@@ -28,7 +28,7 @@ export * from "./options";
 
 export interface IBeaconNodeModules {
   opts: IBeaconNodeOptions;
-  config: IBeaconConfig;
+  config: BeaconConfig;
   db: IBeaconDb;
   metrics: IMetrics | null;
   network: INetwork;
@@ -43,7 +43,7 @@ export interface IBeaconNodeModules {
 
 export interface IBeaconNodeInitModules {
   opts: IBeaconNodeOptions;
-  config: IBeaconConfig;
+  config: BeaconConfig;
   db: IBeaconDb;
   logger: ILogger;
   libp2p: LibP2p;
@@ -64,7 +64,7 @@ export enum BeaconNodeStatus {
  */
 export class BeaconNode {
   opts: IBeaconNodeOptions;
-  config: IBeaconConfig;
+  config: BeaconConfig;
   db: IBeaconDb;
   metrics: IMetrics | null;
   metricsServer?: HttpMetricsServer;

@@ -1,4 +1,4 @@
-import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {
   EFFECTIVE_BALANCE_INCREMENT,
   MAX_DEPOSITS,
@@ -115,7 +115,7 @@ export function getLatestBlockRoot(config: ChainForkConfig, state: allForks.Beac
 }
 
 export function isWithinWeakSubjectivityPeriod(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   wsState: allForks.BeaconState,
   wsCheckpoint: Checkpoint
 ): boolean {

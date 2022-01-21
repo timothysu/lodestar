@@ -1,7 +1,7 @@
 import LibP2p from "libp2p";
 import PeerId from "peer-id";
 import {ForkName} from "@chainsafe/lodestar-params";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {IPeerMetadataStore, IPeerRpcScoreStore} from "../peers";
@@ -27,7 +27,7 @@ export interface IReqResp {
 }
 
 export interface IReqRespModules {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   libp2p: LibP2p;
   logger: ILogger;
   metadata: MetadataController;

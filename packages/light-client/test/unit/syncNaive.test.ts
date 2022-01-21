@@ -3,7 +3,7 @@ import {SecretKey} from "@chainsafe/bls";
 import {altair, phase0, Root, ssz, SyncPeriod} from "@chainsafe/lodestar-types";
 import {toHexString, TreeBacked} from "@chainsafe/ssz";
 import {chainConfig} from "@chainsafe/lodestar-config/default";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 import {processLightClientUpdate} from "../naive/update";
 import {prepareUpdateNaive, IBeaconChainLc} from "../prepareUpdateNaive";
 import {getInteropSyncCommittee, getSyncAggregateSigningRoot, SyncCommitteeKeys} from "../utils";
@@ -22,7 +22,7 @@ describe("Lightclient flow", () => {
 
   // Fixed params
   const genValiRoot = Buffer.alloc(32, 9);
-  const config = createIBeaconConfig(chainConfig, genValiRoot);
+  const config = createBeaconConfig(chainConfig, genValiRoot);
   const currentSlot = 1;
   const syncCommitteesKeys = new Map<SyncPeriod, SyncCommitteeKeys>();
   let updateData: {chain: IBeaconChainLc; blockWithSyncAggregate: altair.BeaconBlock};

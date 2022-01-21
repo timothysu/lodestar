@@ -1,4 +1,4 @@
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {ErrorAborted, ILogger, sleep, prettyBytes} from "@chainsafe/lodestar-utils";
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {EPOCHS_PER_SYNC_COMMITTEE_PERIOD, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
@@ -26,7 +26,7 @@ export async function runNodeNotifier({
   network: INetwork;
   chain: IBeaconChain;
   sync: IBeaconSync;
-  config: IBeaconConfig;
+  config: BeaconConfig;
   logger: ILogger;
   signal: AbortSignal;
 }): Promise<void> {
@@ -130,7 +130,7 @@ export async function runNodeNotifier({
   }
 }
 
-function timeToNextHalfSlot(config: IBeaconConfig, chain: IBeaconChain): number {
+function timeToNextHalfSlot(config: BeaconConfig, chain: IBeaconChain): number {
   const msPerSlot = config.SECONDS_PER_SLOT * 1000;
   const msFromGenesis = Date.now() - chain.getGenesisTime() * 1000;
   const msToNextSlot = msPerSlot - (msFromGenesis % msPerSlot);

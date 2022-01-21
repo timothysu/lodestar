@@ -46,7 +46,7 @@ export function getBeaconParamsFromArgs(args: IBeaconParamsCliArgs): ChainConfig
 }
 
 /**
- * Initializes IBeaconConfig with params
+ * Initializes BeaconConfig with params
  * @see getBeaconParams
  */
 export function getBeaconConfig(args: IBeaconParamsArgs): ChainForkConfig {

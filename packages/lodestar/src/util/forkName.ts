@@ -1,11 +1,11 @@
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {ForkName} from "@chainsafe/lodestar-params";
 import {Slot} from "@chainsafe/lodestar-types";
 
 /**
  * Group an array of items by ForkName according to the slot associted to each item
  */
-export function groupByFork<T>(config: IBeaconConfig, items: T[], getSlot: (item: T) => Slot): Map<ForkName, T[]> {
+export function groupByFork<T>(config: BeaconConfig, items: T[], getSlot: (item: T) => Slot): Map<ForkName, T[]> {
   const itemsByFork = new Map<ForkName, T[]>();
   for (const item of items) {
     const forkName = config.getForkName(getSlot(item));

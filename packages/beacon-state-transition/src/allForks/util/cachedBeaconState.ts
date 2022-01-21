@@ -11,7 +11,7 @@ import {
   TreeBacked,
 } from "@chainsafe/ssz";
 import {allForks, altair, Number64, ParticipationFlags} from "@chainsafe/lodestar-types";
-import {createIBeaconConfig, IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig, BeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {Tree} from "@chainsafe/persistent-merkle-tree";
 import {MutableVector} from "@chainsafe/persistent-ts";
 import {createEpochContext, EpochContext, EpochContextOpts} from "./epochContext";
@@ -94,7 +94,7 @@ export function createCachedBeaconState<T extends allForks.BeaconState>(
   state: TreeBacked<T>,
   opts?: EpochContextOpts
 ): CachedBeaconState<T> {
-  const config = createIBeaconConfig(chainForkConfig, state.genesisValidatorsRoot);
+  const config = createBeaconConfig(chainForkConfig, state.genesisValidatorsRoot);
 
   let cachedPreviousParticipation, cachedCurrentParticipation;
   const forkName = config.getForkName(state.slot);
@@ -187,7 +187,7 @@ export function createCachedBeaconState<T extends allForks.BeaconState>(
  * epoch processing some temporary flat structures are computed but dropped after processing the epoch.
  */
 export class BeaconStateContext<T extends allForks.BeaconState> {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   /**
    * Epoch cache: Caches constant data through the epoch: @see EpochContext
    * - Proposer indexes: 32 x Number

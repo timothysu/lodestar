@@ -2,7 +2,7 @@ import {allForks, altair, ParticipationFlags, phase0, ssz, Uint8} from "@chainsa
 import {CachedBeaconState, createCachedBeaconState} from "../allForks/util";
 import {newZeroedArray} from "../util";
 import {List, TreeBacked} from "@chainsafe/ssz";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {IParticipationStatus} from "../allForks/util/cachedEpochParticipation";
 import {getAttestationParticipationStatus, RootCache} from "./block/processAttestation";
 import {getNextSyncCommittee} from "./util/syncCommittee";
@@ -20,7 +20,7 @@ export function upgradeState(state: CachedBeaconState<phase0.BeaconState>): Cach
 }
 
 function upgradeTreeBackedState(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   state: CachedBeaconState<phase0.BeaconState>
 ): TreeBacked<altair.BeaconState> {
   const nextEpochActiveIndices = state.nextShuffling.activeIndices;

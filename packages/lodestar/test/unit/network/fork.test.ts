@@ -1,17 +1,9 @@
 import {expect} from "chai";
 import {ForkName} from "@chainsafe/lodestar-params";
-import {IBeaconConfig, ForkInfo} from "@chainsafe/lodestar-config";
+import {BeaconConfig, ForkInfo} from "@chainsafe/lodestar-config";
 import {getCurrentAndNextFork, getActiveForks} from "../../../src/network/forks";
 
-function getForkConfig({
-  phase0,
-  altair,
-  bellatrix,
-}: {
-  phase0: number;
-  altair: number;
-  bellatrix: number;
-}): IBeaconConfig {
+function getForkConfig({phase0, altair, bellatrix}: {phase0: number; altair: number; bellatrix: number}): BeaconConfig {
   const forks: Record<ForkName, ForkInfo> = {
     phase0: {
       name: ForkName.phase0,
@@ -31,7 +23,7 @@ function getForkConfig({
   };
   const forksAscendingEpochOrder = Object.values(forks);
   const forksDescendingEpochOrder = Object.values(forks).reverse();
-  return {forks, forksAscendingEpochOrder, forksDescendingEpochOrder} as IBeaconConfig;
+  return {forks, forksAscendingEpochOrder, forksDescendingEpochOrder} as BeaconConfig;
 }
 
 const testScenarios = [

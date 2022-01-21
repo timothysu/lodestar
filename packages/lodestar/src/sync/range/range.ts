@@ -2,7 +2,7 @@ import {EventEmitter} from "events";
 import StrictEventEmitter from "strict-event-emitter-types";
 import PeerId from "peer-id";
 import {computeEpochAtSlot, computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {Epoch, Slot, phase0} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {IBeaconChain} from "../../chain";
@@ -41,7 +41,7 @@ export type RangeSyncModules = {
   chain: IBeaconChain;
   network: INetwork;
   metrics: IMetrics | null;
-  config: IBeaconConfig;
+  config: BeaconConfig;
   logger: ILogger;
 };
 
@@ -77,7 +77,7 @@ export class RangeSync extends (EventEmitter as {new (): RangeSyncEmitter}) {
   private readonly chain: IBeaconChain;
   private readonly network: INetwork;
   private readonly metrics: IMetrics | null;
-  private readonly config: IBeaconConfig;
+  private readonly config: BeaconConfig;
   private readonly logger: ILogger;
   /** There is a single chain per type, 1 finalized sync, 1 head sync */
   private readonly chains = new Map<RangeSyncType, SyncChain>();

@@ -1,5 +1,5 @@
 import {ATTESTATION_SUBNET_COUNT, ForkName, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 import {mainnetChainConfig} from "@chainsafe/lodestar-config/presets";
 import {computeGossipPeerScoreParams, gossipScoreThresholds} from "../../../../src/network/gossip/scoringParameters";
 import {expect} from "chai";
@@ -13,8 +13,8 @@ import {ZERO_HASH} from "../../../../src/constants";
  * https://github.com/ConsenSys/teku/blob/e18ab9903442410aa04b590c4cc46734e13d3ffd/networking/eth2/src/test/java/tech/pegasys/teku/networking/eth2/gossip/config/GossipScoringConfiguratorTest.java#L38
  */
 describe("computeGossipPeerScoreParams", function () {
-  const config = createIBeaconConfig(mainnetChainConfig, ZERO_HASH);
-  // Cheap stub on new IBeaconConfig instance
+  const config = createBeaconConfig(mainnetChainConfig, ZERO_HASH);
+  // Cheap stub on new BeaconConfig instance
   config.forkName2ForkDigest = () => Buffer.alloc(4, 1);
   config.forkDigest2ForkName = () => ForkName.phase0;
 

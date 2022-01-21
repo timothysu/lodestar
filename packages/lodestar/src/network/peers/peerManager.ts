@@ -1,7 +1,7 @@
 import LibP2p, {Connection} from "libp2p";
 import PeerId from "peer-id";
 import {IDiscv5DiscoveryInputOptions} from "@chainsafe/discv5";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {allForks, altair, phase0} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {IBeaconChain} from "../../chain";
@@ -64,7 +64,7 @@ export type PeerManagerModules = {
   attnetsService: ISubnetsService;
   syncnetsService: ISubnetsService;
   chain: IBeaconChain;
-  config: IBeaconConfig;
+  config: BeaconConfig;
   peerMetadata: Libp2pPeerMetadataStore;
   peerRpcScores: IPeerRpcScoreStore;
   networkEventBus: INetworkEventBus;
@@ -103,7 +103,7 @@ export class PeerManager {
   private attnetsService: ISubnetsService;
   private syncnetsService: ISubnetsService;
   private chain: IBeaconChain;
-  private config: IBeaconConfig;
+  private config: BeaconConfig;
   private peerMetadata: Libp2pPeerMetadataStore;
   private peerRpcScores: IPeerRpcScoreStore;
   /** If null, discovery is disabled */

@@ -4,7 +4,7 @@ import {ERR_TOPIC_VALIDATOR_IGNORE, ERR_TOPIC_VALIDATOR_REJECT} from "libp2p-gos
 import {InMessage} from "libp2p-interfaces/src/pubsub";
 import Libp2p from "libp2p";
 import {AbortSignal} from "@chainsafe/abort-controller";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {ATTESTATION_SUBNET_COUNT, ForkName, SYNC_COMMITTEE_SUBNET_COUNT} from "@chainsafe/lodestar-params";
 import {allForks, altair, phase0} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
@@ -44,7 +44,7 @@ import {
 import {Eth2Context} from "../../chain";
 
 export interface IGossipsubModules {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   libp2p: Libp2p;
   logger: ILogger;
   metrics: IMetrics | null;
@@ -68,7 +68,7 @@ export interface IGossipsubModules {
  */
 export class Eth2Gossipsub extends Gossipsub {
   readonly jobQueues: GossipJobQueues;
-  private readonly config: IBeaconConfig;
+  private readonly config: BeaconConfig;
   private readonly logger: ILogger;
 
   // Internal caches

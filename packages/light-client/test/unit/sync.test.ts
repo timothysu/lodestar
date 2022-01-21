@@ -2,7 +2,7 @@ import {EPOCHS_PER_SYNC_COMMITTEE_PERIOD, SLOTS_PER_EPOCH} from "@chainsafe/lode
 import {allForks, phase0, ssz} from "@chainsafe/lodestar-types";
 import {routes, Api} from "@chainsafe/lodestar-api";
 import {chainConfig as chainConfigDef} from "@chainsafe/lodestar-config/default";
-import {createIBeaconConfig, ChainConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig, ChainConfig} from "@chainsafe/lodestar-config";
 import {Lightclient, LightclientEvent} from "../../src";
 import {EventsServerApi, LightclientServerApi, ServerOpts, startServer} from "../lightclientApiServer";
 import {
@@ -40,7 +40,7 @@ describe("Lightclient sync", () => {
     const chainConfig: ChainConfig = {...chainConfigDef, SECONDS_PER_SLOT, ALTAIR_FORK_EPOCH};
     const genesisTime = Math.floor(Date.now() / 1000) - chainConfig.SECONDS_PER_SLOT * targetSlot;
     const genesisValidatorsRoot = Buffer.alloc(32, 0xaa);
-    const config = createIBeaconConfig(chainConfig, genesisValidatorsRoot);
+    const config = createBeaconConfig(chainConfig, genesisValidatorsRoot);
 
     // Create server impl mock backed
     const lightclientServerApi = new LightclientServerApi();

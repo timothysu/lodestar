@@ -4,7 +4,7 @@
 import {Connection} from "libp2p";
 import {HandlerProps} from "libp2p/src/registrar";
 import {ForkName} from "@chainsafe/lodestar-params";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {AbortController} from "@chainsafe/abort-controller";
@@ -43,7 +43,7 @@ export type IReqRespOptions = Partial<typeof timeoutOptions>;
  * https://github.com/ethereum/eth2.0-specs/blob/dev/specs/phase0/p2p-interface.md#the-reqresp-domain
  */
 export class ReqResp implements IReqResp {
-  private config: IBeaconConfig;
+  private config: BeaconConfig;
   private libp2p: LibP2p;
   private logger: ILogger;
   private reqRespHandlers: ReqRespHandlers;

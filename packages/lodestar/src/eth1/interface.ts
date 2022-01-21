@@ -2,7 +2,7 @@
  * @module eth1
  */
 
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {allForks, phase0, Root, RootHex} from "@chainsafe/lodestar-types";
 import {CachedBeaconState} from "@chainsafe/lodestar-beacon-state-transition";
 
@@ -69,7 +69,7 @@ export interface IEth1Streamer {
 }
 
 export type IEth1StreamParams = Pick<
-  IBeaconConfig,
+  BeaconConfig,
   "ETH1_FOLLOW_DISTANCE" | "MIN_GENESIS_TIME" | "GENESIS_DELAY" | "SECONDS_PER_ETH1_BLOCK"
 > & {
   maxBlocksPerPoll: number;

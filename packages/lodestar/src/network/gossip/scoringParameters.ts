@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {allForks} from "@chainsafe/lodestar-beacon-state-transition";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {ATTESTATION_SUBNET_COUNT, SLOTS_PER_EPOCH, TARGET_AGGREGATORS_PER_COMMITTEE} from "@chainsafe/lodestar-params";
 import {PeerScoreThresholds} from "libp2p-gossipsub/src/score";
 import {defaultTopicScoreParams, PeerScoreParams, TopicScoreParams} from "libp2p-gossipsub/src/score/peer-score-params";
@@ -105,7 +105,7 @@ export function computeGossipPeerScoreParams({
 }
 
 function getAllTopicsScoreParams(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   eth2Context: Eth2Context,
   precomputedParams: PreComputedParams
 ): Record<string, TopicScoreParams> {
@@ -218,7 +218,7 @@ function getAllTopicsScoreParams(
 }
 
 function getTopicScoreParams(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   {epochDurationMs, slotDurationMs, scoreParameterDecayFn}: PreComputedParams,
   {topicWeight, expectedMessageRate, firstMessageDecayTime, meshMessageInfo}: TopicScoreInput
 ): TopicScoreParams {

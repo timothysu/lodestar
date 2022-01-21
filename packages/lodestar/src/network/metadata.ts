@@ -2,7 +2,7 @@ import {ENR} from "@chainsafe/discv5";
 import {BitVector, toHexString} from "@chainsafe/ssz";
 import {ForkName} from "@chainsafe/lodestar-params";
 import {altair, Epoch, phase0, ssz} from "@chainsafe/lodestar-types";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {IBeaconChain} from "../chain";
 import {FAR_FUTURE_EPOCH} from "../constants";
@@ -24,7 +24,7 @@ export interface IMetadataOpts {
 }
 
 export interface IMetadataModules {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   chain: IBeaconChain;
   logger: ILogger;
 }
@@ -36,7 +36,7 @@ export interface IMetadataModules {
  */
 export class MetadataController {
   private enr?: ENR;
-  private config: IBeaconConfig;
+  private config: BeaconConfig;
   private chain: IBeaconChain;
   private _metadata: altair.Metadata;
   private logger: ILogger;
@@ -117,7 +117,7 @@ export class MetadataController {
   }
 }
 
-export function getENRForkID(config: IBeaconConfig, clockEpoch: Epoch): phase0.ENRForkID {
+export function getENRForkID(config: BeaconConfig, clockEpoch: Epoch): phase0.ENRForkID {
   const {currentFork, nextFork} = getCurrentAndNextFork(config, clockEpoch);
 
   return {

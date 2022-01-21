@@ -4,7 +4,7 @@ import {AbortController} from "@chainsafe/abort-controller";
 
 import PeerId from "peer-id";
 import {ENR} from "@chainsafe/discv5";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 import {config} from "@chainsafe/lodestar-config/default";
 import {phase0, ssz} from "@chainsafe/lodestar-types";
 import {sleep} from "@chainsafe/lodestar-utils";
@@ -74,7 +74,7 @@ describe("network", function () {
         root: ssz.phase0.BeaconBlock.hashTreeRoot(block.message),
       },
     });
-    const beaconConfig = createIBeaconConfig(config, state.genesisValidatorsRoot);
+    const beaconConfig = createBeaconConfig(config, state.genesisValidatorsRoot);
     return {block, state, config: beaconConfig};
   });
 

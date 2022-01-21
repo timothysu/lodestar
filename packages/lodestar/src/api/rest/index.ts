@@ -5,7 +5,7 @@ import {IncomingMessage} from "http";
 import {Api} from "@chainsafe/lodestar-api";
 import {registerRoutes, RouteConfig} from "@chainsafe/lodestar-api/server";
 import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {IMetrics} from "../../metrics";
 import {ApiError, NodeIsSyncing} from "../impl/errors";
 export {allNamespaces} from "@chainsafe/lodestar-api";
@@ -28,7 +28,7 @@ export const restApiOptionsDefault: RestApiOptions = {
 };
 
 export interface IRestApiModules {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   logger: ILogger;
   api: Api;
   metrics: IMetrics | null;

@@ -1,6 +1,6 @@
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {allForks, RootHex, Slot, phase0} from "@chainsafe/lodestar-types";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {routes} from "@chainsafe/lodestar-api";
 import {INetwork} from "../network";
 import {IBeaconChain} from "../chain";
@@ -49,7 +49,7 @@ export interface ISlotRange {
 }
 
 export interface ISyncModules {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   network: INetwork;
   db: IBeaconDb;
   metrics: IMetrics | null;

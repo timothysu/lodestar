@@ -1,7 +1,7 @@
 import {AbortController, AbortSignal} from "@chainsafe/abort-controller";
 import {IDatabaseApiOptions} from "@chainsafe/lodestar-db";
 import {ssz} from "@chainsafe/lodestar-types";
-import {createIBeaconConfig, IBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig, BeaconConfig} from "@chainsafe/lodestar-config";
 import {Genesis} from "@chainsafe/lodestar-types/phase0";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {getClient, Api} from "@chainsafe/lodestar-api";
@@ -44,7 +44,7 @@ type State = {status: Status.running; controller: AbortController} | {status: St
  * Main class for the Validator client.
  */
 export class Validator {
-  private readonly config: IBeaconConfig;
+  private readonly config: BeaconConfig;
   private readonly api: Api;
   private readonly clock: IClock;
   private readonly emitter: ValidatorEventEmitter;
@@ -55,7 +55,7 @@ export class Validator {
 
   constructor(opts: ValidatorOptions, genesis: Genesis) {
     const {dbOps, logger, slashingProtection, signers, graffiti} = opts;
-    const config = createIBeaconConfig(dbOps.config, genesis.genesisValidatorsRoot);
+    const config = createBeaconConfig(dbOps.config, genesis.genesisValidatorsRoot);
 
     const api =
       typeof opts.api === "string"

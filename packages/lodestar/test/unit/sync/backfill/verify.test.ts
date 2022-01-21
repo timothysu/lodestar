@@ -1,6 +1,6 @@
 import {BackfillSyncErrorCode, BackfillSyncError} from "./../../../../src/sync/backfill/errors";
 import {Json} from "@chainsafe/ssz";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 import {config} from "@chainsafe/lodestar-config/default";
 import {phase0, ssz} from "@chainsafe/lodestar-types";
 import {expect} from "chai";
@@ -10,7 +10,7 @@ import path from "path";
 
 describe("backfill sync - verify block sequence", function () {
   //mainnet validators root
-  const beaconConfig = createIBeaconConfig(
+  const beaconConfig = createBeaconConfig(
     config,
     ssz.Root.fromJson("0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95")
   );

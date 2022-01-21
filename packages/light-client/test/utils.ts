@@ -1,6 +1,6 @@
 import {PointFormat, PublicKey, SecretKey, Signature} from "@chainsafe/bls";
 import {routes} from "@chainsafe/lodestar-api";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {
   DOMAIN_SYNC_COMMITTEE,
   EPOCHS_PER_SYNC_COMMITTEE_PERIOD,
@@ -44,7 +44,7 @@ export function signAndAggregate(message: Uint8Array, sks: SecretKey[]): altair.
 }
 
 export function getSyncAggregateSigningRoot(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   syncAttestedBlockHeader: phase0.BeaconBlockHeader
 ): Uint8Array {
   const domain = config.getDomain(DOMAIN_SYNC_COMMITTEE, syncAttestedBlockHeader.slot);
@@ -61,7 +61,7 @@ export type SyncCommitteeKeys = {
   pks: PublicKey[];
   syncCommittee: altair.SyncCommittee;
   syncCommitteeFast: SyncCommitteeFast;
-  signHeader(config: IBeaconConfig, header: phase0.BeaconBlockHeader): altair.SyncAggregate;
+  signHeader(config: BeaconConfig, header: phase0.BeaconBlockHeader): altair.SyncAggregate;
   signAndAggregate(message: Uint8Array): altair.SyncAggregate;
 };
 
@@ -90,7 +90,7 @@ export function getInteropSyncCommittee(period: SyncPeriod): SyncCommitteeKeys {
     };
   }
 
-  function signHeader(config: IBeaconConfig, header: phase0.BeaconBlockHeader): altair.SyncAggregate {
+  function signHeader(config: BeaconConfig, header: phase0.BeaconBlockHeader): altair.SyncAggregate {
     return signAndAggregate(getSyncAggregateSigningRoot(config, header));
   }
 
@@ -112,7 +112,7 @@ export function getInteropSyncCommittee(period: SyncPeriod): SyncCommitteeKeys {
 /**
  * Creates LightClientUpdate that passes `assertValidLightClientUpdate` function, from mock data
  */
-export function computeLightclientUpdate(config: IBeaconConfig, period: SyncPeriod): altair.LightClientUpdate {
+export function computeLightclientUpdate(config: BeaconConfig, period: SyncPeriod): altair.LightClientUpdate {
   const updateSlot = period * EPOCHS_PER_SYNC_COMMITTEE_PERIOD * SLOTS_PER_EPOCH + 1;
 
   const committee = getInteropSyncCommittee(period);

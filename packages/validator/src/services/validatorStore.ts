@@ -3,7 +3,7 @@ import {
   computeSigningRoot,
   computeStartSlotAtEpoch,
 } from "@chainsafe/lodestar-beacon-state-transition";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {
   DOMAIN_AGGREGATE_AND_PROOF,
   DOMAIN_BEACON_ATTESTER,
@@ -66,7 +66,7 @@ export class ValidatorStore {
   private readonly genesisValidatorsRoot: Root;
 
   constructor(
-    private readonly config: IBeaconConfig,
+    private readonly config: BeaconConfig,
     private readonly slashingProtection: ISlashingProtection,
     signers: Signer[],
     genesis: phase0.Genesis

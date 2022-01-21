@@ -4,7 +4,7 @@
 
 import fs from "fs";
 import {CachedBeaconState, computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {IForkChoice} from "@chainsafe/lodestar-fork-choice";
 import {allForks, Number64, Root, phase0, Slot, RootHex} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
@@ -51,7 +51,7 @@ export class BeaconChain implements IBeaconChain {
   readonly eth1: IEth1ForBlockProduction;
   readonly executionEngine: IExecutionEngine;
   // Expose config for convenience in modularized functions
-  readonly config: IBeaconConfig;
+  readonly config: BeaconConfig;
   readonly anchorStateLatestBlockSlot: Slot;
 
   bls: IBlsVerifier;
@@ -97,7 +97,7 @@ export class BeaconChain implements IBeaconChain {
       eth1,
       executionEngine,
     }: {
-      config: IBeaconConfig;
+      config: BeaconConfig;
       db: IBeaconDb;
       logger: ILogger;
       metrics: IMetrics | null;

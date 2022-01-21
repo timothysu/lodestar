@@ -4,7 +4,7 @@ import {LightClientSnapshotFast, LightClientStoreFast} from "../../src/types";
 import {assertValidLightClientUpdate} from "../../src/validation";
 import {deserializeSyncCommittee, isEmptyHeader, sumBits} from "../../src/utils/utils";
 import {computeSyncPeriodAtSlot} from "../../src/utils/clock";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 
 //
 // A lightclient has two types of syncing:
@@ -49,7 +49,7 @@ import {IBeaconConfig} from "@chainsafe/lodestar-config";
  * Spec v1.0.1
  */
 export function processLightClientUpdate(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   store: LightClientStoreFast,
   update: altair.LightClientUpdate,
   currentSlot: Slot

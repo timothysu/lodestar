@@ -1,6 +1,6 @@
 import {ForkName} from "@chainsafe/lodestar-params";
 import {RespStatus, RpcResponseStatusError} from "../../../constants";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {writeEncodedPayload} from "../encodingStrategies";
 import {encodeErrorMessage} from "../utils";
 import {
@@ -25,7 +25,7 @@ import {
  * Note: `response` has zero or more chunks (denoted by `<>*`)
  */
 export function responseEncodeSuccess(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   protocol: Protocol
 ): (source: AsyncIterable<OutgoingResponseBody>) => AsyncIterable<Buffer> {
   const contextBytesType = contextBytesTypeByProtocol(protocol);
@@ -74,7 +74,7 @@ export async function* responseEncodeError(
  * This item is mandatory but may be empty.
  */
 export async function* writeContextBytes(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   contextBytesType: ContextBytesType,
   forkName: ForkName
 ): AsyncGenerator<Buffer> {
@@ -90,7 +90,7 @@ export async function* writeContextBytes(
 }
 
 export function getForkNameFromResponseBody<K extends Method>(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   protocol: Protocol,
   body: OutgoingResponseBodyByMethod[K] | IncomingResponseBodyByMethod[K]
 ): ForkName {

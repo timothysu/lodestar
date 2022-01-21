@@ -5,7 +5,7 @@ import {config} from "@chainsafe/lodestar-config/default";
 import {Clock, getCurrentSlotAround} from "../../../src/util/clock";
 import {testLogger} from "../../utils/logger";
 import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 
 describe("util / Clock", function () {
   const logger = testLogger();
@@ -84,7 +84,7 @@ describe("util / Clock", function () {
 
   describe("getCurrentSlot", function () {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const testConfig = {SECONDS_PER_SLOT: 12} as IBeaconConfig;
+    const testConfig = {SECONDS_PER_SLOT: 12} as BeaconConfig;
     const genesisTime = Math.floor(new Date("2021-01-01").getTime() / 1000);
     const testCase: {name: string; delta: number}[] = [
       {name: "should return next slot after 11.5s", delta: 11.5},

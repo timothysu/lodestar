@@ -1,5 +1,5 @@
 import {computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {ForkName, SYNC_COMMITTEE_SUBNET_COUNT} from "@chainsafe/lodestar-params";
 import {Epoch, ssz} from "@chainsafe/lodestar-types";
 import {ILogger} from "@chainsafe/lodestar-utils";
@@ -27,7 +27,7 @@ export class SyncnetsService implements ISubnetsService {
   private subscriptionsCommittee = new SubnetMap();
 
   constructor(
-    private readonly config: IBeaconConfig,
+    private readonly config: BeaconConfig,
     private readonly chain: IBeaconChain,
     private readonly gossip: Eth2Gossipsub,
     private readonly metadata: MetadataController,

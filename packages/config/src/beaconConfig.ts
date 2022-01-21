@@ -9,10 +9,10 @@ import {CachedGenesis} from "./genesisConfig/types";
  */
 export type ChainForkConfig = ChainConfig & ForkConfig;
 
-export type IBeaconConfig = ChainForkConfig & CachedGenesis;
+export type BeaconConfig = ChainForkConfig & CachedGenesis;
 
 /**
- * Create an `IBeaconConfig`, filling in missing values with preset defaults
+ * Create an `BeaconConfig`, filling in missing values with preset defaults
  */
 export function createChainForkConfig(chainConfig: Partial<ChainConfig>): ChainForkConfig {
   const fullChainConfig = createChainConfig(chainConfig);
@@ -22,7 +22,7 @@ export function createChainForkConfig(chainConfig: Partial<ChainConfig>): ChainF
   };
 }
 
-export function createIBeaconConfig(chainConfig: Partial<ChainConfig>, genesisValidatorsRoot: Root): IBeaconConfig {
+export function createBeaconConfig(chainConfig: Partial<ChainConfig>, genesisValidatorsRoot: Root): BeaconConfig {
   const chainForkConfig = createChainForkConfig(chainConfig);
   return {
     ...chainForkConfig,

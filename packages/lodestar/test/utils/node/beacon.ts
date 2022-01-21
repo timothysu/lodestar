@@ -3,7 +3,7 @@ import tmp from "tmp";
 import PeerId from "peer-id";
 import {createEnr} from "@chainsafe/lodestar-cli/src/config";
 import {config as minimalConfig} from "@chainsafe/lodestar-config/default";
-import {createIBeaconConfig, createChainForkConfig, ChainConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig, createChainForkConfig, ChainConfig} from "@chainsafe/lodestar-config";
 import {ILogger, RecursivePartial} from "@chainsafe/lodestar-utils";
 import {LevelDbController} from "@chainsafe/lodestar-db";
 import {BeaconNode} from "../../../src/node";
@@ -72,7 +72,7 @@ export async function getDevBeaconNode(
   );
 
   const state = opts.anchorState || (await initDevState(config, db, validatorCount, opts));
-  const beaconConfig = createIBeaconConfig(config, state.genesisValidatorsRoot);
+  const beaconConfig = createBeaconConfig(config, state.genesisValidatorsRoot);
   return await BeaconNode.init({
     opts: options as IBeaconNodeOptions,
     config: beaconConfig,

@@ -1,7 +1,7 @@
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {ssz} from "@chainsafe/lodestar-types";
 import {TreeBacked} from "@chainsafe/ssz";
-import {createIBeaconConfig, IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig, BeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {fromHex, ILogger} from "@chainsafe/lodestar-utils";
 import {computeEpochAtSlot, allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconDb, IBeaconNodeOptions, initStateFromAnchorState, initStateFromEth1} from "@chainsafe/lodestar";
@@ -32,7 +32,7 @@ function getCheckpointFromState(config: ChainForkConfig, state: allForks.BeaconS
 }
 
 async function initAndVerifyWeakSubjectivityState(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   db: IBeaconDb,
   logger: ILogger,
   store: TreeBacked<allForks.BeaconState>,
@@ -97,7 +97,7 @@ export async function initBeaconState(
     // otherwise, the state itself is used for verification (not bad, because the trusted state has been explicitly provided)
     const stateBytes = await downloadOrLoadFile(args.weakSubjectivityStateFile);
     const wsState = getStateTypeFromBytes(chainForkConfig, stateBytes).createTreeBackedFromBytes(stateBytes);
-    const config = createIBeaconConfig(chainForkConfig, wsState.genesisValidatorsRoot);
+    const config = createBeaconConfig(chainForkConfig, wsState.genesisValidatorsRoot);
     const store = lastDbState ?? wsState;
     const checkpoint = args.weakSubjectivityCheckpoint
       ? getCheckpointFromArg(args.weakSubjectivityCheckpoint)
@@ -122,7 +122,7 @@ export async function initBeaconState(
 
     logger.info("Fetching weak subjectivity state from " + url);
     const wsState = await fetchWeakSubjectivityState(chainForkConfig, url);
-    const config = createIBeaconConfig(chainForkConfig, wsState.genesisValidatorsRoot);
+    const config = createBeaconConfig(chainForkConfig, wsState.genesisValidatorsRoot);
     const store = lastDbState ?? wsState;
     return initAndVerifyWeakSubjectivityState(
       config,
@@ -134,7 +134,7 @@ export async function initBeaconState(
     );
   } else if (lastDbState) {
     // start the chain from the latest stored state in the db
-    const config = createIBeaconConfig(chainForkConfig, lastDbState.genesisValidatorsRoot);
+    const config = createBeaconConfig(chainForkConfig, lastDbState.genesisValidatorsRoot);
     const anchorState = await initStateFromAnchorState(config, db, logger, lastDbState);
     return {anchorState};
   } else {
@@ -142,7 +142,7 @@ export async function initBeaconState(
     if (genesisStateFile && !args.forceGenesis) {
       const stateBytes = await downloadOrLoadFile(genesisStateFile);
       let anchorState = getStateTypeFromBytes(chainForkConfig, stateBytes).createTreeBackedFromBytes(stateBytes);
-      const config = createIBeaconConfig(chainForkConfig, anchorState.genesisValidatorsRoot);
+      const config = createBeaconConfig(chainForkConfig, anchorState.genesisValidatorsRoot);
       anchorState = await initStateFromAnchorState(config, db, logger, anchorState);
       return {anchorState};
     } else {

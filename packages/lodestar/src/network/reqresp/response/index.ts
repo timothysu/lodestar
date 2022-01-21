@@ -3,7 +3,7 @@ import pipe from "it-pipe";
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {Libp2p} from "libp2p/src/connection-manager";
 import {Context, ILogger, TimeoutError, withTimeout} from "@chainsafe/lodestar-utils";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {REQUEST_TIMEOUT, RespStatus} from "../../../constants";
 import {getClientFromPeerStore, prettyPrintPeerId} from "../../util";
 import {Protocol, RequestBody, OutgoingResponseBody} from "../types";
@@ -22,7 +22,7 @@ export type PerformRequestHandler = (
 ) => AsyncIterable<OutgoingResponseBody>;
 
 type HandleRequestModules = {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   logger: ILogger;
   libp2p: Libp2p;
 };

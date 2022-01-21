@@ -3,7 +3,7 @@ import {AbortController} from "@chainsafe/abort-controller";
 import {EPOCHS_PER_SYNC_COMMITTEE_PERIOD, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {getClient, Api, routes} from "@chainsafe/lodestar-api";
 import {altair, phase0, RootHex, ssz, SyncPeriod} from "@chainsafe/lodestar-types";
-import {createIBeaconConfig, IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig, BeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {TreeOffsetProof} from "@chainsafe/persistent-merkle-tree";
 import {isErrorAborted, sleep} from "@chainsafe/lodestar-utils";
 import {fromHexString, Path, toHexString} from "@chainsafe/ssz";
@@ -106,7 +106,7 @@ export class Lightclient {
   readonly api: Api;
   readonly emitter: LightclientEmitter = mitt();
 
-  readonly config: IBeaconConfig;
+  readonly config: BeaconConfig;
   readonly logger: ILcLogger;
   readonly genesisValidatorsRoot: Uint8Array;
   readonly genesisTime: number;
@@ -138,7 +138,7 @@ export class Lightclient {
         ? fromHexString(genesisData.genesisValidatorsRoot)
         : genesisData.genesisValidatorsRoot;
 
-    this.config = createIBeaconConfig(config, this.genesisValidatorsRoot);
+    this.config = createBeaconConfig(config, this.genesisValidatorsRoot);
     this.logger = logger ?? getLcLoggerConsole();
 
     this.beaconApiUrl = beaconApiUrl;

@@ -10,7 +10,7 @@ import {SlashingProtection, Validator, SignerType} from "@chainsafe/lodestar-val
 import {LevelDbController} from "@chainsafe/lodestar-db";
 import {SecretKey} from "@chainsafe/bls";
 import {interopSecretKey} from "@chainsafe/lodestar-beacon-state-transition";
-import {createIBeaconConfig} from "@chainsafe/lodestar-config";
+import {createBeaconConfig} from "@chainsafe/lodestar-config";
 import {ACTIVE_PRESET, PresetName} from "@chainsafe/lodestar-params";
 import {onGracefulShutdown} from "../../util/process";
 import {createEnr, createPeerId, overwriteEnrWithCliArgs} from "../../config";
@@ -90,7 +90,7 @@ export async function devHandler(args: IDevArgs & IGlobalArgs): Promise<void> {
       await nodeUtils.initDevState(config, db, validatorCount, {genesisTime, eth1BlockHash})
     );
   }
-  const beaconConfig = createIBeaconConfig(config, anchorState.genesisValidatorsRoot);
+  const beaconConfig = createBeaconConfig(config, anchorState.genesisValidatorsRoot);
 
   const validators: Validator[] = [];
 

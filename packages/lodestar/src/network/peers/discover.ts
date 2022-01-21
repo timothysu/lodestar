@@ -2,7 +2,7 @@ import LibP2p from "libp2p";
 import PeerId from "peer-id";
 import {Multiaddr} from "multiaddr";
 import crypto from "crypto";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {Discv5, ENR, IDiscv5Metrics, IDiscv5DiscoveryInputOptions} from "@chainsafe/discv5";
 import {ATTESTATION_SUBNET_COUNT, SYNC_COMMITTEE_SUBNET_COUNT} from "@chainsafe/lodestar-params";
@@ -29,7 +29,7 @@ export type PeerDiscoveryModules = {
   peerRpcScores: IPeerRpcScoreStore;
   metrics: IMetrics | null;
   logger: ILogger;
-  config: IBeaconConfig;
+  config: BeaconConfig;
 };
 
 type PeerIdStr = string;
@@ -77,7 +77,7 @@ export class PeerDiscovery {
   private peerRpcScores: IPeerRpcScoreStore;
   private metrics: IMetrics | null;
   private logger: ILogger;
-  private config: IBeaconConfig;
+  private config: BeaconConfig;
   private cachedENRs = new Set<CachedENR>();
   private randomNodeQuery: QueryStatus = {code: QueryStatusCode.NotActive};
   private peersToConnect = 0;

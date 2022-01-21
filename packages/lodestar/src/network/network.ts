@@ -6,7 +6,7 @@ import LibP2p, {Connection} from "libp2p";
 import PeerId from "peer-id";
 import {Multiaddr} from "multiaddr";
 import {AbortSignal} from "@chainsafe/abort-controller";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {ATTESTATION_SUBNET_COUNT, ForkName, SYNC_COMMITTEE_SUBNET_COUNT} from "@chainsafe/lodestar-params";
 import {Discv5, ENR} from "@chainsafe/discv5";
@@ -27,7 +27,7 @@ import {INetworkEventBus, NetworkEventBus} from "./events";
 import {AttnetsService, SyncnetsService, CommitteeSubscription} from "./subnets";
 
 interface INetworkModules {
-  config: IBeaconConfig;
+  config: BeaconConfig;
   libp2p: LibP2p;
   logger: ILogger;
   metrics: IMetrics | null;
@@ -51,7 +51,7 @@ export class Network implements INetwork {
   private readonly peerManager: PeerManager;
   private readonly libp2p: LibP2p;
   private readonly logger: ILogger;
-  private readonly config: IBeaconConfig;
+  private readonly config: BeaconConfig;
   private readonly clock: IBeaconClock;
   private readonly chain: IBeaconChain;
 

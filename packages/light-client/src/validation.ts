@@ -8,7 +8,7 @@ import {
   MIN_SYNC_COMMITTEE_PARTICIPANTS,
   DOMAIN_SYNC_COMMITTEE,
 } from "@chainsafe/lodestar-params";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 import {isValidMerkleBranch} from "./utils/verifyMerkleBranch";
 import {assertZeroHashes, getParticipantPubkeys, isEmptyHeader} from "./utils/utils";
 import {SyncCommitteeFast} from "./types";
@@ -20,7 +20,7 @@ import {computeSyncPeriodAtSlot} from "./utils/clock";
  * @param forkVersion ForkVersion that was used to sign the update
  */
 export function assertValidLightClientUpdate(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   syncCommittee: SyncCommitteeFast,
   update: altair.LightClientUpdate
 ): void {
@@ -122,7 +122,7 @@ export function assertValidSyncCommitteeProof(update: altair.LightClientUpdate):
  * @param signedHeaderRoot Takes header root instead of the head itself to prevent re-hashing on SSE
  */
 export function assertValidSignedHeader(
-  config: IBeaconConfig,
+  config: BeaconConfig,
   syncCommittee: SyncCommitteeFast,
   syncAggregate: altair.SyncAggregate,
   signedHeaderRoot: Root,

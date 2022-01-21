@@ -1,7 +1,7 @@
 import {allForks, Number64, Root, phase0, Slot, RootHex} from "@chainsafe/lodestar-types";
 import {CachedBeaconState} from "@chainsafe/lodestar-beacon-state-transition";
 import {IForkChoice} from "@chainsafe/lodestar-fork-choice";
-import {IBeaconConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig} from "@chainsafe/lodestar-config";
 
 import {IEth1ForBlockProduction} from "../eth1";
 import {IExecutionEngine} from "../executionEngine";
@@ -39,7 +39,7 @@ export interface IBeaconChain {
   readonly eth1: IEth1ForBlockProduction;
   readonly executionEngine: IExecutionEngine;
   // Expose config for convenience in modularized functions
-  readonly config: IBeaconConfig;
+  readonly config: BeaconConfig;
 
   /** The initial slot that the chain is started with */
   readonly anchorStateLatestBlockSlot: Slot;

@@ -5,7 +5,7 @@
 import {TreeBacked, List} from "@chainsafe/ssz";
 import {GENESIS_SLOT} from "@chainsafe/lodestar-params";
 import {Root, phase0, allForks, ssz} from "@chainsafe/lodestar-types";
-import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
+import {BeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {
   getTemporaryBlockHeader,
@@ -47,7 +47,7 @@ export class GenesisBuilder implements IGenesisBuilder {
   /** Is null if no block has been processed yet */
   lastProcessedBlockNumber: number | null = null;
 
-  private readonly config: IBeaconConfig;
+  private readonly config: BeaconConfig;
   private readonly eth1Provider: IEth1Provider;
   private readonly logger: ILogger;
   private readonly signal?: AbortSignal;
@@ -58,10 +58,10 @@ export class GenesisBuilder implements IGenesisBuilder {
   private lastLog = 0;
 
   constructor({config, eth1Provider, logger, signal, pendingStatus, maxBlocksPerPoll}: IGenesisBuilderKwargs) {
-    // at genesis builder, there is no genesis validator so we don't have a real IBeaconConfig
-    // but we need IBeaconConfig to temporarily create CachedBeaconState, the cast here is safe since we don't use any getDomain here
+    // at genesis builder, there is no genesis validator so we don't have a real BeaconConfig
+    // but we need BeaconConfig to temporarily create CachedBeaconState, the cast here is safe since we don't use any getDomain here
     // the use of state as CachedBeaconState is just for convenient, IGenesisResult returns TreeBacked anyway
-    this.config = config as IBeaconConfig;
+    this.config = config as BeaconConfig;
     this.eth1Provider = eth1Provider;
     this.logger = logger;
     this.signal = signal;
