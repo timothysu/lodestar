@@ -8,7 +8,7 @@ import {ChainEvent} from "../../src/chain";
 import {createPeerId} from "../../src/network";
 import {logFilesDir} from "./params";
 import {NodeWorkerOptions} from "./threaded/types";
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 
 /* eslint-disable no-console, @typescript-eslint/naming-convention */
 
@@ -19,7 +19,7 @@ type TestArgs = {
   altairForkEpoch: number;
 };
 
-const testParams: Pick<IChainConfig, "SECONDS_PER_SLOT"> = {
+const testParams: Pick<ChainConfig, "SECONDS_PER_SLOT"> = {
   SECONDS_PER_SLOT: 2,
 };
 

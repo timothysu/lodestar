@@ -11,7 +11,7 @@ import {
   TreeBacked,
 } from "@chainsafe/ssz";
 import {allForks, altair, Number64, ParticipationFlags} from "@chainsafe/lodestar-types";
-import {createIBeaconConfig, IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {createIBeaconConfig, IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {Tree} from "@chainsafe/persistent-merkle-tree";
 import {MutableVector} from "@chainsafe/persistent-ts";
 import {createEpochContext, EpochContext, EpochContextOpts} from "./epochContext";
@@ -90,7 +90,7 @@ export type CachedBeaconState<T extends allForks.BeaconState> =
     T;
 
 export function createCachedBeaconState<T extends allForks.BeaconState>(
-  chainForkConfig: IChainForkConfig,
+  chainForkConfig: ChainForkConfig,
   state: TreeBacked<T>,
   opts?: EpochContextOpts
 ): CachedBeaconState<T> {

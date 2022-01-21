@@ -5,7 +5,7 @@ import {phase0, ssz, Slot, altair, ParticipationFlags} from "@chainsafe/lodestar
 import bls, {CoordType, PublicKey, SecretKey} from "@chainsafe/bls";
 import {fromHexString, List, TreeBacked} from "@chainsafe/ssz";
 import {allForks, interopSecretKey, computeEpochAtSlot, getActiveValidatorIndices} from "../../src";
-import {createChainForkConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {createChainForkConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {CachedBeaconState, computeCommitteeCount, createCachedBeaconState, PubkeyIndexMap} from "../../src/allForks";
 import {profilerLogger} from "../utils/logger";
 import {interopPubkeysCached} from "../utils/interop";
@@ -437,7 +437,7 @@ export function beforeValue<T>(fn: () => T | Promise<T>, timeout?: number): Lazy
 /**
  * Create a network config from known network params
  */
-export function getNetworkConfig(network: NetworkName): IChainForkConfig {
+export function getNetworkConfig(network: NetworkName): ChainForkConfig {
   const configNetwork = networksChainConfig[network];
   return createChainForkConfig(configNetwork);
 }

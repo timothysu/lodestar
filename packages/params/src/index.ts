@@ -6,7 +6,7 @@ import {userSelectedPreset} from "./setPreset";
 
 export * from "./interface";
 export {ForkName} from "./forkName";
-export {SpecTypes, SpecValue, SpecValueTypeName} from "./specTypes";
+export {SpecTypes, SpecValue, SpecValueTypeName, beaconPresetTypes} from "./specTypes";
 export {PresetName};
 
 const presets = {

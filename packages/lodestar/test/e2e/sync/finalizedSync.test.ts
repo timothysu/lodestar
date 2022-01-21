@@ -1,4 +1,4 @@
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {getDevBeaconNode} from "../../utils/node/beacon";
 import {waitForEvent} from "../../utils/events/resolver";
 import {phase0, ssz} from "@chainsafe/lodestar-types";
@@ -12,7 +12,7 @@ import {fromHexString} from "@chainsafe/ssz";
 
 describe("sync / finalized sync", function () {
   const validatorCount = 8;
-  const beaconParams: Partial<IChainConfig> = {
+  const beaconParams: Partial<ChainConfig> = {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     SECONDS_PER_SLOT: 2,
   };

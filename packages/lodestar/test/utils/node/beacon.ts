@@ -3,7 +3,7 @@ import tmp from "tmp";
 import PeerId from "peer-id";
 import {createEnr} from "@chainsafe/lodestar-cli/src/config";
 import {config as minimalConfig} from "@chainsafe/lodestar-config/default";
-import {createIBeaconConfig, createChainForkConfig, IChainConfig} from "@chainsafe/lodestar-config";
+import {createIBeaconConfig, createChainForkConfig, ChainConfig} from "@chainsafe/lodestar-config";
 import {ILogger, RecursivePartial} from "@chainsafe/lodestar-utils";
 import {LevelDbController} from "@chainsafe/lodestar-db";
 import {BeaconNode} from "../../../src/node";
@@ -21,7 +21,7 @@ import {allForks, phase0} from "@chainsafe/lodestar-types";
 
 export async function getDevBeaconNode(
   opts: {
-    params: Partial<IChainConfig>;
+    params: Partial<ChainConfig>;
     options?: RecursivePartial<IBeaconNodeOptions>;
     validatorCount?: number;
     logger?: ILogger;

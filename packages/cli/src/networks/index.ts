@@ -1,5 +1,5 @@
 import {IBeaconNodeOptions} from "@chainsafe/lodestar";
-import {IChainConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {allForks} from "@chainsafe/lodestar-types";
 import {RecursivePartial} from "@chainsafe/lodestar-utils";
 // eslint-disable-next-line no-restricted-imports
@@ -17,7 +17,7 @@ export const networkNames: NetworkName[] = ["mainnet", "pyrmont", "prater"];
 function getNetworkData(
   network: NetworkName
 ): {
-  chainConfig: IChainConfig;
+  chainConfig: ChainConfig;
   depositContractDeployBlock: number;
   genesisFileUrl: string | null;
   bootnodesFileUrl: string;
@@ -35,7 +35,7 @@ function getNetworkData(
   }
 }
 
-export function getNetworkBeaconParams(network: NetworkName): IChainConfig {
+export function getNetworkBeaconParams(network: NetworkName): ChainConfig {
   return getNetworkData(network).chainConfig;
 }
 
@@ -135,7 +135,7 @@ export function enrsToNetworkConfig(enrs: string[]): RecursivePartial<IBeaconNod
  * Fetch weak subjectivity state from a remote beacon node
  */
 export async function fetchWeakSubjectivityState(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   url: string
 ): Promise<TreeBacked<allForks.BeaconState>> {
   try {

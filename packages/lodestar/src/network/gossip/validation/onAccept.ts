@@ -1,15 +1,15 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {toHexString} from "@chainsafe/ssz";
 import {GossipType, GossipTypeMap, GossipTopicTypeMap} from "../interface";
 
 export type GetGossipAcceptMetadataFn = (
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   object: GossipTypeMap[GossipType],
   topic: GossipTopicTypeMap[GossipType]
 ) => Record<string, string | number>;
 export type GetGossipAcceptMetadataFns = {
   [K in GossipType]: (
-    config: IChainForkConfig,
+    config: ChainForkConfig,
     object: GossipTypeMap[K],
     topic: GossipTopicTypeMap[K]
   ) => Record<string, string | number>;

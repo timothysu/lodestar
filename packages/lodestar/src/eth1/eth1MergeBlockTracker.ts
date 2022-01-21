@@ -1,5 +1,5 @@
 import {AbortSignal} from "@chainsafe/abort-controller";
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {Epoch, RootHex} from "@chainsafe/lodestar-types";
 import {ILogger, isErrorAborted, sleep} from "@chainsafe/lodestar-utils";
 import {toHexString} from "@chainsafe/ssz";
@@ -31,7 +31,7 @@ const MAX_BLOCKS_PER_PAST_REQUEST = 1000;
 const SLEEP_ON_ERROR_MS = 3000;
 
 export type Eth1MergeBlockTrackerModules = {
-  config: IChainConfig;
+  config: ChainConfig;
   logger: ILogger;
   signal: AbortSignal;
   clockEpoch: Epoch;
@@ -42,7 +42,7 @@ export type Eth1MergeBlockTrackerModules = {
  * Follows the eth1 chain to find a (or multiple?) merge blocks that cross the threshold of total terminal difficulty
  */
 export class Eth1MergeBlockTracker {
-  private readonly config: IChainConfig;
+  private readonly config: ChainConfig;
   private readonly logger: ILogger;
   private readonly signal: AbortSignal;
 

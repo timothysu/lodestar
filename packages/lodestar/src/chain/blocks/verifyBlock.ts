@@ -9,7 +9,7 @@ import {
 } from "@chainsafe/lodestar-beacon-state-transition";
 import {toHexString} from "@chainsafe/ssz";
 import {IForkChoice, IProtoBlock, ExecutionStatus} from "@chainsafe/lodestar-fork-choice";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {IMetrics} from "../../metrics";
 import {IExecutionEngine} from "../../executionEngine";
@@ -28,7 +28,7 @@ export type VerifyBlockModules = {
   clock: IBeaconClock;
   logger: ILogger;
   forkChoice: IForkChoice;
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   metrics: IMetrics | null;
 };
 

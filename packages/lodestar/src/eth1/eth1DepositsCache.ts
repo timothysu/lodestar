@@ -1,6 +1,6 @@
 import {phase0, ssz} from "@chainsafe/lodestar-types";
 import {IFilterOptions} from "@chainsafe/lodestar-db";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {IBeaconDb} from "../db";
 import {getEth1DataForBlocks} from "./utils/eth1Data";
 import {assertConsecutiveDeposits} from "./utils/eth1DepositEvent";
@@ -9,9 +9,9 @@ import {Eth1Error, Eth1ErrorCode} from "./errors";
 
 export class Eth1DepositsCache {
   db: IBeaconDb;
-  config: IChainForkConfig;
+  config: ChainForkConfig;
 
-  constructor(config: IChainForkConfig, db: IBeaconDb) {
+  constructor(config: ChainForkConfig, db: IBeaconDb) {
     this.config = config;
     this.db = db;
   }

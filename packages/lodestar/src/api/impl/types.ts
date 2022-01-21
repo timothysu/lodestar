@@ -1,4 +1,4 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 
 import {IBeaconChain} from "../../chain";
@@ -8,7 +8,7 @@ import {INetwork} from "../../network";
 import {IMetrics} from "../../metrics";
 
 export type ApiModules = {
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   chain: IBeaconChain;
   db: IBeaconDb;
   logger: ILogger;

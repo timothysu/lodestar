@@ -1,4 +1,4 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {allForks, Root, RootHex} from "@chainsafe/lodestar-types";
 import {fromHexString, List, toHexString} from "@chainsafe/ssz";
@@ -27,7 +27,7 @@ export class UnknownBlockSync {
   private readonly knownBadBlocks = new Set<RootHex>();
 
   constructor(
-    private readonly config: IChainForkConfig,
+    private readonly config: ChainForkConfig,
     private readonly network: INetwork,
     private readonly chain: IBeaconChain,
     private readonly logger: ILogger,

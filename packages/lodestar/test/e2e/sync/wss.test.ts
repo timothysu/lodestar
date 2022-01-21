@@ -2,7 +2,7 @@ import {assert} from "chai";
 import {GENESIS_SLOT, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {phase0, Slot} from "@chainsafe/lodestar-types";
 import {initBLS} from "@chainsafe/lodestar-cli/src/util";
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {fetchWeakSubjectivityState} from "@chainsafe/lodestar-cli/src/networks";
 import {config} from "@chainsafe/lodestar-config/default";
 import {getDevBeaconNode} from "../../utils/node/beacon";
@@ -19,7 +19,7 @@ import {computeEpochAtSlot, allForks} from "@chainsafe/lodestar-beacon-state-tra
 
 /* eslint-disable @typescript-eslint/naming-convention */
 describe("Start from WSS", function () {
-  const testParams: Pick<IChainConfig, "SECONDS_PER_SLOT"> = {
+  const testParams: Pick<ChainConfig, "SECONDS_PER_SLOT"> = {
     SECONDS_PER_SLOT: 2,
   };
 

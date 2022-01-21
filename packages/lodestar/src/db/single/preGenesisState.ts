@@ -1,17 +1,17 @@
 import {TreeBacked, ContainerType} from "@chainsafe/ssz";
 import {GENESIS_SLOT} from "@chainsafe/lodestar-params";
 import {allForks} from "@chainsafe/lodestar-types";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {Db, Bucket, IDbMetrics} from "@chainsafe/lodestar-db";
 
 export class PreGenesisState {
-  private readonly config: IChainForkConfig;
+  private readonly config: ChainForkConfig;
   private readonly bucket: Bucket;
   private readonly db: Db;
   private readonly key: Buffer;
   private readonly metrics?: IDbMetrics;
 
-  constructor(config: IChainForkConfig, db: Db, metrics?: IDbMetrics) {
+  constructor(config: ChainForkConfig, db: Db, metrics?: IDbMetrics) {
     this.config = config;
     this.db = db;
     this.bucket = Bucket.phase0_preGenesisState;

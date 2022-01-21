@@ -2,7 +2,7 @@ import {expect} from "chai";
 import {config} from "@chainsafe/lodestar-config/default";
 import {List, TreeBacked} from "@chainsafe/ssz";
 import {allForks, phase0, ssz} from "@chainsafe/lodestar-types";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {generateState} from "../../../utils/state";
 import {filterBy} from "../../../utils/db";
 import {
@@ -161,7 +161,7 @@ function getEth1DataBlock(eth1DataBlock: Partial<IEth1DataWithTimestamp>): IEth1
  * @param config
  * @param state
  */
-function getTimestampInRange(config: IChainForkConfig, state: TreeBacked<allForks.BeaconState>): number {
+function getTimestampInRange(config: ChainForkConfig, state: TreeBacked<allForks.BeaconState>): number {
   const {SECONDS_PER_ETH1_BLOCK, ETH1_FOLLOW_DISTANCE} = config;
   const periodStart = votingPeriodStartTime(config, state);
   return periodStart - SECONDS_PER_ETH1_BLOCK * ETH1_FOLLOW_DISTANCE;

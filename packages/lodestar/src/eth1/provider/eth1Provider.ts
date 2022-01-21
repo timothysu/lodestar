@@ -1,7 +1,7 @@
 import {toHexString} from "@chainsafe/ssz";
 import {phase0} from "@chainsafe/lodestar-types";
 import {AbortSignal} from "@chainsafe/abort-controller";
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {chunkifyInclusiveRange} from "../../util/chunkify";
 import {linspace} from "../../util/numpy";
 import {retry} from "../../util/retry";
@@ -42,7 +42,7 @@ export class Eth1Provider implements IEth1Provider {
   private readonly rpc: JsonRpcHttpClient;
 
   constructor(
-    config: Pick<IChainConfig, "DEPOSIT_CONTRACT_ADDRESS">,
+    config: Pick<ChainConfig, "DEPOSIT_CONTRACT_ADDRESS">,
     opts: Pick<Eth1Options, "depositContractDeployBlock" | "providerUrls">,
     signal?: AbortSignal
   ) {

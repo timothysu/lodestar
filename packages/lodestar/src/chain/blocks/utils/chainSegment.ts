@@ -1,11 +1,11 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {allForks, ssz} from "@chainsafe/lodestar-types";
 import {BlockError, BlockErrorCode} from "../../errors";
 
 /**
  * Assert this chain segment of blocks is linear with slot numbers and hashes
  */
-export function assertLinearChainSegment(config: IChainForkConfig, blocks: allForks.SignedBeaconBlock[]): void {
+export function assertLinearChainSegment(config: ChainForkConfig, blocks: allForks.SignedBeaconBlock[]): void {
   for (const [i, block] of blocks.entries()) {
     const child = blocks[i + 1];
     if (child !== undefined) {

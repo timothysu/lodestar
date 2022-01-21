@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {fromHexString as b} from "@chainsafe/ssz";
-import {IChainConfig} from "..";
+import {ChainConfig} from "../types";
 import {chainConfig as mainnet} from "../presets/mainnet";
 
 /* eslint-disable max-len */
 
-export const praterChainConfig: IChainConfig = {
+export const praterChainConfig: ChainConfig = {
   ...mainnet,
 
   // Ethereum Goerli testnet

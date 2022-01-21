@@ -3,7 +3,7 @@ import {Api, routes} from "@chainsafe/lodestar-api";
 import {registerRoutes} from "@chainsafe/lodestar-api/server";
 import fastifyCors from "fastify-cors";
 import querystring from "querystring";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {Path, TreeBacked} from "@chainsafe/ssz";
 import {allForks, altair, RootHex, SyncPeriod} from "@chainsafe/lodestar-types";
 import {Proof} from "@chainsafe/persistent-merkle-tree";
@@ -23,7 +23,7 @@ export type ServerOpts = {
   host: string;
 };
 
-export async function startServer(opts: ServerOpts, config: IChainForkConfig, api: Api): Promise<FastifyInstance> {
+export async function startServer(opts: ServerOpts, config: ChainForkConfig, api: Api): Promise<FastifyInstance> {
   const server = fastify({
     logger: false,
     ajv: {customOptions: {coerceTypes: "array"}},

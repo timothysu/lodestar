@@ -1,7 +1,7 @@
 import {ERR_TOPIC_VALIDATOR_IGNORE, ERR_TOPIC_VALIDATOR_REJECT} from "libp2p-gossipsub/src/constants";
 import {InMessage} from "libp2p-interfaces/src/pubsub";
 import {AbortSignal} from "@chainsafe/abort-controller";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {Json} from "@chainsafe/ssz";
 import {ILogger, mapValues} from "@chainsafe/lodestar-utils";
 import {IMetrics} from "../../../metrics";
@@ -25,7 +25,7 @@ import {getGossipAcceptMetadataByType, GetGossipAcceptMetadataFn} from "./onAcce
 import {createProcessRpcMessageQueues} from "./queue";
 
 type ValidatorFnModules = {
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   logger: ILogger;
   metrics: IMetrics | null;
   uncompressCache: UncompressCache;

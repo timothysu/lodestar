@@ -6,7 +6,7 @@ import {AbortController, AbortSignal} from "@chainsafe/abort-controller";
 import {fromHexString} from "@chainsafe/ssz";
 import {LogLevel, sleep, TimestampFormatCode} from "@chainsafe/lodestar-utils";
 import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {Epoch} from "@chainsafe/lodestar-types";
 import {bellatrix} from "@chainsafe/lodestar-beacon-state-transition";
 
@@ -265,7 +265,7 @@ describe("executionEngine / ExecutionEngineHttp", function () {
     const validatorsPerClient = 32;
     const event = ChainEvent.finalized;
 
-    const testParams: Pick<IChainConfig, "SECONDS_PER_SLOT"> = {
+    const testParams: Pick<ChainConfig, "SECONDS_PER_SLOT"> = {
       SECONDS_PER_SLOT: 2,
     };
 
@@ -496,7 +496,7 @@ async function isPortInUse(port: number): Promise<boolean> {
 
 async function getGenesisBlockHash(url: string, signal: AbortSignal): Promise<string> {
   const eth1Provider = new Eth1Provider(
-    ({DEPOSIT_CONTRACT_ADDRESS: ZERO_HASH} as Partial<IChainConfig>) as IChainConfig,
+    ({DEPOSIT_CONTRACT_ADDRESS: ZERO_HASH} as Partial<ChainConfig>) as ChainConfig,
     {providerUrls: [url]},
     signal
   );

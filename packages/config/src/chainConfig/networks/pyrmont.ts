@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {fromHexString as b} from "@chainsafe/ssz";
-import {IChainConfig} from "..";
+import {ChainConfig} from "../types";
 import {chainConfig as mainnet} from "../presets/mainnet";
 
 /* eslint-disable max-len */
 
-export const pyrmontChainConfig: IChainConfig = {
+export const pyrmontChainConfig: ChainConfig = {
   ...mainnet,
 
   DEPOSIT_CONTRACT_ADDRESS: b("0x8c5fecdC472E27Bc447696F431E425D02dd46a8c"),

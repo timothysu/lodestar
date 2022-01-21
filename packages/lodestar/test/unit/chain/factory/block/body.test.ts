@@ -1,7 +1,7 @@
 import sinon, {SinonStubbedInstance} from "sinon";
 import {expect} from "chai";
 import {ssz} from "@chainsafe/lodestar-types";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {config} from "@chainsafe/lodestar-config/default";
 import {assembleBody} from "../../../../../src/chain/factory/block/body";
 import {generateCachedState} from "../../../../utils/state";
@@ -37,7 +37,7 @@ describe("blockAssembly - body", function () {
     }).eth1 = eth1;
 
     ((chain as unknown) as {
-      config: IChainForkConfig;
+      config: ChainForkConfig;
     }).config = config;
 
     return {chain, aggregatedAttestationPool, dbStub: new StubbedBeaconDb(), eth1, opPool};

@@ -11,14 +11,14 @@ import {logFilesDir} from "./params";
 import {simTestInfoTracker} from "../utils/node/simTest";
 import {sleep, TimestampFormatCode} from "@chainsafe/lodestar-utils";
 import {initBLS} from "@chainsafe/lodestar-cli/src/util";
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {INTEROP_BLOCK_HASH} from "../../src/node/utils/interop/state";
 import {createExternalSignerServer} from "@chainsafe/lodestar-validator/test/utils/createExternalSignerServer";
 
 /* eslint-disable no-console, @typescript-eslint/naming-convention */
 
 describe("Run single node single thread interop validators (no eth1) until checkpoint", function () {
-  const testParams: Pick<IChainConfig, "SECONDS_PER_SLOT"> = {
+  const testParams: Pick<ChainConfig, "SECONDS_PER_SLOT"> = {
     SECONDS_PER_SLOT: 2,
   };
 

@@ -2,7 +2,7 @@ import {AbortSignal} from "@chainsafe/abort-controller";
 import pipe from "it-pipe";
 import PeerId from "peer-id";
 import {Libp2p} from "libp2p/src/connection-manager";
-import {IForkDigestContext} from "@chainsafe/lodestar-config";
+import {ForkDigestContext} from "@chainsafe/lodestar-config";
 import {ErrorAborted, ILogger, Context, withTimeout, TimeoutError} from "@chainsafe/lodestar-utils";
 import {timeoutOptions} from "../../../constants";
 import {getClientFromPeerStore, prettyPrintPeerId} from "../../util";
@@ -26,7 +26,7 @@ export {RequestError, RequestErrorCode};
 
 type SendRequestModules = {
   logger: ILogger;
-  forkDigestContext: IForkDigestContext;
+  forkDigestContext: ForkDigestContext;
   libp2p: Libp2p;
 };
 

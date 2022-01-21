@@ -3,7 +3,7 @@ import path from "path";
 import {Keystore} from "@chainsafe/bls-keystore";
 import bls from "@chainsafe/bls";
 import {IEth2ValidatorKeys} from "@chainsafe/bls-keygen";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {ValidatorDir} from "./ValidatorDir";
 import {encodeDepositData} from "../depositContract/depositData";
 import {ensureDirExists, YargsError, writeValidatorPassphrase} from "../util";
@@ -35,7 +35,7 @@ interface IValidatorDirBuildOptions {
    */
   storeWithdrawalKeystore?: boolean;
   depositGwei: number;
-  config: IChainForkConfig;
+  config: ChainForkConfig;
 }
 
 /**

@@ -1,4 +1,4 @@
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {getDevBeaconNode} from "../../utils/node/beacon";
 import {waitForEvent} from "../../utils/events/resolver";
 import {phase0, ssz} from "@chainsafe/lodestar-types";
@@ -14,7 +14,7 @@ import {BlockError, BlockErrorCode} from "../../../src/chain/errors";
 
 describe("sync / unknown block sync", function () {
   const validatorCount = 8;
-  const testParams: Pick<IChainConfig, "SECONDS_PER_SLOT"> = {
+  const testParams: Pick<ChainConfig, "SECONDS_PER_SLOT"> = {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     SECONDS_PER_SLOT: 2,
   };

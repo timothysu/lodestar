@@ -1,7 +1,7 @@
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {ssz} from "@chainsafe/lodestar-types";
 import {TreeBacked} from "@chainsafe/ssz";
-import {createIBeaconConfig, IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {createIBeaconConfig, IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {fromHex, ILogger} from "@chainsafe/lodestar-utils";
 import {computeEpochAtSlot, allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconDb, IBeaconNodeOptions, initStateFromAnchorState, initStateFromEth1} from "@chainsafe/lodestar";
@@ -24,7 +24,7 @@ function getCheckpointFromArg(checkpointStr: string): Checkpoint {
   return {root: fromHex(match[1]), epoch: parseInt(match[2])};
 }
 
-function getCheckpointFromState(config: IChainForkConfig, state: allForks.BeaconState): Checkpoint {
+function getCheckpointFromState(config: ChainForkConfig, state: allForks.BeaconState): Checkpoint {
   return {
     epoch: computeEpochAtSlot(state.latestBlockHeader.slot),
     root: allForks.getLatestBlockRoot(config, state),
@@ -82,7 +82,7 @@ async function initAndVerifyWeakSubjectivityState(
 export async function initBeaconState(
   options: IBeaconNodeOptions,
   args: IBeaconArgs & IGlobalArgs,
-  chainForkConfig: IChainForkConfig,
+  chainForkConfig: ChainForkConfig,
   db: IBeaconDb,
   logger: ILogger,
   signal: AbortSignal

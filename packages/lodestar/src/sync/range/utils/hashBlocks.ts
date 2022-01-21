@@ -1,5 +1,5 @@
 import {allForks} from "@chainsafe/lodestar-types";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {byteArrayConcat} from "../../../util/bytes";
 
 /**
@@ -7,7 +7,7 @@ import {byteArrayConcat} from "../../../util/bytes";
  * @param blocks
  * @param config
  */
-export function hashBlocks(blocks: allForks.SignedBeaconBlock[], config: IChainForkConfig): Uint8Array {
+export function hashBlocks(blocks: allForks.SignedBeaconBlock[], config: ChainForkConfig): Uint8Array {
   return byteArrayConcat(
     blocks.map((block) => config.getForkTypes(block.message.slot).SignedBeaconBlock.hashTreeRoot(block))
   );

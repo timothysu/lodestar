@@ -9,13 +9,13 @@ import {
 } from "@chainsafe/lodestar-params";
 import {allForks, phase0, ssz} from "@chainsafe/lodestar-types";
 import {config} from "@chainsafe/lodestar-config/default";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 
 import {ZERO_HASH} from "../../src/constants";
 import {newZeroedBigIntArray} from "../../src/util";
 
 import {generateEmptyBlock} from "./block";
 import {CachedBeaconState, createCachedBeaconState} from "../../src";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
 
 /**
  * Copy of BeaconState, but all fields are marked optional to allow for swapping out variables as needed.
@@ -79,7 +79,7 @@ export function generateState(opts?: TestBeaconState): phase0.BeaconState {
 }
 
 export function generateCachedState(
-  config: IChainForkConfig = minimalConfig,
+  config: ChainForkConfig = minimalConfig,
   opts: TestBeaconState = {}
 ): CachedBeaconState<allForks.BeaconState> {
   const state = generateState(opts);

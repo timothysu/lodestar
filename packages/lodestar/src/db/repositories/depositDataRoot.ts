@@ -1,13 +1,13 @@
 import {List, readonlyValues, TreeBacked, Vector} from "@chainsafe/ssz";
 import {Root, ssz} from "@chainsafe/lodestar-types";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {bytesToInt} from "@chainsafe/lodestar-utils";
 import {Db, Bucket, Repository, IKeyValue, IDbMetrics} from "@chainsafe/lodestar-db";
 
 export class DepositDataRootRepository extends Repository<number, Root> {
   private depositRootTree?: TreeBacked<List<Root>>;
 
-  constructor(config: IChainForkConfig, db: Db, metrics?: IDbMetrics) {
+  constructor(config: ChainForkConfig, db: Db, metrics?: IDbMetrics) {
     super(config, db, Bucket.index_depositDataRoot, ssz.Root, metrics);
   }
 

@@ -1,11 +1,11 @@
 import {ForkName} from "@chainsafe/lodestar-params";
 import {DomainType, ForkDigest, phase0, Root, Slot, ssz, Version} from "@chainsafe/lodestar-types";
 import {ByteVector, toHexString} from "@chainsafe/ssz";
-import {IChainForkConfig} from "../beaconConfig";
-import {ForkDigestHex, ICachedGenesis} from "./types";
-export {IForkDigestContext} from "./types";
+import {ChainForkConfig} from "../beaconConfig";
+import {ForkDigestHex, CachedGenesis} from "./types";
+export {ForkDigestContext} from "./types";
 
-export function createICachedGenesis(chainForkConfig: IChainForkConfig, genesisValidatorsRoot: Root): ICachedGenesis {
+export function createCachedGenesis(chainForkConfig: ChainForkConfig, genesisValidatorsRoot: Root): CachedGenesis {
   const domainCache = new Map<ForkName, Map<DomainType, Uint8Array>>();
 
   const forkDigestByForkName = new Map<ForkName, ForkDigest>();

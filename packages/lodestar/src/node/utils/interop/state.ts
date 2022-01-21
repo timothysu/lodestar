@@ -1,6 +1,6 @@
 import {List, TreeBacked} from "@chainsafe/ssz";
 import {allForks, Bytes32, Number64, phase0, Root, ssz} from "@chainsafe/lodestar-types";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {initializeBeaconStateFromEth1} from "@chainsafe/lodestar-beacon-state-transition";
 import {GENESIS_BASE_FEE_PER_GAS, GENESIS_GAS_LIMIT} from "@chainsafe/lodestar-params";
 
@@ -14,7 +14,7 @@ export type InteropStateOpts = {
 };
 
 export function getInteropState(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   {
     genesisTime = Math.floor(Date.now() / 1000),
     eth1BlockHash = INTEROP_BLOCK_HASH,

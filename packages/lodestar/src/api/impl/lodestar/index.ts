@@ -3,7 +3,7 @@ import {Multiaddr} from "multiaddr";
 import {routes} from "@chainsafe/lodestar-api";
 import {allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {Json, toHexString} from "@chainsafe/ssz";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {ssz} from "@chainsafe/lodestar-types";
 import {BeaconChain} from "../../../chain";
 import {QueuedStateRegenerator, RegenRequest} from "../../../chain/regen";
@@ -159,7 +159,7 @@ export function getLodestarApi({
   };
 }
 
-function regenRequestToJson(config: IChainForkConfig, regenRequest: RegenRequest): Json {
+function regenRequestToJson(config: ChainForkConfig, regenRequest: RegenRequest): Json {
   switch (regenRequest.key) {
     case "getBlockSlotState":
       return {

@@ -1,5 +1,5 @@
 import {ForkName} from "@chainsafe/lodestar-params";
-import {IForkDigestContext} from "@chainsafe/lodestar-config";
+import {ForkDigestContext} from "@chainsafe/lodestar-config";
 import {RespStatus} from "../../../constants";
 import {BufferedSource, decodeErrorMessage} from "../utils";
 import {readEncodedPayload} from "../encodingStrategies";
@@ -30,7 +30,7 @@ enum StreamStatus {
  * ```
  */
 export function responseDecode(
-  forkDigestContext: IForkDigestContext,
+  forkDigestContext: ForkDigestContext,
   protocol: Protocol
 ): (source: AsyncIterable<Buffer>) => AsyncGenerator<IncomingResponseBody> {
   return async function* responseDecodeSink(source) {
@@ -117,7 +117,7 @@ export async function readErrorMessage(bufferedSource: BufferedSource): Promise<
  * of the `ForkDigest` or defaults to `phase0`
  */
 export async function readForkName(
-  forkDigestContext: IForkDigestContext,
+  forkDigestContext: ForkDigestContext,
   bufferedSource: BufferedSource,
   contextBytes: ContextBytesType
 ): Promise<ForkName> {

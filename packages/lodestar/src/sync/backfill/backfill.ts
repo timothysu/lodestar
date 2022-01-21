@@ -3,7 +3,7 @@ import {EventEmitter} from "events";
 import PeerId from "peer-id";
 import {StrictEventEmitter} from "strict-event-emitter-types";
 import {blockToHeader} from "@chainsafe/lodestar-beacon-state-transition";
-import {IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {phase0, Root, Slot, allForks, ssz} from "@chainsafe/lodestar-types";
 import {ErrorAborted, ILogger} from "@chainsafe/lodestar-utils";
 import {List, toHexString} from "@chainsafe/ssz";
@@ -824,7 +824,7 @@ export class BackfillSync extends (EventEmitter as {new (): BackfillSyncEmitter}
 }
 
 async function extractPreviousFinOrWsCheckpoint(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   db: IBeaconDb,
   belowSlot: Slot,
   logger?: ILogger

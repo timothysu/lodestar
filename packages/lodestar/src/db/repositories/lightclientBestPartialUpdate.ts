@@ -1,4 +1,4 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {Bucket, IDatabaseController, IDbMetrics, Repository} from "@chainsafe/lodestar-db";
 import {FINALIZED_ROOT_DEPTH} from "@chainsafe/lodestar-params";
 import {ssz, SyncPeriod} from "@chainsafe/lodestar-types";
@@ -53,7 +53,7 @@ export class BestPartialLightClientUpdateRepository extends Repository<SyncPerio
     },
   });
 
-  constructor(config: IChainForkConfig, db: IDatabaseController<Uint8Array, Uint8Array>, metrics?: IDbMetrics) {
+  constructor(config: ChainForkConfig, db: IDatabaseController<Uint8Array, Uint8Array>, metrics?: IDbMetrics) {
     // super.type will not be used
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     super(config, db, Bucket.lightClient_bestPartialLightClientUpdate, ssz.altair.LightClientUpdate as any, metrics);

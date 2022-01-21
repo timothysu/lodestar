@@ -1,5 +1,6 @@
 import {Json} from "@chainsafe/ssz";
 import {mapValues} from "@chainsafe/lodestar-utils";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 // eslint-disable-next-line import/no-extraneous-dependencies
 import * as fastify from "fastify";
 import {
@@ -12,7 +13,6 @@ import {
   RouteGroupDefinition,
 } from "../../utils/types";
 import {getFastifySchema} from "../../utils/schema";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
 
 // See /packages/api/src/routes/index.ts for reasoning
 
@@ -49,7 +49,7 @@ export function getGenericJsonServer<
   ReqTypes extends {[K in keyof Api]: ReqGeneric}
 >(
   {routesData, getReqSerializers, getReturnTypes}: RouteGroupDefinition<Api, ReqTypes>,
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   api: Api
 ): ServerRoutes<Api, ReqTypes> {
   const reqSerializers = getReqSerializers(config);

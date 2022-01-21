@@ -1,8 +1,8 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {ServerRoutes, getGenericJsonServer} from "./utils";
 import {Api, ReqTypes, routesData, getReturnTypes, getReqSerializers} from "../routes/node";
 
-export function getRoutes(config: IChainForkConfig, api: Api): ServerRoutes<Api, ReqTypes> {
+export function getRoutes(config: ChainForkConfig, api: Api): ServerRoutes<Api, ReqTypes> {
   // All routes return JSON, use a server auto-generator
   const serverRoutes = getGenericJsonServer<Api, ReqTypes>(
     {routesData, getReturnTypes, getReqSerializers},

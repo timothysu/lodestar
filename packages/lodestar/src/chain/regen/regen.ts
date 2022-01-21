@@ -9,7 +9,7 @@ import {fromHexString, toHexString} from "@chainsafe/ssz";
 import {IForkChoice, IProtoBlock} from "@chainsafe/lodestar-fork-choice";
 import {sleep} from "@chainsafe/lodestar-utils";
 import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {IMetrics} from "../../metrics";
 import {IBeaconDb} from "../../db";
 import {CheckpointStateCache, StateContextCache} from "../stateCache";
@@ -23,7 +23,7 @@ export type RegenModules = {
   forkChoice: IForkChoice;
   stateCache: StateContextCache;
   checkpointStateCache: CheckpointStateCache;
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   emitter: ChainEventEmitter;
   metrics: IMetrics | null;
 };

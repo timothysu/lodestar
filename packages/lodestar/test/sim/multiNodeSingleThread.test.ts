@@ -1,4 +1,4 @@
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {Network} from "../../src/network";
 import {getDevBeaconNode} from "../utils/node/beacon";
 import {waitForEvent} from "../utils/events/resolver";
@@ -17,7 +17,7 @@ import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 /* eslint-disable no-console, @typescript-eslint/naming-convention */
 
 describe("Run multi node single thread interop validators (no eth1) until checkpoint", function () {
-  const testParams: Pick<IChainConfig, "SECONDS_PER_SLOT"> = {
+  const testParams: Pick<ChainConfig, "SECONDS_PER_SLOT"> = {
     SECONDS_PER_SLOT: 3,
   };
 

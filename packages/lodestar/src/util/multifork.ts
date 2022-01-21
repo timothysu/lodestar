@@ -1,4 +1,4 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {allForks, Slot} from "@chainsafe/lodestar-types";
 import {bytesToInt} from "@chainsafe/lodestar-utils";
 import {ContainerType} from "@chainsafe/ssz";
@@ -36,7 +36,7 @@ const SLOT_BYTES_POSITION_IN_BLOCK = 100;
 const SLOT_BYTES_POSITION_IN_STATE = 40;
 
 export function getSignedBlockTypeFromBytes(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   bytes: Buffer | Uint8Array
 ): ContainerType<allForks.SignedBeaconBlock> {
   const slot = getSlotFromBytes(bytes);
@@ -48,7 +48,7 @@ export function getSlotFromBytes(bytes: Buffer | Uint8Array): Slot {
 }
 
 export function getStateTypeFromBytes(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   bytes: Buffer | Uint8Array
 ): ContainerType<allForks.BeaconState> {
   const slot = bytesToInt(bytes.slice(SLOT_BYTES_POSITION_IN_STATE, SLOT_BYTES_POSITION_IN_STATE + SLOT_BYTE_COUNT));

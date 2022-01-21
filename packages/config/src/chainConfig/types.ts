@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import {PresetName, SpecTypes} from "@chainsafe/lodestar-params";
+
+/* eslint-disable @typescript-eslint/naming-convention */
 
 /**
  * Run-time chain configuration

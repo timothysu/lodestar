@@ -1,7 +1,7 @@
 import {Options} from "yargs";
+import {ChainConfig, ChainConfig} from "@chainsafe/lodestar-config";
 import {IBeaconParamsUnparsed} from "../config/types";
 import {ObjectKeys, ICliCommandOptions} from "../util";
-import {ChainConfig, IChainConfig} from "@chainsafe/lodestar-config";
 
 // No options are statically declared
 // If an arbitraty key notation is used, it removes typesafety on most of this CLI arg parsing code.
@@ -17,7 +17,7 @@ export type IParamsArgs = Record<never, never> & ITerminalPowArgs;
 const getArgKey = (key: keyof IBeaconParamsUnparsed): string => `params.${key}`;
 
 export function parseBeaconParamsArgs(args: Record<string, string | number>): IBeaconParamsUnparsed {
-  return ((ObjectKeys(ChainConfig.fields) as unknown) as (keyof IChainConfig)[]).reduce(
+  return ((ObjectKeys(ChainConfig.fields) as unknown) as (keyof ChainConfig)[]).reduce(
     (beaconParams: Partial<IBeaconParamsUnparsed>, key) => {
       const value = args[getArgKey(key)];
       if (value != null) beaconParams[key] = value;
@@ -27,7 +27,7 @@ export function parseBeaconParamsArgs(args: Record<string, string | number>): IB
   );
 }
 
-const paramsOptionsByName = ((ObjectKeys(ChainConfig.fields) as unknown) as (keyof IChainConfig)[]).reduce(
+const paramsOptionsByName = ((ObjectKeys(ChainConfig.fields) as unknown) as (keyof ChainConfig)[]).reduce(
   (options: Record<string, Options>, key): Record<string, Options> => ({
     ...options,
     [getArgKey(key)]: {
@@ -39,7 +39,7 @@ const paramsOptionsByName = ((ObjectKeys(ChainConfig.fields) as unknown) as (key
   {}
 );
 
-const terminalArgsToParamsMap: {[K in keyof ITerminalPowArgs]: keyof IChainConfig} = {
+const terminalArgsToParamsMap: {[K in keyof ITerminalPowArgs]: keyof ChainConfig} = {
   "terminal-total-difficulty-override": "TERMINAL_TOTAL_DIFFICULTY",
   "terminal-block-hash-override": "TERMINAL_BLOCK_HASH",
   "terminal-block-hash-epoch-override": "TERMINAL_BLOCK_HASH_ACTIVATION_EPOCH",

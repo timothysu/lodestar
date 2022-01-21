@@ -1,4 +1,4 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {computeStartSlotAtEpoch, computeTimeAtSlot, bellatrix} from "@chainsafe/lodestar-beacon-state-transition";
 import {allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {sleep} from "@chainsafe/lodestar-utils";
@@ -10,7 +10,7 @@ import {BlockGossipError, BlockErrorCode, GossipAction} from "../errors";
 import {RegenCaller} from "../regen";
 
 export async function validateGossipBlock(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   chain: IBeaconChain,
   signedBlock: allForks.SignedBeaconBlock,
   fork: ForkName

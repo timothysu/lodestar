@@ -1,5 +1,5 @@
 import {altair, phase0, Root, RootHex, Slot, ssz, SyncPeriod} from "@chainsafe/lodestar-types";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {
   CachedBeaconState,
   computeSyncPeriodAtEpoch,
@@ -47,7 +47,7 @@ type GenesisData = {
 };
 
 interface ILightClientIniterModules {
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   db: IBeaconDb;
   emitter: ChainEventEmitter;
   logger: ILogger;
@@ -158,7 +158,7 @@ const MAX_PREV_HEAD_DATA = 32;
  */
 export class LightClientServer {
   private readonly db: IBeaconDb;
-  private readonly config: IChainForkConfig;
+  private readonly config: ChainForkConfig;
   private readonly emitter: ChainEventEmitter;
   private readonly logger: ILogger;
   private readonly knownSyncCommittee = new MapDef<SyncPeriod, Set<DependantRootHex>>(() => new Set());

@@ -5,7 +5,7 @@
 import {TreeBacked, List} from "@chainsafe/ssz";
 import {GENESIS_SLOT} from "@chainsafe/lodestar-params";
 import {Root, phase0, allForks, ssz} from "@chainsafe/lodestar-types";
-import {IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {
   getTemporaryBlockHeader,
@@ -25,7 +25,7 @@ import {getDepositsAndBlockStreamForGenesis, getDepositsStream} from "../../eth1
 import {IGenesisBuilder, IGenesisResult} from "./interface";
 
 export interface IGenesisBuilderKwargs {
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   eth1Provider: IEth1Provider;
   logger: ILogger;
 

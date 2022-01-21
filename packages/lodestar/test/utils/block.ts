@@ -1,6 +1,6 @@
 import {ssz} from "@chainsafe/lodestar-types";
 import {config as defaultConfig} from "@chainsafe/lodestar-config/default";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {allForks, phase0} from "@chainsafe/lodestar-types";
 import {List} from "@chainsafe/ssz";
 import {IProtoBlock, ExecutionStatus} from "@chainsafe/lodestar-fork-choice";
@@ -49,7 +49,7 @@ export function generateEmptyReqRespBlockResponse(): ReqRespBlockResponse {
 
 export function blocksToReqRespBlockResponses(
   blocks: allForks.SignedBeaconBlock[],
-  config?: IChainForkConfig
+  config?: ChainForkConfig
 ): ReqRespBlockResponse[] {
   return blocks.map((block) => {
     const slot = block.message.slot;

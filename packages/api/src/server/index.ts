@@ -1,4 +1,4 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {FastifyInstance} from "fastify";
 import {Api} from "../interface";
@@ -19,7 +19,7 @@ export type RouteConfig = {
 
 export function registerRoutes(
   server: FastifyInstance,
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   api: Api,
   enabledNamespaces: (keyof Api)[]
 ): void {

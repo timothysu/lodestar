@@ -17,7 +17,7 @@ import {
   ForkChoiceErrorCode,
 } from "@chainsafe/lodestar-fork-choice";
 import {ILogger} from "@chainsafe/lodestar-utils";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {IMetrics} from "../../metrics";
 import {IEth1ForBlockProduction} from "../../eth1";
 import {IExecutionEngine} from "../../executionEngine";
@@ -41,7 +41,7 @@ export type ImportBlockModules = {
   lightClientServer: LightClientServer;
   executionEngine: IExecutionEngine;
   emitter: ChainEventEmitter;
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   logger: ILogger;
   metrics: IMetrics | null;
 };

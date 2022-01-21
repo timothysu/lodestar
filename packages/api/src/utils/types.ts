@@ -1,6 +1,6 @@
 import {ContainerType, IJsonOptions, Json, ListType, Type} from "@chainsafe/ssz";
 import {ForkName} from "@chainsafe/lodestar-params";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {objectToExpectedCase} from "@chainsafe/lodestar-utils";
 import {Schema, SchemaDefinition} from "./schema";
 
@@ -18,8 +18,8 @@ export type RouteGroupDefinition<
   ReqTypes extends {[K in keyof Api]: ReqGeneric}
 > = {
   routesData: RoutesData<Api>;
-  getReqSerializers: (config: IChainForkConfig) => ReqSerializers<Api, ReqTypes>;
-  getReturnTypes: (config: IChainForkConfig) => ReturnTypes<Api>;
+  getReqSerializers: (config: ChainForkConfig) => ReqSerializers<Api, ReqTypes>;
+  getReturnTypes: (config: ChainForkConfig) => ReturnTypes<Api>;
 };
 
 export type RouteDef = {
@@ -111,8 +111,17 @@ export function ArrayOf<T>(elementType: Type<T>, limit = 1e6): ListType<T[]> {
  * data: T
  * ```
  */
-export function ContainerData<T>(dataType: Type<T>): ContainerType<{data: T}> {
-  return new ContainerType({fields: {data: dataType}, expectedCase: "notransform"});
+export function ContainerData<T>(dataType: TypeJson<T>): TypeJson<{data: T}> {
+  return {
+    toJson: ({data}, opts) => ({
+      data: dataType.toJson(data, opts),
+    }),
+    fromJson: ({data}: {data: Json}, opts) => {
+      return {
+        data: dataType.fromJson(data, opts),
+      };
+    },
+  };
 }
 
 /**

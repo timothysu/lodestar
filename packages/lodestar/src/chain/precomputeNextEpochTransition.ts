@@ -1,6 +1,6 @@
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {computeEpochAtSlot} from "@chainsafe/lodestar-beacon-state-transition";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {Slot} from "@chainsafe/lodestar-types";
 import {ILogger, sleep} from "@chainsafe/lodestar-utils";
@@ -18,7 +18,7 @@ import {RegenCaller} from "./regen";
 export class PrecomputeNextEpochTransitionScheduler {
   constructor(
     private readonly chain: IBeaconChain,
-    private readonly config: IChainForkConfig,
+    private readonly config: ChainForkConfig,
     private readonly metrics: IMetrics | null,
     private readonly logger: ILogger,
     private readonly signal: AbortSignal

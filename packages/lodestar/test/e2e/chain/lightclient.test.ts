@@ -1,5 +1,5 @@
 import {expect} from "chai";
-import {IChainConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig} from "@chainsafe/lodestar-config";
 import {ssz} from "@chainsafe/lodestar-types";
 import {fromHexString, toHexString} from "@chainsafe/ssz";
 import {TimestampFormatCode} from "@chainsafe/lodestar-utils";
@@ -27,7 +27,7 @@ describe("chain / lightclient", function () {
   const targetSlotToReach = computeStartSlotAtEpoch(finalizedEpochToReach + 2) - 1;
   const restPort = 9000;
 
-  const testParams: Pick<IChainConfig, "SECONDS_PER_SLOT" | "ALTAIR_FORK_EPOCH"> = {
+  const testParams: Pick<ChainConfig, "SECONDS_PER_SLOT" | "ALTAIR_FORK_EPOCH"> = {
     /* eslint-disable @typescript-eslint/naming-convention */
     SECONDS_PER_SLOT: 1,
     ALTAIR_FORK_EPOCH: 0,

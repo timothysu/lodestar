@@ -1,5 +1,5 @@
 import {phase0} from "@chainsafe/lodestar-types";
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {CachedBeaconState, allForks} from "@chainsafe/lodestar-beacon-state-transition";
 import {ErrorAborted, ILogger, isErrorAborted, sleep} from "@chainsafe/lodestar-utils";
 import {AbortSignal} from "@chainsafe/abort-controller";
@@ -25,7 +25,7 @@ const RATE_LIMITED_WAIT_MS = 30 * 1000;
 const MIN_WAIT_ON_ERORR_MS = 1 * 1000;
 
 export type Eth1DepositDataTrackerModules = {
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   db: IBeaconDb;
   logger: ILogger;
   signal: AbortSignal;
@@ -36,7 +36,7 @@ export type Eth1DepositDataTrackerModules = {
  * Upon instantiation, starts fetcheing deposits and blocks at regular intervals
  */
 export class Eth1DepositDataTracker {
-  private config: IChainForkConfig;
+  private config: ChainForkConfig;
   private logger: ILogger;
   private signal: AbortSignal;
 

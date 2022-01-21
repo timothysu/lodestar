@@ -3,13 +3,15 @@ import {DomainType, ForkDigest, Slot} from "@chainsafe/lodestar-types";
 
 export type ForkDigestHex = string;
 
-export interface IForkDigestContext {
+/* eslint-disable @typescript-eslint/naming-convention */
+
+export interface ForkDigestContext {
   forkDigest2ForkName(forkDigest: ForkDigest | ForkDigestHex): ForkName;
   forkDigest2ForkNameOption(forkDigest: ForkDigest | ForkDigestHex): ForkName | null;
   forkName2ForkDigest(forkName: ForkName): ForkDigest;
   forkName2ForkDigestHex(forkName: ForkName): ForkDigestHex;
 }
 
-export interface ICachedGenesis extends IForkDigestContext {
+export interface CachedGenesis extends ForkDigestContext {
   getDomain(domainType: DomainType, slot: Slot): Uint8Array;
 }

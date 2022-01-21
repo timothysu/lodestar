@@ -1,20 +1,20 @@
 import {Root} from "@chainsafe/lodestar-types";
 import {createChainConfig, ChainConfig} from "./chainConfig";
 import {createForkConfig, ForkConfig} from "./forkConfig";
-import {createICachedGenesis} from "./genesisConfig";
-import {ICachedGenesis} from "./genesisConfig/types";
+import {createCachedGenesis} from "./genesisConfig";
+import {CachedGenesis} from "./genesisConfig/types";
 
 /**
  * Chain run-time configuration with additional fork schedule helpers
  */
-export type IChainForkConfig = ChainConfig & ForkConfig;
+export type ChainForkConfig = ChainConfig & ForkConfig;
 
-export type IBeaconConfig = IChainForkConfig & ICachedGenesis;
+export type IBeaconConfig = ChainForkConfig & CachedGenesis;
 
 /**
  * Create an `IBeaconConfig`, filling in missing values with preset defaults
  */
-export function createChainForkConfig(chainConfig: Partial<ChainConfig>): IChainForkConfig {
+export function createChainForkConfig(chainConfig: Partial<ChainConfig>): ChainForkConfig {
   const fullChainConfig = createChainConfig(chainConfig);
   return {
     ...fullChainConfig,
@@ -26,6 +26,6 @@ export function createIBeaconConfig(chainConfig: Partial<ChainConfig>, genesisVa
   const chainForkConfig = createChainForkConfig(chainConfig);
   return {
     ...chainForkConfig,
-    ...createICachedGenesis(chainForkConfig, genesisValidatorsRoot),
+    ...createCachedGenesis(chainForkConfig, genesisValidatorsRoot),
   };
 }

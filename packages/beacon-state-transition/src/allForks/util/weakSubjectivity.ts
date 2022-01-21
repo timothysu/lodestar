@@ -1,4 +1,4 @@
-import {IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {
   EFFECTIVE_BALANCE_INCREMENT,
   MAX_DEPOSITS,
@@ -27,7 +27,7 @@ const SAFETY_DECAY = BigInt(10);
   `state` and `safetyDecay`. The default `safetyDecay` used should be 10% (= 0.1)
  */
 export function getLatestWeakSubjectivityCheckpointEpoch(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   state: CachedBeaconState<allForks.BeaconState>
 ): Epoch {
   return state.epochCtx.currentShuffling.epoch - computeWeakSubjectivityPeriodCachedState(config, state);
@@ -42,7 +42,7 @@ export function getLatestWeakSubjectivityCheckpointEpoch(
     https://github.com/runtimeverification/beacon-chain-verification/blob/master/weak-subjectivity/weak-subjectivity-analysis.pdf
  */
 export function computeWeakSubjectivityPeriodCachedState(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   state: CachedBeaconState<allForks.BeaconState>
 ): number {
   const activeValidatorCount = state.currentShuffling.activeIndices.length;
@@ -58,7 +58,7 @@ export function computeWeakSubjectivityPeriodCachedState(
  * Same to computeWeakSubjectivityPeriodCachedState but for normal state
  * This is called only 1 time at app startup so it's ok to calculate totalActiveBalanceByIncrement manually
  */
-export function computeWeakSubjectivityPeriod(config: IChainForkConfig, state: allForks.BeaconState): number {
+export function computeWeakSubjectivityPeriod(config: ChainForkConfig, state: allForks.BeaconState): number {
   const activeIndices = getActiveValidatorIndices(state, getCurrentEpoch(state));
   let totalActiveBalanceByIncrement = 0;
   for (const index of activeIndices) {
@@ -106,7 +106,7 @@ export function computeWeakSubjectivityPeriodFromConstituents(
   return wsPeriod;
 }
 
-export function getLatestBlockRoot(config: IChainForkConfig, state: allForks.BeaconState): Root {
+export function getLatestBlockRoot(config: ChainForkConfig, state: allForks.BeaconState): Root {
   const header = ssz.phase0.BeaconBlockHeader.clone(state.latestBlockHeader);
   if (ssz.Root.equals(header.stateRoot, ZERO_HASH)) {
     header.stateRoot = config.getForkTypes(state.slot).BeaconState.hashTreeRoot(state);

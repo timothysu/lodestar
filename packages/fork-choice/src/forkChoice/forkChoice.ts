@@ -8,7 +8,7 @@ import {
   ZERO_HASH,
   bellatrix,
 } from "@chainsafe/lodestar-beacon-state-transition";
-import {IChainConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 
 import {computeDeltas} from "../protoArray/computeDeltas";
 import {HEX_ZERO_HASH, IVoteTracker, IProtoBlock, ExecutionStatus} from "../protoArray/interface";
@@ -74,7 +74,7 @@ export class ForkChoice implements IForkChoice {
    * This is useful if the existing components have been loaded from disk after a process restart.
    */
   constructor(
-    private readonly config: IChainForkConfig,
+    private readonly config: ChainForkConfig,
     private readonly fcStore: IForkChoiceStore,
     /** The underlying representation of the block DAG. */
     private readonly protoArray: ProtoArray,
@@ -952,7 +952,7 @@ export class ForkChoice implements IForkChoice {
 }
 
 function assertValidTerminalPowBlock(
-  config: IChainConfig,
+  config: ChainConfig,
   block: bellatrix.BeaconBlock,
   preCachedData?: OnBlockPrecachedData
 ): void {

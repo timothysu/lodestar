@@ -1,11 +1,11 @@
-import {IChainForkConfig} from "@chainsafe/lodestar-config";
+import {ChainForkConfig} from "@chainsafe/lodestar-config";
 import {IHttpClient, getFetchOptsSerializers, generateGenericJsonClient} from "./utils";
 import {Api, ReqTypes, routesData, getReqSerializers, getReturnTypes, StateFormat} from "../routes/debug";
 
 /**
  * REST HTTP client for debug routes
  */
-export function getClient(_config: IChainForkConfig, httpClient: IHttpClient): Api {
+export function getClient(_config: ChainForkConfig, httpClient: IHttpClient): Api {
   const reqSerializers = getReqSerializers();
   const returnTypes = getReturnTypes();
   // Some routes return JSON, use a client auto-generator

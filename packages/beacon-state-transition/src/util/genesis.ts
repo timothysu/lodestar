@@ -1,5 +1,5 @@
 import {List, TreeBacked} from "@chainsafe/ssz";
-import {IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {
   EFFECTIVE_BALANCE_INCREMENT,
   EPOCHS_PER_HISTORICAL_VECTOR,
@@ -33,7 +33,7 @@ import {CachedBeaconState, createCachedBeaconState, processDeposit} from "../all
  * @param config
  * @param state
  */
-export function isValidGenesisState(config: IChainForkConfig, state: allForks.BeaconState): boolean {
+export function isValidGenesisState(config: ChainForkConfig, state: allForks.BeaconState): boolean {
   return state.genesisTime >= config.MIN_GENESIS_TIME && isValidGenesisValidators(config, state);
 }
 
@@ -42,7 +42,7 @@ export function isValidGenesisState(config: IChainForkConfig, state: allForks.Be
  * @param config
  * @param state
  */
-export function isValidGenesisValidators(config: IChainForkConfig, state: allForks.BeaconState): boolean {
+export function isValidGenesisValidators(config: ChainForkConfig, state: allForks.BeaconState): boolean {
   return (
     getActiveValidatorIndices(state, computeEpochAtSlot(GENESIS_SLOT)).length >=
     config.MIN_GENESIS_ACTIVE_VALIDATOR_COUNT
@@ -93,7 +93,7 @@ export function getGenesisBeaconState(
 
 /**
  * Apply eth1 block hash to state.
- * @param config IChainForkConfig
+ * @param config ChainForkConfig
  * @param state BeaconState
  * @param eth1BlockHash eth1 block hash
  */
@@ -109,7 +109,7 @@ export function applyEth1BlockHash(state: allForks.BeaconState, eth1BlockHash: B
  * @param eth1Timestamp eth1 block timestamp
  */
 export function applyTimestamp(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   state: TreeBacked<allForks.BeaconState>,
   eth1Timestamp: number
 ): void {
@@ -123,14 +123,14 @@ export function applyTimestamp(
  *
  * SLOW CODE - 🐢
  *
- * @param config IChainForkConfig
+ * @param config ChainForkConfig
  * @param state BeaconState
  * @param newDeposits new deposits
  * @param fullDepositDataRootList full list of deposit data root from index 0
  * @returns active validator indices
  */
 export function applyDeposits(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   state: CachedBeaconState<allForks.BeaconState>,
   newDeposits: phase0.Deposit[],
   fullDepositDataRootList?: TreeBacked<List<Root>>
@@ -202,7 +202,7 @@ export function applyDeposits(
  * @param deposits
  */
 export function initializeBeaconStateFromEth1(
-  config: IChainForkConfig,
+  config: ChainForkConfig,
   eth1BlockHash: Bytes32,
   eth1Timestamp: Number64,
   deposits: phase0.Deposit[],

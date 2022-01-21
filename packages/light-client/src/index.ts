@@ -3,7 +3,7 @@ import {AbortController} from "@chainsafe/abort-controller";
 import {EPOCHS_PER_SYNC_COMMITTEE_PERIOD, SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
 import {getClient, Api, routes} from "@chainsafe/lodestar-api";
 import {altair, phase0, RootHex, ssz, SyncPeriod} from "@chainsafe/lodestar-types";
-import {createIBeaconConfig, IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {createIBeaconConfig, IBeaconConfig, ChainForkConfig} from "@chainsafe/lodestar-config";
 import {TreeOffsetProof} from "@chainsafe/persistent-merkle-tree";
 import {isErrorAborted, sleep} from "@chainsafe/lodestar-utils";
 import {fromHexString, Path, toHexString} from "@chainsafe/ssz";
@@ -24,7 +24,7 @@ import {computeSyncPeriodAtEpoch, computeSyncPeriodAtSlot, computeEpochAtSlot} f
 export {LightclientEvent} from "./events";
 
 export type LightclientInitArgs = {
-  config: IChainForkConfig;
+  config: ChainForkConfig;
   logger?: ILcLogger;
   genesisData: {
     genesisTime: number;
@@ -166,7 +166,7 @@ export class Lightclient {
     genesisData,
     checkpointRoot,
   }: {
-    config: IChainForkConfig;
+    config: ChainForkConfig;
     logger?: ILcLogger;
     beaconApiUrl: string;
     genesisData: GenesisData;
