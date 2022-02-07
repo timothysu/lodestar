@@ -13,10 +13,48 @@ import {getNextSyncCommittee} from "./util/syncCommittee";
  */
 export function upgradeState(state: CachedBeaconStatePhase0): CachedBeaconStateAltair {
   const {config} = state;
-  const pendingAttesations = Array.from(state.previousEpochAttestations);
+
+  // Get underlying node and cast phase0 tree to altair tree
+  //
+  // A phase0 BeaconState tree can be safely casted to an altair BeaconState tree because:
+  // - Deprecated fields are replaced by new fields at the exact same indexes
+  // - All new fields are appended at the end
+  //
+  // So by just setting all new fields to some value, all the old nodes are dropped
+  //
+  // phase0                        | op   | altair
+  // ----------------------------- | ---- | ------------
+  // genesis_time                  | -    | genesis_time
+  // genesis_validators_root       | -    | genesis_validators_root
+  // slot                          | -    | slot
+  // fork                          | -    | fork
+  // latest_block_header           | -    | latest_block_header
+  // block_roots                   | -    | block_roots
+  // state_roots                   | -    | state_roots
+  // historical_roots              | -    | historical_roots
+  // eth1_data                     | -    | eth1_data
+  // eth1_data_votes               | -    | eth1_data_votes
+  // eth1_deposit_index            | -    | eth1_deposit_index
+  // validators                    | -    | validators
+  // balances                      | -    | balances
+  // randao_mixes                  | -    | randao_mixes
+  // slashings                     | -    | slashings
+  // previous_epoch_attestations   | diff | previous_epoch_participation
+  // current_epoch_attestations    | diff | current_epoch_participation
+  // justification_bits            | -    | justification_bits
+  // previous_justified_checkpoint | -    | previous_justified_checkpoint
+  // current_justified_checkpoint  | -    | current_justified_checkpoint
+  // finalized_checkpoint          | -    | finalized_checkpoint
+  // -                             | new  | inactivity_scores
+  // -                             | new  | current_sync_committee
+  // -                             | new  | next_sync_committee
+
   const postTreeBackedState = upgradeTreeBackedState(config, state);
   const postState = createCachedBeaconState(config, postTreeBackedState);
+
+  const pendingAttesations = Array.from(state.previousEpochAttestations);
   translateParticipation(postState, pendingAttesations);
+
   return postState;
 }
 
