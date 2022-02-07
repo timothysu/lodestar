@@ -1,13 +1,36 @@
 import {aggregatePublicKeys} from "@chainsafe/bls";
-import {DOMAIN_SYNC_COMMITTEE, MAX_EFFECTIVE_BALANCE, SYNC_COMMITTEE_SIZE} from "@chainsafe/lodestar-params";
-import {altair, ValidatorIndex, allForks} from "@chainsafe/lodestar-types";
-import {intDiv, intToBytes} from "@chainsafe/lodestar-utils";
+import {
+  BASE_REWARD_FACTOR,
+  DOMAIN_SYNC_COMMITTEE,
+  EFFECTIVE_BALANCE_INCREMENT,
+  MAX_EFFECTIVE_BALANCE,
+  SLOTS_PER_EPOCH,
+  SYNC_COMMITTEE_SIZE,
+  SYNC_REWARD_WEIGHT,
+  WEIGHT_DENOMINATOR,
+} from "@chainsafe/lodestar-params";
+import {altair, ValidatorIndex, allForks, Gwei} from "@chainsafe/lodestar-types";
+import {bigIntSqrt, intDiv, intToBytes} from "@chainsafe/lodestar-utils";
 import {MutableVector} from "@chainsafe/persistent-ts";
 import {hash} from "@chainsafe/ssz";
+import {computeEpochAtSlot} from "./epoch";
+import {computeShuffledIndex, getSeed} from "./seed";
 
-import {computeEpochAtSlot, computeShuffledIndex, getSeed} from "../../util";
-
-const MAX_RANDOM_BYTE = 2 ** 8 - 1;
+/**
+ * Same logic in https://github.com/ethereum/eth2.0-specs/blob/v1.1.0-alpha.5/specs/altair/beacon-chain.md#sync-committee-processing
+ */
+export function computeSyncParticipantReward(totalActiveBalance: Gwei): number {
+  // TODO: manage totalActiveBalance in eth
+  const totalActiveIncrements = Number(totalActiveBalance / BigInt(EFFECTIVE_BALANCE_INCREMENT));
+  const baseRewardPerIncrement = Math.floor(
+    (EFFECTIVE_BALANCE_INCREMENT * BASE_REWARD_FACTOR) / Number(bigIntSqrt(totalActiveBalance))
+  );
+  const totalBaseRewards = baseRewardPerIncrement * totalActiveIncrements;
+  const maxParticipantRewards = Math.floor(
+    Math.floor((totalBaseRewards * SYNC_REWARD_WEIGHT) / WEIGHT_DENOMINATOR) / SLOTS_PER_EPOCH
+  );
+  return Math.floor(maxParticipantRewards / SYNC_COMMITTEE_SIZE);
+}
 
 /**
  * TODO: NAIVE
@@ -24,6 +47,7 @@ export function getNextSyncCommitteeIndices(
   activeValidatorIndices: ValidatorIndex[],
   effectiveBalances: MutableVector<number>
 ): ValidatorIndex[] {
+  const MAX_RANDOM_BYTE = 2 ** 8 - 1;
   const epoch = computeEpochAtSlot(state.slot) + 1;
 
   const activeValidatorCount = activeValidatorIndices.length;

@@ -25,7 +25,7 @@ import {
 } from "@chainsafe/lodestar-params";
 import {NetworkName, networksChainConfig} from "@chainsafe/lodestar-config/networks";
 import {getClient} from "@chainsafe/lodestar-api";
-import {getNextSyncCommittee} from "../../src/altair/util/syncCommittee";
+import {getNextSyncCommittee} from "../../src/util/syncCommittee";
 import {getInfuraBeaconUrl} from "./infura";
 import {testCachePath} from "../cache";
 import {MutableVector} from "@chainsafe/persistent-ts";

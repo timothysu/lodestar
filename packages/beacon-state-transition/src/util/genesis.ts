@@ -23,7 +23,7 @@ import {
 import {computeEpochAtSlot} from "./epoch";
 import {getActiveValidatorIndices} from "./validator";
 import {getTemporaryBlockHeader} from "./blockRoot";
-import {getNextSyncCommittee} from "../altair/util/syncCommittee";
+import {getNextSyncCommittee} from "./syncCommittee";
 import {createCachedBeaconState, processDeposit} from "../allForks";
 import {CachedBeaconStateAllForks} from "../types";
 

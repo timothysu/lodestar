@@ -6,7 +6,7 @@ import {List, TreeBacked} from "@chainsafe/ssz";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {IParticipationStatus} from "../allForks/util/cachedEpochParticipation";
 import {getAttestationParticipationStatus, RootCache} from "./block/processAttestation";
-import {getNextSyncCommittee} from "./util/syncCommittee";
+import {getNextSyncCommittee} from "../util/syncCommittee";
 
 /**
  * Upgrade a state from phase0 to altair.

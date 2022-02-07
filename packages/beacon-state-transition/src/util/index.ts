@@ -18,5 +18,6 @@ export * from "./shufflingDecisionRoot";
 export * from "./signatureSets";
 export * from "./signingRoot";
 export * from "./slot";
+export * from "./syncCommittee";
 export * from "./validator";
 export * from "./finality";

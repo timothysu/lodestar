@@ -8,22 +8,18 @@ import {
   ValidatorIndex,
   phase0,
   allForks,
-  Gwei,
   Number64,
 } from "@chainsafe/lodestar-types";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {
-  BASE_REWARD_FACTOR,
   EFFECTIVE_BALANCE_INCREMENT,
   FAR_FUTURE_EPOCH,
   GENESIS_EPOCH,
   PROPOSER_WEIGHT,
   SLOTS_PER_EPOCH,
-  SYNC_COMMITTEE_SIZE,
-  SYNC_REWARD_WEIGHT,
   WEIGHT_DENOMINATOR,
 } from "@chainsafe/lodestar-params";
-import {bigIntSqrt, LodestarError} from "@chainsafe/lodestar-utils";
+import {LodestarError} from "@chainsafe/lodestar-utils";
 import {MutableVector} from "@chainsafe/persistent-ts";
 
 import {
@@ -40,6 +36,7 @@ import {computeEpochShuffling, IEpochShuffling} from "./epochShuffling";
 import {computeBaseRewardPerIncrement} from "../../altair/util/misc";
 import {CachedBeaconState} from "./cachedBeaconState";
 import {IEpochProcess} from "./epochProcess";
+import {computeSyncParticipantReward} from "../../util/syncCommittee";
 
 export type AttesterDuty = {
   // Index of validator in validator registry
@@ -190,7 +187,7 @@ export function createEpochContext(
   const onAltairFork = currentEpoch >= config.ALTAIR_FORK_EPOCH;
 
   const totalActiveBalance = BigInt(totalActiveBalanceByIncrement) * BigInt(EFFECTIVE_BALANCE_INCREMENT);
-  const syncParticipantReward = onAltairFork ? computeSyncParticipantReward(config, totalActiveBalance) : 0;
+  const syncParticipantReward = onAltairFork ? computeSyncParticipantReward(totalActiveBalance) : 0;
   const syncProposerReward = onAltairFork
     ? Math.floor((syncParticipantReward * PROPOSER_WEIGHT) / (WEIGHT_DENOMINATOR - PROPOSER_WEIGHT))
     : 0;
@@ -268,22 +265,6 @@ export function syncPubkeys(
 }
 
 /**
- * Same logic in https://github.com/ethereum/eth2.0-specs/blob/v1.1.0-alpha.5/specs/altair/beacon-chain.md#sync-committee-processing
- */
-export function computeSyncParticipantReward(config: IBeaconConfig, totalActiveBalance: Gwei): number {
-  // TODO: manage totalActiveBalance in eth
-  const totalActiveIncrements = Number(totalActiveBalance / BigInt(EFFECTIVE_BALANCE_INCREMENT));
-  const baseRewardPerIncrement = Math.floor(
-    (EFFECTIVE_BALANCE_INCREMENT * BASE_REWARD_FACTOR) / Number(bigIntSqrt(totalActiveBalance))
-  );
-  const totalBaseRewards = baseRewardPerIncrement * totalActiveIncrements;
-  const maxParticipantRewards = Math.floor(
-    Math.floor((totalBaseRewards * SYNC_REWARD_WEIGHT) / WEIGHT_DENOMINATOR) / SLOTS_PER_EPOCH
-  );
-  return Math.floor(maxParticipantRewards / SYNC_COMMITTEE_SIZE);
-}
-
-/**
  * Called to re-use information, such as the shuffling of the next epoch, after transitioning into a
  * new epoch.
  */
@@ -328,7 +309,7 @@ export function afterProcessEpoch(state: CachedBeaconState<allForks.BeaconState>
   epochCtx.totalActiveBalanceByIncrement = totalActiveBalanceByIncrement;
   if (currEpoch >= epochCtx.config.ALTAIR_FORK_EPOCH) {
     const totalActiveBalance = BigInt(totalActiveBalanceByIncrement) * BigInt(EFFECTIVE_BALANCE_INCREMENT);
-    epochCtx.syncParticipantReward = computeSyncParticipantReward(epochCtx.config, totalActiveBalance);
+    epochCtx.syncParticipantReward = computeSyncParticipantReward(totalActiveBalance);
     epochCtx.syncProposerReward = Math.floor(
       (epochCtx.syncParticipantReward * PROPOSER_WEIGHT) / (WEIGHT_DENOMINATOR - PROPOSER_WEIGHT)
     );
