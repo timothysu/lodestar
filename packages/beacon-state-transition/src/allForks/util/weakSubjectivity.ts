@@ -20,7 +20,7 @@ import {
 } from "../..";
 
 export const ETH_TO_GWEI = 10 ** 9;
-const SAFETY_DECAY = BigInt(10);
+const SAFETY_DECAY = 10;
 
 /**
  * Returns the epoch of the latest weak subjectivity checkpoint for the given
@@ -86,11 +86,11 @@ export function computeWeakSubjectivityPeriodFromConstituents(
   // totalBalanceByIncrement = totalBalance / MAX_EFFECTIVE_BALANCE and MAX_EFFECTIVE_BALANCE = ETH_TO_GWEI atm
   // we need to change this calculation just in case MAX_EFFECTIVE_BALANCE != ETH_TO_GWEI
   const t = Math.floor(totalBalanceByIncrement / N);
-  const T = Number(MAX_EFFECTIVE_BALANCE / ETH_TO_GWEI);
+  const T = MAX_EFFECTIVE_BALANCE / ETH_TO_GWEI;
   const delta = churnLimit;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   const Delta = MAX_DEPOSITS * SLOTS_PER_EPOCH;
-  const D = Number(SAFETY_DECAY);
+  const D = SAFETY_DECAY;
 
   let wsPeriod = minWithdrawabilityDelay;
   if (T * (200 + 3 * D) < t * (200 + 12 * D)) {
