@@ -425,6 +425,11 @@ export function createLodestarMetrics(
         help: "Time elappsed between block slot time and the time block processed",
         buckets: [0.1, 1, 10],
       }),
+      elapssedTimeTillBecomeHead: register.histogram({
+        name: "lodestar_gossip_block_elappsed_time_till_become_head",
+        help: "Time elappsed between block slot time and the time block becomes head",
+        buckets: [0.1, 1, 10],
+      }),
     },
 
     backfillSync: {

@@ -116,6 +116,10 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
           // Returns the delay between the start of `block.slot` and `current time`
           const delaySec = Date.now() / 1000 - (chain.genesisTime + slot * config.SECONDS_PER_SLOT);
           metrics?.gossipBlock.elappsedTimeTillProcessed.observe(delaySec);
+          const newHead = chain.forkChoice.getHeadRoot();
+          if (newHead === blockHex) {
+            metrics?.gossipBlock.elapssedTimeTillBecomeHead.observe(delaySec);
+          }
         })
         .catch((e) => {
           if (e instanceof BlockError) {
