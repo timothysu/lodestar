@@ -35,6 +35,7 @@ import {PeerAction} from "../../peers";
  */
 export type GossipHandlerOpts = {
   dontSendGossipAttestationsToForkchoice: boolean;
+  noValidation: boolean;
 };
 
 /**
@@ -43,6 +44,8 @@ export type GossipHandlerOpts = {
  */
 export const defaultGossipHandlerOpts = {
   dontSendGossipAttestationsToForkchoice: false,
+  // TODO: false as default
+  noValidation: true,
 };
 
 type ValidatorFnsModules = {
@@ -84,7 +87,7 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
       });
 
       try {
-        await validateGossipBlock(config, chain, signedBlock, topic.fork);
+        if (!options.noValidation) await validateGossipBlock(config, chain, signedBlock, topic.fork);
       } catch (e) {
         if (e instanceof BlockGossipError) {
           if (e instanceof BlockGossipError && e.type.code === BlockErrorCode.PARENT_UNKNOWN) {
@@ -138,9 +141,13 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
     },
 
     [GossipType.beacon_aggregate_and_proof]: async (signedAggregateAndProof, _topic, _peer, seenTimestampSec) => {
-      let validationResult: {indexedAttestation: phase0.IndexedAttestation; committeeIndices: number[]};
+      let validationResult:
+        | {indexedAttestation: phase0.IndexedAttestation; committeeIndices: number[]}
+        | undefined = undefined;
       try {
-        validationResult = await validateGossipAggregateAndProofRetryUnknownRoot(chain, signedAggregateAndProof);
+        if (!options.noValidation) {
+          validationResult = await validateGossipAggregateAndProofRetryUnknownRoot(chain, signedAggregateAndProof);
+        }
       } catch (e) {
         if (e instanceof AttestationError && e.action === GossipAction.REJECT) {
           const archivedPath = chain.persistInvalidSszObject(
@@ -154,38 +161,42 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
       }
 
       // Handler
-      const {indexedAttestation, committeeIndices} = validationResult;
-      metrics?.registerAggregatedAttestation(
-        OpSource.gossip,
-        seenTimestampSec,
-        signedAggregateAndProof,
-        indexedAttestation
-      );
-      const aggregatedAttestation = signedAggregateAndProof.message.aggregate;
+      if (validationResult) {
+        const {indexedAttestation, committeeIndices} = validationResult;
+        metrics?.registerAggregatedAttestation(
+          OpSource.gossip,
+          seenTimestampSec,
+          signedAggregateAndProof,
+          indexedAttestation
+        );
+        const aggregatedAttestation = signedAggregateAndProof.message.aggregate;
 
-      chain.aggregatedAttestationPool.add(
-        aggregatedAttestation,
-        indexedAttestation.attestingIndices as ValidatorIndex[],
-        committeeIndices
-      );
+        chain.aggregatedAttestationPool.add(
+          aggregatedAttestation,
+          indexedAttestation.attestingIndices as ValidatorIndex[],
+          committeeIndices
+        );
 
-      if (!options.dontSendGossipAttestationsToForkchoice) {
-        try {
-          chain.forkChoice.onAttestation(indexedAttestation);
-        } catch (e) {
-          logger.debug(
-            "Error adding gossip aggregated attestation to forkchoice",
-            {slot: aggregatedAttestation.data.slot},
-            e as Error
-          );
+        if (!options.dontSendGossipAttestationsToForkchoice) {
+          try {
+            chain.forkChoice.onAttestation(indexedAttestation);
+          } catch (e) {
+            logger.debug(
+              "Error adding gossip aggregated attestation to forkchoice",
+              {slot: aggregatedAttestation.data.slot},
+              e as Error
+            );
+          }
         }
       }
     },
 
     [GossipType.beacon_attestation]: async (attestation, {subnet}, _peer, seenTimestampSec) => {
-      let validationResult: {indexedAttestation: phase0.IndexedAttestation; subnet: number};
+      let validationResult: {indexedAttestation: phase0.IndexedAttestation; subnet: number} | undefined = undefined;
       try {
-        validationResult = await validateGossipAttestationRetryUnknownRoot(chain, attestation, subnet);
+        if (!options.noValidation) {
+          validationResult = await validateGossipAttestationRetryUnknownRoot(chain, attestation, subnet);
+        }
       } catch (e) {
         if (e instanceof AttestationError && e.action === GossipAction.REJECT) {
           const archivedPath = chain.persistInvalidSszObject(
@@ -198,33 +209,35 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
         throw e;
       }
 
-      // Handler
-      const {indexedAttestation} = validationResult;
-      metrics?.registerUnaggregatedAttestation(OpSource.gossip, seenTimestampSec, indexedAttestation);
+      if (validationResult) {
+        // Handler
+        const {indexedAttestation} = validationResult;
+        metrics?.registerUnaggregatedAttestation(OpSource.gossip, seenTimestampSec, indexedAttestation);
 
-      // Node may be subscribe to extra subnets (long-lived random subnets). For those, validate the messages
-      // but don't import them, to save CPU and RAM
-      if (!network.attnetsService.shouldProcess(subnet, attestation.data.slot)) {
-        return;
-      }
+        // Node may be subscribe to extra subnets (long-lived random subnets). For those, validate the messages
+        // but don't import them, to save CPU and RAM
+        if (!network.attnetsService.shouldProcess(subnet, attestation.data.slot)) {
+          return;
+        }
 
-      try {
-        chain.attestationPool.add(attestation);
-      } catch (e) {
-        logger.error("Error adding unaggregated attestation to pool", {subnet}, e as Error);
-      }
-
-      if (!options.dontSendGossipAttestationsToForkchoice) {
         try {
-          chain.forkChoice.onAttestation(indexedAttestation);
+          chain.attestationPool.add(attestation);
         } catch (e) {
-          logger.debug("Error adding gossip unaggregated attestation to forkchoice", {subnet}, e as Error);
+          logger.error("Error adding unaggregated attestation to pool", {subnet}, e as Error);
+        }
+
+        if (!options.dontSendGossipAttestationsToForkchoice) {
+          try {
+            chain.forkChoice.onAttestation(indexedAttestation);
+          } catch (e) {
+            logger.debug("Error adding gossip unaggregated attestation to forkchoice", {subnet}, e as Error);
+          }
         }
       }
     },
 
     [GossipType.attester_slashing]: async (attesterSlashing) => {
-      await validateGossipAttesterSlashing(chain, attesterSlashing);
+      if (!options.noValidation) await validateGossipAttesterSlashing(chain, attesterSlashing);
 
       // Handler
 
@@ -236,7 +249,7 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
     },
 
     [GossipType.proposer_slashing]: async (proposerSlashing) => {
-      await validateGossipProposerSlashing(chain, proposerSlashing);
+      if (!options.noValidation) await validateGossipProposerSlashing(chain, proposerSlashing);
 
       // Handler
 
@@ -248,7 +261,7 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
     },
 
     [GossipType.voluntary_exit]: async (voluntaryExit) => {
-      await validateGossipVoluntaryExit(chain, voluntaryExit);
+      if (!options.noValidation) await validateGossipVoluntaryExit(chain, voluntaryExit);
 
       // Handler
 
@@ -260,34 +273,43 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
     },
 
     [GossipType.sync_committee_contribution_and_proof]: async (contributionAndProof) => {
-      const {syncCommitteeParticipants} = await validateSyncCommitteeGossipContributionAndProof(
-        chain,
-        contributionAndProof
-      ).catch((e) => {
-        if (e instanceof SyncCommitteeError && e.action === GossipAction.REJECT) {
-          const archivedPath = chain.persistInvalidSszObject(
-            "contributionAndProof",
-            ssz.altair.SignedContributionAndProof.serialize(contributionAndProof),
-            toHexString(ssz.altair.SignedContributionAndProof.hashTreeRoot(contributionAndProof))
-          );
-          logger.debug("The invalid gossip contribution and proof was written to", archivedPath);
-        }
-        throw e;
-      });
+      let syncCommitteeParticipants: number | undefined = undefined;
+
+      if (!options.noValidation) {
+        const validationResult = await validateSyncCommitteeGossipContributionAndProof(
+          chain,
+          contributionAndProof
+        ).catch((e) => {
+          if (e instanceof SyncCommitteeError && e.action === GossipAction.REJECT) {
+            const archivedPath = chain.persistInvalidSszObject(
+              "contributionAndProof",
+              ssz.altair.SignedContributionAndProof.serialize(contributionAndProof),
+              toHexString(ssz.altair.SignedContributionAndProof.hashTreeRoot(contributionAndProof))
+            );
+            logger.debug("The invalid gossip contribution and proof was written to", archivedPath);
+          }
+          throw e;
+        });
+        syncCommitteeParticipants = validationResult.syncCommitteeParticipants;
+      }
 
       // Handler
 
       try {
-        chain.syncContributionAndProofPool.add(contributionAndProof.message, syncCommitteeParticipants);
+        if (syncCommitteeParticipants !== undefined) {
+          chain.syncContributionAndProofPool.add(contributionAndProof.message, syncCommitteeParticipants);
+        }
       } catch (e) {
         logger.error("Error adding to contributionAndProof pool", {}, e as Error);
       }
     },
 
     [GossipType.sync_committee]: async (syncCommittee, {subnet}) => {
-      let indexInSubcommittee = 0;
+      let indexInSubcommittee: number | undefined = undefined;
       try {
-        indexInSubcommittee = (await validateGossipSyncCommittee(chain, syncCommittee, subnet)).indexInSubcommittee;
+        if (!options.noValidation) {
+          indexInSubcommittee = (await validateGossipSyncCommittee(chain, syncCommittee, subnet)).indexInSubcommittee;
+        }
       } catch (e) {
         if (e instanceof SyncCommitteeError && e.action === GossipAction.REJECT) {
           const archivedPath = chain.persistInvalidSszObject(
@@ -303,7 +325,9 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
       // Handler
 
       try {
-        chain.syncCommitteeMessagePool.add(subnet, syncCommittee, indexInSubcommittee);
+        if (indexInSubcommittee !== undefined) {
+          chain.syncCommitteeMessagePool.add(subnet, syncCommittee, indexInSubcommittee);
+        }
       } catch (e) {
         logger.error("Error adding to syncCommittee pool", {subnet}, e as Error);
       }
