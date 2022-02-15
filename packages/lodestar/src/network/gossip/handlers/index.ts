@@ -75,10 +75,11 @@ export function getGossipHandlers(modules: ValidatorFnsModules, options: GossipH
   return {
     [GossipType.beacon_block]: async (signedBlock, topic, peerIdStr, seenTimestampSec) => {
       const slot = signedBlock.message.slot;
-      const blockHex = prettyBytes(config.getForkTypes(slot).BeaconBlock.hashTreeRoot(signedBlock.message));
+      const blockHex = toHexString(config.getForkTypes(slot).BeaconBlock.hashTreeRoot(signedBlock.message));
+      const blockHexLog = prettyBytes(blockHex);
       logger.verbose("Received gossip block", {
         slot: slot,
-        root: blockHex,
+        root: blockHexLog,
         curentSlot: chain.clock.currentSlot,
         peerId: peerIdStr,
       });
