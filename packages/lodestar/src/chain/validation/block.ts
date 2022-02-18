@@ -85,7 +85,15 @@ export async function validateGossipBlock(
     throw new BlockGossipError(GossipAction.IGNORE, {
       code: BlockErrorCode.NOT_LATER_THAN_PARENT,
       parentSlot: parentBlock.slot,
-      slot: blockSlot,
+      blockSlot,
+    });
+  }
+
+  if (blockSlot > parentBlock.slot + chain.importMaxSkipSlots) {
+    throw new BlockGossipError(GossipAction.IGNORE, {
+      code: BlockErrorCode.TOO_MANY_SKIPPED_SLOTS,
+      parentSlot: parentBlock.slot,
+      blockSlot,
     });
   }
 

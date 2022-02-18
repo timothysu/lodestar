@@ -11,7 +11,7 @@ import {
   CachedBeaconStateAllForks,
 } from "@chainsafe/lodestar-beacon-state-transition";
 import {allForks, ssz} from "@chainsafe/lodestar-types";
-import {IBeaconConfig, IChainForkConfig} from "@chainsafe/lodestar-config";
+import {IChainForkConfig} from "@chainsafe/lodestar-config";
 import {ILogger} from "@chainsafe/lodestar-utils";
 import {toHexString, TreeBacked} from "@chainsafe/ssz";
 import {SLOTS_PER_EPOCH} from "@chainsafe/lodestar-params";
@@ -179,7 +179,7 @@ export async function initStateFromAnchorState(
  * Restore a beacon state to the state cache.
  */
 export function restoreStateCaches(
-  config: IBeaconConfig,
+  config: IChainForkConfig,
   stateCache: StateContextCache,
   checkpointStateCache: CheckpointStateCache,
   state: TreeBacked<allForks.BeaconState>

@@ -22,6 +22,7 @@ validators
 **/lib
 **/.nyc_output
 .tmp
+.tmpdb
 .vscode
 
 # Tests artifacts
