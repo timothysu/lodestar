@@ -1,6 +1,6 @@
 import {allForks, altair} from "@chainsafe/lodestar-types";
 import {computeEpochAtSlot, ISignatureSet} from "../../util";
-import {CachedBeaconStateAllForks, CachedBeaconStateAltair} from "../../types";
+import {EpochContext} from "../../cache/epochContext";
 import {getProposerSlashingsSignatureSets} from "./proposerSlashings";
 import {getAttesterSlashingsSignatureSets} from "./attesterSlashings";
 import {getAttestationsSignatureSets} from "./indexedAttestation";
@@ -21,10 +21,13 @@ export * from "./voluntaryExits";
  * Deposits are not included because they can legally have invalid signatures.
  */
 export function getAllBlockSignatureSets(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   signedBlock: allForks.SignedBeaconBlock
 ): ISignatureSet[] {
-  return [getProposerSignatureSet(state, signedBlock), ...getAllBlockSignatureSetsExceptProposer(state, signedBlock)];
+  return [
+    getProposerSignatureSet(epochCtx, signedBlock),
+    ...getAllBlockSignatureSetsExceptProposer(epochCtx, signedBlock),
+  ];
 }
 
 /**
@@ -32,21 +35,21 @@ export function getAllBlockSignatureSets(
  * Useful since block proposer signature is verified beforehand on gossip validation
  */
 export function getAllBlockSignatureSetsExceptProposer(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   signedBlock: allForks.SignedBeaconBlock
 ): ISignatureSet[] {
   const signatureSets = [
-    getRandaoRevealSignatureSet(state, signedBlock.message),
-    ...getProposerSlashingsSignatureSets(state, signedBlock),
-    ...getAttesterSlashingsSignatureSets(state, signedBlock),
-    ...getAttestationsSignatureSets(state, signedBlock),
-    ...getVoluntaryExitsSignatureSets(state, signedBlock),
+    getRandaoRevealSignatureSet(epochCtx, signedBlock.message),
+    ...getProposerSlashingsSignatureSets(epochCtx, signedBlock),
+    ...getAttesterSlashingsSignatureSets(epochCtx, signedBlock),
+    ...getAttestationsSignatureSets(epochCtx, signedBlock),
+    ...getVoluntaryExitsSignatureSets(epochCtx, signedBlock),
   ];
 
   // Only after altair fork, validate tSyncCommitteeSignature
-  if (computeEpochAtSlot(signedBlock.message.slot) >= state.config.ALTAIR_FORK_EPOCH) {
+  if (computeEpochAtSlot(signedBlock.message.slot) >= epochCtx.config.ALTAIR_FORK_EPOCH) {
     const syncCommitteeSignatureSet = getSyncCommitteeSignatureSet(
-      state as CachedBeaconStateAltair,
+      epochCtx,
       (signedBlock as altair.SignedBeaconBlock).message
     );
     // There may be no participants in this syncCommitteeSignature, so it must not be validated

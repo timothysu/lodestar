@@ -1,19 +1,18 @@
 import {DOMAIN_SYNC_COMMITTEE_SELECTION_PROOF} from "@chainsafe/lodestar-params";
 import {altair, ssz} from "@chainsafe/lodestar-types";
 import {
-  CachedBeaconStateAllForks,
   computeSigningRoot,
+  EpochContext,
   ISignatureSet,
   SignatureSetType,
 } from "@chainsafe/lodestar-beacon-state-transition";
 
 export function getSyncCommitteeSelectionProofSignatureSet(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   contributionAndProof: altair.ContributionAndProof
 ): ISignatureSet {
-  const {epochCtx, config} = state;
   const slot = contributionAndProof.contribution.slot;
-  const domain = config.getDomain(DOMAIN_SYNC_COMMITTEE_SELECTION_PROOF, slot);
+  const domain = epochCtx.config.getDomain(DOMAIN_SYNC_COMMITTEE_SELECTION_PROOF, slot);
   const signingData: altair.SyncAggregatorSelectionData = {
     slot,
     subcommitteeIndex: contributionAndProof.contribution.subcommitteeIndex,

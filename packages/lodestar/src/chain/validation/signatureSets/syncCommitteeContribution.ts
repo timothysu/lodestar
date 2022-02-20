@@ -1,19 +1,15 @@
 import {PublicKey} from "@chainsafe/bls";
 import {altair, ssz} from "@chainsafe/lodestar-types";
 import {DOMAIN_SYNC_COMMITTEE} from "@chainsafe/lodestar-params";
-import {
-  CachedBeaconStateAltair,
-  computeSigningRoot,
-  ISignatureSet,
-  SignatureSetType,
-} from "@chainsafe/lodestar-beacon-state-transition";
+import {computeSigningRoot, ISignatureSet, SignatureSetType} from "@chainsafe/lodestar-beacon-state-transition";
+import {IBeaconConfig} from "@chainsafe/lodestar-config";
 
 export function getSyncCommitteeContributionSignatureSet(
-  state: CachedBeaconStateAltair,
+  config: IBeaconConfig,
   contribution: altair.SyncCommitteeContribution,
   pubkeys: PublicKey[]
 ): ISignatureSet {
-  const domain = state.config.getDomain(DOMAIN_SYNC_COMMITTEE, contribution.slot);
+  const domain = config.getDomain(DOMAIN_SYNC_COMMITTEE, contribution.slot);
   return {
     type: SignatureSetType.aggregate,
     pubkeys,

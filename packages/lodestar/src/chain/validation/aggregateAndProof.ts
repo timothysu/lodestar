@@ -96,14 +96,17 @@ export async function validateGossipAggregateAndProof(
     throw new AttestationError(GossipAction.REJECT, {code: AttestationErrorCode.AGGREGATOR_NOT_IN_COMMITTEE});
   }
 
-  // [REJECT] The aggregate_and_proof.selection_proof is a valid signature of the aggregate.data.slot
-  // by the validator with index aggregate_and_proof.aggregator_index.
-  // [REJECT] The aggregator signature, signed_aggregate_and_proof.signature, is valid.
-  // [REJECT] The signature of aggregate is valid.
+  const {epochCtx} = attHeadState;
   const aggregator = attHeadState.epochCtx.index2pubkey[aggregateAndProof.aggregatorIndex];
   const signatureSets = [
-    getSelectionProofSignatureSet(attHeadState, attSlot, aggregator, signedAggregateAndProof),
-    getAggregateAndProofSignatureSet(attHeadState, attEpoch, aggregator, signedAggregateAndProof),
+    // [REJECT] The aggregate_and_proof.selection_proof is a valid signature of the aggregate.data.slot
+    // by the validator with index aggregate_and_proof.aggregator_index.
+    getSelectionProofSignatureSet(epochCtx.config, attSlot, aggregator, signedAggregateAndProof),
+
+    // [REJECT] The aggregator signature, signed_aggregate_and_proof.signature, is valid.
+    getAggregateAndProofSignatureSet(epochCtx.config, attEpoch, aggregator, signedAggregateAndProof),
+
+    // [REJECT] The signature of aggregate is valid.
     allForks.getIndexedAttestationSignatureSet(attHeadState, indexedAttestation),
   ];
   if (!(await chain.bls.verifySignatureSets(signatureSets, {batchable: true}))) {

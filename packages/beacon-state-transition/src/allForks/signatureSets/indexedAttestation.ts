@@ -7,24 +7,23 @@ import {
   SignatureSetType,
   verifySignatureSet,
 } from "../../util";
-import {CachedBeaconStateAllForks} from "../../types";
+import {EpochContext} from "../../cache/epochContext";
 
 export function verifyIndexedAttestationSignature(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   indexedAttestation: phase0.IndexedAttestation,
   indices?: number[]
 ): boolean {
-  return verifySignatureSet(getIndexedAttestationSignatureSet(state, indexedAttestation, indices));
+  return verifySignatureSet(getIndexedAttestationSignatureSet(epochCtx, indexedAttestation, indices));
 }
 
 export function getAttestationWithIndicesSignatureSet(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   attestation: Pick<phase0.Attestation, "data" | "signature">,
   indices: number[]
 ): ISignatureSet {
-  const {epochCtx} = state;
   const slot = computeStartSlotAtEpoch(attestation.data.target.epoch);
-  const domain = state.config.getDomain(DOMAIN_BEACON_ATTESTER, slot);
+  const domain = epochCtx.config.getDomain(DOMAIN_BEACON_ATTESTER, slot);
 
   return {
     type: SignatureSetType.aggregate,
@@ -35,22 +34,22 @@ export function getAttestationWithIndicesSignatureSet(
 }
 
 export function getIndexedAttestationSignatureSet(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   indexedAttestation: phase0.IndexedAttestation,
   indices?: number[]
 ): ISignatureSet {
   return getAttestationWithIndicesSignatureSet(
-    state,
+    epochCtx,
     indexedAttestation,
     indices ?? indexedAttestation.attestingIndices
   );
 }
 
 export function getAttestationsSignatureSets(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   signedBlock: allForks.SignedBeaconBlock
 ): ISignatureSet[] {
   return signedBlock.message.body.attestations.map((attestation) =>
-    getIndexedAttestationSignatureSet(state, state.epochCtx.getIndexedAttestation(attestation))
+    getIndexedAttestationSignatureSet(epochCtx, epochCtx.getIndexedAttestation(attestation))
   );
 }

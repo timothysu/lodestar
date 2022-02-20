@@ -7,25 +7,24 @@ import {
   SignatureSetType,
   verifySignatureSet,
 } from "../../util";
-import {CachedBeaconStateAllForks} from "../../types";
+import {EpochContext} from "../../cache/epochContext";
 
 export function verifyVoluntaryExitSignature(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   signedVoluntaryExit: phase0.SignedVoluntaryExit
 ): boolean {
-  return verifySignatureSet(getVoluntaryExitSignatureSet(state, signedVoluntaryExit));
+  return verifySignatureSet(getVoluntaryExitSignatureSet(epochCtx, signedVoluntaryExit));
 }
 
 /**
  * Extract signatures to allow validating all block signatures at once
  */
 export function getVoluntaryExitSignatureSet(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   signedVoluntaryExit: phase0.SignedVoluntaryExit
 ): ISignatureSet {
-  const {epochCtx} = state;
   const slot = computeStartSlotAtEpoch(signedVoluntaryExit.message.epoch);
-  const domain = state.config.getDomain(DOMAIN_VOLUNTARY_EXIT, slot);
+  const domain = epochCtx.config.getDomain(DOMAIN_VOLUNTARY_EXIT, slot);
 
   return {
     type: SignatureSetType.single,
@@ -36,10 +35,10 @@ export function getVoluntaryExitSignatureSet(
 }
 
 export function getVoluntaryExitsSignatureSets(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   signedBlock: allForks.SignedBeaconBlock
 ): ISignatureSet[] {
   return signedBlock.message.body.voluntaryExits.map((voluntaryExit) =>
-    getVoluntaryExitSignatureSet(state, voluntaryExit)
+    getVoluntaryExitSignatureSet(epochCtx, voluntaryExit)
   );
 }

@@ -1,21 +1,20 @@
 import {DOMAIN_BEACON_PROPOSER} from "@chainsafe/lodestar-params";
 import {allForks, phase0, ssz} from "@chainsafe/lodestar-types";
 import {computeSigningRoot, ISignatureSet, SignatureSetType} from "../../util";
-import {CachedBeaconStateAllForks} from "../../types";
+import {EpochContext} from "../../cache/epochContext";
 
 /**
  * Extract signatures to allow validating all block signatures at once
  */
 export function getProposerSlashingSignatureSets(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   proposerSlashing: phase0.ProposerSlashing
 ): ISignatureSet[] {
-  const {epochCtx} = state;
   const pubkey = epochCtx.index2pubkey[proposerSlashing.signedHeader1.message.proposerIndex];
 
   return [proposerSlashing.signedHeader1, proposerSlashing.signedHeader2].map(
     (signedHeader): ISignatureSet => {
-      const domain = state.config.getDomain(DOMAIN_BEACON_PROPOSER, signedHeader.message.slot);
+      const domain = epochCtx.config.getDomain(DOMAIN_BEACON_PROPOSER, signedHeader.message.slot);
       const beaconBlockHeaderType = ssz.phase0.BeaconBlockHeader;
 
       return {
@@ -29,10 +28,10 @@ export function getProposerSlashingSignatureSets(
 }
 
 export function getProposerSlashingsSignatureSets(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   signedBlock: allForks.SignedBeaconBlock
 ): ISignatureSet[] {
   return signedBlock.message.body.proposerSlashings
-    .map((proposerSlashing) => getProposerSlashingSignatureSets(state, proposerSlashing))
+    .map((proposerSlashing) => getProposerSlashingSignatureSets(epochCtx, proposerSlashing))
     .flat(1);
 }

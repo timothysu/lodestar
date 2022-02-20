@@ -2,10 +2,11 @@ import {altair, ssz} from "@chainsafe/lodestar-types";
 import {DOMAIN_SYNC_COMMITTEE} from "@chainsafe/lodestar-params";
 import {byteArrayEquals} from "@chainsafe/ssz";
 
-import {computeSigningRoot, getBlockRootAtSlot, ISignatureSet, SignatureSetType, verifySignatureSet} from "../../util";
+import {computeSigningRoot, ISignatureSet, SignatureSetType, verifySignatureSet} from "../../util";
 import {CachedBeaconStateAllForks} from "../../types";
 import {G2_POINT_AT_INFINITY} from "../../constants";
 import {getUnparticipantValues} from "../../util/array";
+import {EpochContext} from "../../cache/epochContext";
 
 export function processSyncAggregate(
   state: CachedBeaconStateAllForks,
@@ -20,7 +21,7 @@ export function processSyncAggregate(
   // different from the spec but not sure how to get through signature verification for default/empty SyncAggregate in the spec test
   if (verifySignatures) {
     // This is to conform to the spec - we want the signature to be verified
-    const signatureSet = getSyncCommitteeSignatureSet(state, block, participantIndices);
+    const signatureSet = getSyncCommitteeSignatureSet(state.epochCtx, block, participantIndices);
     // When there's no participation we consider the signature valid and just ignore i
     if (signatureSet !== null && !verifySignatureSet(signatureSet)) {
       throw Error("Sync committee signature invalid");
@@ -45,12 +46,11 @@ export function processSyncAggregate(
 }
 
 export function getSyncCommitteeSignatureSet(
-  state: CachedBeaconStateAllForks,
+  epochCtx: EpochContext,
   block: altair.BeaconBlock,
   /** Optional parameter to prevent computing it twice */
   participantIndices?: number[]
 ): ISignatureSet | null {
-  const {epochCtx} = state;
   const {syncAggregate} = block.body;
   const signature = syncAggregate.syncCommitteeSignature;
 
@@ -66,10 +66,19 @@ export function getSyncCommitteeSignatureSet(
   // which in the spec forces state.slot to equal block.slot.
   const previousSlot = Math.max(block.slot, 1) - 1;
 
-  const rootSigned = getBlockRootAtSlot(state, previousSlot);
+  // The spec uses the state to get the root at previousSlot
+  // ```python
+  // get_block_root_at_slot(state, previous_slot)
+  // ```
+  // However we need to run the function getSyncCommitteeSignatureSet() for all the blocks in a epoch
+  // with the same state when verifying blocks in batch on RangeSync.
+  //
+  // On skipped slots state block roots just copy the latest block, so using the parentRoot here is equivalent.
+  // So getSyncCommitteeSignatureSet() can be called with a state in any slot (with the correct shuffling)
+  const rootSigned = block.parentRoot;
 
   if (!participantIndices) {
-    const committeeIndices = state.epochCtx.currentSyncCommitteeIndexed.validatorIndices;
+    const committeeIndices = epochCtx.currentSyncCommitteeIndexed.validatorIndices;
     participantIndices = syncAggregate.syncCommitteeBits.intersectValues(committeeIndices);
   }
 
@@ -84,7 +93,7 @@ export function getSyncCommitteeSignatureSet(
     }
   }
 
-  const domain = state.config.getDomain(DOMAIN_SYNC_COMMITTEE, previousSlot);
+  const domain = epochCtx.config.getDomain(DOMAIN_SYNC_COMMITTEE, previousSlot);
 
   return {
     type: SignatureSetType.aggregate,
