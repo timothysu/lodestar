@@ -9,7 +9,6 @@ import {validateGossipVoluntaryExit} from "../../../../chain/validation/voluntar
 import {validateSyncCommitteeSigOnly} from "../../../../chain/validation/syncCommittee";
 import {ApiModules} from "../../types";
 import {OpSource} from "../../../../metrics/validatorMonitor";
-import {toHexString} from "@chainsafe/ssz";
 import {AttestationError, GossipAction, SyncCommitteeError} from "../../../../chain/errors";
 
 export function getBeaconPoolApi({
@@ -65,12 +64,7 @@ export function getBeaconPoolApi({
               e as Error
             );
             if (e instanceof AttestationError && e.action === GossipAction.REJECT) {
-              const archivedPath = chain.persistInvalidSszObject(
-                "attestation",
-                ssz.phase0.Attestation.serialize(attestation),
-                toHexString(ssz.phase0.Attestation.hashTreeRoot(attestation))
-              );
-              logger.debug("Submitted invalid attestation was written to", archivedPath);
+              chain.persistInvalidSszValue(ssz.phase0.Attestation, attestation, "api_reject");
             }
           }
         })
@@ -153,12 +147,7 @@ export function getBeaconPoolApi({
               e as Error
             );
             if (e instanceof SyncCommitteeError && e.action === GossipAction.REJECT) {
-              const archivedPath = chain.persistInvalidSszObject(
-                "syncCommittee",
-                ssz.altair.SyncCommitteeMessage.serialize(signature),
-                toHexString(ssz.altair.SyncCommitteeMessage.hashTreeRoot(signature))
-              );
-              logger.debug("The submitted sync committee message was written to", archivedPath);
+              chain.persistInvalidSszValue(ssz.altair.SyncCommitteeMessage, signature, "api_reject");
             }
           }
         })

@@ -5,10 +5,10 @@ export interface IChainArgs {
   "chain.useSingleThreadVerifier": boolean;
   "chain.disableBlsBatchVerify": boolean;
   "chain.persistInvalidSszObjects": boolean;
-  "chain.proposerBoostEnabled": boolean;
-  "safe-slots-to-import-optimistically": number;
   // this is defined as part of IBeaconPaths
   // "chain.persistInvalidSszObjectsDir": string;
+  "chain.proposerBoostEnabled": boolean;
+  "safe-slots-to-import-optimistically": number;
 }
 
 export function parseArgs(args: IChainArgs): IBeaconNodeOptions["chain"] {

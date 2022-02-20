@@ -3,12 +3,13 @@
  */
 
 import fs from "node:fs";
+import path from "node:path";
 import {CachedBeaconStateAllForks, computeStartSlotAtEpoch} from "@chainsafe/lodestar-beacon-state-transition";
 import {IBeaconConfig} from "@chainsafe/lodestar-config";
 import {IForkChoice} from "@chainsafe/lodestar-fork-choice";
 import {allForks, Number64, Root, phase0, Slot, RootHex} from "@chainsafe/lodestar-types";
-import {ILogger} from "@chainsafe/lodestar-utils";
-import {fromHexString, TreeBacked} from "@chainsafe/ssz";
+import {ILogger, toHex} from "@chainsafe/lodestar-utils";
+import {fromHexString, TreeBacked, TreeView, Type} from "@chainsafe/ssz";
 import {AbortController} from "@chainsafe/abort-controller";
 import {GENESIS_EPOCH, ZERO_HASH} from "../constants";
 import {IBeaconDb} from "../db";
@@ -44,6 +45,7 @@ import {IEth1ForBlockProduction} from "../eth1";
 import {IExecutionEngine} from "../executionEngine";
 import {PrecomputeNextEpochTransitionScheduler} from "./precomputeNextEpochTransition";
 import {ReprocessController} from "./reprocess";
+import {CompositeTypeAny} from "@chainsafe/ssz/lib/type/composite";
 
 export class BeaconChain implements IBeaconChain {
   readonly genesisTime: Number64;
@@ -272,23 +274,41 @@ export class BeaconChain implements IBeaconChain {
     return this.reprocessController.waitForBlockOfAttestation(slot, root);
   }
 
-  persistInvalidSszObject(type: SSZObjectType, bytes: Uint8Array, suffix = ""): string | null {
+  persistInvalidSszValue<T>(type: Type<T>, sszObject: T, suffix?: string): void {
+    if (this.opts.persistInvalidSszObjects) {
+      this.persistInvalidSszObject(type.typeName, type.serialize(sszObject), type.hashTreeRoot(sszObject), suffix);
+    }
+  }
+
+  persistInvalidSszView(view: TreeView<CompositeTypeAny>, suffix?: string): void {
+    if (this.opts.persistInvalidSszObjects) {
+      this.persistInvalidSszObject(view.type.typeName, view.serialize(), view.hashTreeRoot(), suffix);
+    }
+  }
+
+  private persistInvalidSszObject(typeName: string, bytes: Uint8Array, root: Uint8Array, suffix?: string): void {
+    if (!this.opts.persistInvalidSszObjects) {
+      return;
+    }
+
     const now = new Date();
     // yyyy-MM-dd
-    const date = now.toISOString().split("T")[0];
+    const dateStr = now.toISOString().split("T")[0];
+
     // by default store to lodestar_archive of current dir
-    const byDate = this.opts.persistInvalidSszObjectsDir
-      ? `${this.opts.persistInvalidSszObjectsDir}/${date}`
-      : `invalidSszObjects/${date}`;
-    if (!fs.existsSync(byDate)) {
-      fs.mkdirSync(byDate, {recursive: true});
+    const dirpath = path.join(this.opts.persistInvalidSszObjectsDir ?? "invalid_ssz_objects", dateStr);
+    const filepath = path.join(dirpath, `${typeName}_${toHex(root)}.ssz`);
+
+    if (!fs.existsSync(dirpath)) {
+      fs.mkdirSync(dirpath, {recursive: true});
     }
-    const fileName = `${byDate}/${type}_${suffix}.ssz`;
+
     // as of Feb 17 2022 there are a lot of duplicate files stored with different date suffixes
     // remove date suffixes in file name, and check duplicate to avoid redundant persistence
-    if (!fs.existsSync(fileName)) {
-      fs.writeFileSync(fileName, bytes);
+    if (!fs.existsSync(filepath)) {
+      fs.writeFileSync(filepath, bytes);
     }
-    return fileName;
+
+    this.logger.debug("Persisted invalid ssz object", {id: suffix, filepath});
   }
 }

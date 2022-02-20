@@ -173,8 +173,12 @@ export class MockBeaconChain implements IBeaconChain {
     return false;
   }
 
-  persistInvalidSszObject(): string | null {
-    return null;
+  persistInvalidSszObject(): void {
+    return;
+  }
+
+  persistInvalidSszValue(): void {
+    return;
   }
 }
 

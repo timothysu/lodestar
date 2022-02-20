@@ -6,7 +6,7 @@ export type IChainOptions = BlockProcessOpts &
   ForkChoiceOpts & {
     useSingleThreadVerifier?: boolean;
     persistInvalidSszObjects?: boolean;
-    persistInvalidSszObjectsDir: string;
+    persistInvalidSszObjectsDir?: string;
   };
 
 export type BlockProcessOpts = {
@@ -24,8 +24,6 @@ export type BlockProcessOpts = {
 export const defaultChainOptions: IChainOptions = {
   useSingleThreadVerifier: false,
   disableBlsBatchVerify: false,
-  persistInvalidSszObjects: true,
-  persistInvalidSszObjectsDir: "",
   proposerBoostEnabled: false,
   safeSlotsToImportOptimistically: SAFE_SLOTS_TO_IMPORT_OPTIMISTICALLY,
 };
