@@ -103,8 +103,14 @@ export class JobItemQueue<Args extends any[], R> {
 
     this.runningJobs = Math.max(0, this.runningJobs - 1);
 
-    // Potentially run a new job
-    void this.runJob();
+    // There are times where we have hundres of messages in queue but there is only 1 running job
+    // it's not efficient to run one by one in that case
+    // See https://github.com/ChainSafe/lodestar/issues/3784
+    const quota = Math.min(this.opts.maxConcurrency - this.runningJobs, this.jobs.length);
+    const toRun = Math.max(1, quota);
+    for (let i = 0; i < toRun; i++) {
+      void this.runJob();
+    }
   };
 
   private abortAllJobs = (): void => {
