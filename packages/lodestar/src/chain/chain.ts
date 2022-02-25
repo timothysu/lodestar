@@ -30,7 +30,7 @@ import {IChainOptions} from "./options";
 import {IStateRegenerator, QueuedStateRegenerator, RegenCaller} from "./regen";
 import {initializeForkChoice} from "./forkChoice";
 import {computeAnchorCheckpoint} from "./initState";
-import {IBlsVerifier, BlsSingleThreadVerifier, BlsMultiThreadWorkerPool} from "./bls";
+import {IBlsVerifier, BlsSingleThreadVerifier} from "./bls";
 import {
   SeenAttesters,
   SeenAggregators,
@@ -51,6 +51,7 @@ import {IEth1ForBlockProduction} from "../eth1";
 import {IExecutionEngine} from "../executionEngine";
 import {PrecomputeNextEpochTransitionScheduler} from "./precomputeNextEpochTransition";
 import {ReprocessController} from "./reprocess";
+import {BlsMixedVerifier} from "./bls/mixed";
 
 export class BeaconChain implements IBeaconChain {
   readonly genesisTime: UintNum64;
@@ -132,7 +133,8 @@ export class BeaconChain implements IBeaconChain {
     const emitter = new ChainEventEmitter();
     const bls = opts.useSingleThreadVerifier
       ? new BlsSingleThreadVerifier()
-      : new BlsMultiThreadWorkerPool({logger, metrics, signal: this.abortController.signal});
+      : // : new BlsMultiThreadWorkerPool({logger, metrics, signal: this.abortController.signal});
+        new BlsMixedVerifier({logger, metrics, signal: this.abortController.signal});
 
     const clock = new LocalClock({config, emitter, genesisTime: this.genesisTime, signal});
     const stateCache = new StateContextCache({metrics});
