@@ -106,9 +106,8 @@ export class BlsMultiThreadWorkerPool implements IBlsVerifier {
   private bufferedJobs: {
     jobs: JobQueueItem[];
     sigCount: number;
-    firstPush: number;
     timeout: NodeJS.Timeout;
-  } | null = null;
+  };
   private blsVerifyAllMultiThread: boolean;
 
   constructor(options: BlsMultiThreadWorkerPoolOptions, modules: BlsMultiThreadWorkerPoolModules) {
@@ -126,6 +125,11 @@ export class BlsMultiThreadWorkerPool implements IBlsVerifier {
     // `Error: err _wrapDeserialize`
     this.format = implementation === "blst-native" ? PointFormat.uncompressed : PointFormat.compressed;
     this.workers = this.createWorkers(implementation, getDefaultPoolSize());
+    this.bufferedJobs = {
+      jobs: [],
+      sigCount: 0,
+      timeout: setTimeout(this.runBufferedJobs, MAX_BUFFER_WAIT_MS),
+    };
 
     this.signal.addEventListener(
       "abort",
@@ -240,21 +244,12 @@ export class BlsMultiThreadWorkerPool implements IBlsVerifier {
     return await new Promise<boolean>((resolve, reject) => {
       const job = {resolve, reject, addedTimeMs: Date.now(), workReq};
 
-      // Append batchable sets to `bufferedJobs`, starting a timeout to push them into `jobs`.
+      // Append batchable sets to `bufferedJobs`, there is a timeout to push them into `jobs` in runBufferedJobs().
       // Do not call `runJob()`, it is called from `runBufferedJobs()`
       if (workReq.opts.batchable) {
-        if (!this.bufferedJobs) {
-          this.bufferedJobs = {
-            jobs: [],
-            sigCount: 0,
-            firstPush: Date.now(),
-            timeout: setTimeout(this.runBufferedJobs, MAX_BUFFER_WAIT_MS),
-          };
-        }
         this.bufferedJobs.jobs.push(job);
         this.bufferedJobs.sigCount += job.workReq.sets.length;
         if (this.bufferedJobs.sigCount > MAX_BUFFERED_SIGS) {
-          clearTimeout(this.bufferedJobs.timeout);
           this.runBufferedJobs();
         }
       }
@@ -385,14 +380,36 @@ export class BlsMultiThreadWorkerPool implements IBlsVerifier {
   }
 
   /**
-   * Add all buffered jobs to the job queue and potentially run them immediatelly
+   * Add up to MAX_BUFFERED_SIGS buffered jobs to the job queue and potentially run them immediatelly.
+   * Metric shows that sometimes we run up to 40 signature sets per job, sometimes it's only 11 - 20.
+   * This causes the signature sets per jobs to be around 16-18 or less most of the times.
    */
   private runBufferedJobs = (): void => {
-    if (this.bufferedJobs) {
-      this.jobs.push(...this.bufferedJobs.jobs);
-      this.bufferedJobs = null;
-      setTimeout(this.runJob, 0);
+    let sigCount = 0;
+    let i = 0;
+
+    for (; i < this.bufferedJobs.jobs.length; i++) {
+      const job = this.bufferedJobs.jobs[i];
+      this.jobs.push(job);
+      i++;
+      sigCount += job.workReq.sets.length;
+      if (sigCount >= MAX_BUFFERED_SIGS) break;
     }
+
+    if (sigCount > 0) {
+      this.bufferedJobs.sigCount = Math.max(0, this.bufferedJobs.sigCount - sigCount);
+      if (i < this.bufferedJobs.jobs.length) {
+        this.bufferedJobs.jobs.splice(0, i);
+      } else {
+        this.bufferedJobs.jobs = [];
+      }
+    }
+
+    // restart timer
+    clearTimeout(this.bufferedJobs.timeout);
+    this.bufferedJobs.timeout = setTimeout(this.runBufferedJobs, MAX_BUFFER_WAIT_MS);
+
+    setTimeout(this.runJob, 0);
   };
 
   /**
