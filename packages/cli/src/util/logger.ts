@@ -23,6 +23,10 @@ export function errorLogger(): ILogger {
   return new WinstonLogger({level: LogLevel.error});
 }
 
+export function infoLogger(): ILogger {
+  return new WinstonLogger({level: LogLevel.info});
+}
+
 /**
  * Setup a CLI logger, common for beacon, validator and dev commands
  */

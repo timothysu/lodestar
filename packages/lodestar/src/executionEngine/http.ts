@@ -1,7 +1,7 @@
 import {AbortSignal} from "@chainsafe/abort-controller";
 import {bellatrix, RootHex, Root} from "@chainsafe/lodestar-types";
 import {BYTES_PER_LOGS_BLOOM} from "@chainsafe/lodestar-params";
-import {fromHex} from "@chainsafe/lodestar-utils";
+import {fromHex, sleep} from "@chainsafe/lodestar-utils";
 
 import {ErrorJsonRpcResponse, HttpRpcError, JsonRpcHttpClient} from "../eth1/provider/jsonRpcHttpClient";
 import {
@@ -23,10 +23,12 @@ import {
   PayloadAttributes,
   ApiPayloadAttributes,
 } from "./interface";
+import {retry} from "../util/retry";
 
 export type ExecutionEngineHttpOpts = {
   urls: string[];
   timeout?: number;
+  retryAttempts?: number;
   /**
    * 256 bit jwt secret in hex format without the leading 0x. If provided, the execution engine
    * rpc requests will be bundled by an authorization header having a fresh jwt token on each
@@ -52,6 +54,7 @@ export const defaultExecutionEngineHttpOpts: ExecutionEngineHttpOpts = {
  */
 export class ExecutionEngineHttp implements IExecutionEngine {
   private readonly rpc: IJsonRpcHttpClient;
+  private readonly retryAttempts: number;
 
   constructor(opts: ExecutionEngineHttpOpts, signal: AbortSignal, rpc?: IJsonRpcHttpClient) {
     this.rpc =
@@ -61,6 +64,7 @@ export class ExecutionEngineHttp implements IExecutionEngine {
         timeout: opts.timeout,
         jwtSecret: opts.jwtSecretHex ? fromHex(opts.jwtSecretHex) : undefined,
       });
+    this.retryAttempts = opts.retryAttempts ?? 1;
   }
 
   /**
@@ -91,20 +95,29 @@ export class ExecutionEngineHttp implements IExecutionEngine {
   async notifyNewPayload(executionPayload: bellatrix.ExecutionPayload): Promise<ExecutePayloadResponse> {
     const method = "engine_newPayloadV1";
     const serializedExecutionPayload = serializeExecutionPayload(executionPayload);
-    const {status, latestValidHash, validationError} = await this.rpc
-      .fetch<EngineApiRpcReturnTypes[typeof method], EngineApiRpcParamTypes[typeof method]>({
-        method,
-        params: [serializedExecutionPayload],
-      })
-      // If there are errors by EL like connection refused, internal error, they need to be
-      // treated seperate from being INVALID. For now, just pass the error upstream.
-      .catch((e: Error): EngineApiRpcReturnTypes[typeof method] => {
-        if (e instanceof HttpRpcError || e instanceof ErrorJsonRpcResponse) {
-          return {status: ExecutePayloadStatus.ELERROR, latestValidHash: null, validationError: e.message};
-        } else {
-          return {status: ExecutePayloadStatus.UNAVAILABLE, latestValidHash: null, validationError: e.message};
-        }
-      });
+    const {status, latestValidHash, validationError} = await retry(
+      async (attempt) => {
+        return await this.rpc
+          .fetch<EngineApiRpcReturnTypes[typeof method], EngineApiRpcParamTypes[typeof method]>({
+            method,
+            params: [serializedExecutionPayload],
+          })
+          .catch(async (e: Error) => {
+            if (attempt === this.retryAttempts) {
+              if (e instanceof HttpRpcError || e instanceof ErrorJsonRpcResponse) {
+                return {status: ExecutePayloadStatus.ELERROR, latestValidHash: null, validationError: e.message};
+              } else {
+                return {status: ExecutePayloadStatus.UNAVAILABLE, latestValidHash: null, validationError: e.message};
+              }
+            }
+            await sleep(attempt * 1000);
+            throw e;
+          });
+      },
+      {
+        retries: this.retryAttempts,
+      }
+    );
 
     switch (status) {
       case ExecutePayloadStatus.VALID:
