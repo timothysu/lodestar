@@ -110,7 +110,7 @@ export class ExecutionEngineHttp implements IExecutionEngine {
                 return {status: ExecutePayloadStatus.UNAVAILABLE, latestValidHash: null, validationError: e.message};
               }
             }
-            await sleep(attempt * 1000);
+            await sleep(Math.pow(2, attempt) * 1000);
             throw e;
           });
       },
