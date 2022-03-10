@@ -47,6 +47,8 @@ import {bytesToData, dataToBytes, quantityToNum} from "../../src/eth1/provider/u
 const terminalTotalDifficultyPreMerge = 10;
 const TX_SCENARIOS = process.env.TX_SCENARIOS?.split(",") || [];
 const jwtSecretHex = "0xdc6457099f127cf0bac78de8b297df04951281909db4f58b43def7c7151e765d";
+const retryAttempts = 1;
+const retryDelay = 2000;
 
 describe("executionEngine / ExecutionEngineHttp", function () {
   this.timeout("10min");
@@ -156,7 +158,10 @@ describe("executionEngine / ExecutionEngineHttp", function () {
     }
 
     const controller = new AbortController();
-    const executionEngine = new ExecutionEngineHttp({urls: [engineApiUrl], jwtSecretHex}, controller.signal);
+    const executionEngine = new ExecutionEngineHttp(
+      {urls: [engineApiUrl], jwtSecretHex, retryAttempts, retryDelay},
+      controller.signal
+    );
 
     // 1. Prepare a payload
 
