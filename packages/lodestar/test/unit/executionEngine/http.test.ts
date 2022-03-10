@@ -36,7 +36,7 @@ describe("ExecutionEngine / http", () => {
 
     const baseUrl = await server.listen(0);
 
-    executionEngine = new ExecutionEngineHttp({urls: [baseUrl]}, controller.signal);
+    executionEngine = new ExecutionEngineHttp({urls: [baseUrl], retryAttempts: 1, retryDelay: 2000}, controller.signal);
   });
 
   it("getPayload", async () => {
@@ -141,7 +141,10 @@ describe("ExecutionEngine / http", () => {
 
     const baseUrl = await server.listen(0);
 
-    const executionEngine = new ExecutionEngineHttp({urls: [baseUrl], retryAttempts: 5}, controller.signal);
+    const executionEngine = new ExecutionEngineHttp(
+      {urls: [baseUrl], retryAttempts: 5, retryDelay: 1000},
+      controller.signal
+    );
 
     const request = {
       jsonrpc: "2.0",

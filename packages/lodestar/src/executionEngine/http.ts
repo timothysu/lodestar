@@ -27,8 +27,9 @@ import {retry} from "../util/retry";
 
 export type ExecutionEngineHttpOpts = {
   urls: string[];
+  retryAttempts: number;
+  retryDelay: number;
   timeout?: number;
-  retryAttempts?: number;
   /**
    * 256 bit jwt secret in hex format without the leading 0x. If provided, the execution engine
    * rpc requests will be bundled by an authorization header having a fresh jwt token on each
@@ -40,6 +41,8 @@ export type ExecutionEngineHttpOpts = {
 
 export const defaultExecutionEngineHttpOpts: ExecutionEngineHttpOpts = {
   urls: ["http://localhost:8550"],
+  retryAttempts: 3,
+  retryDelay: 2000,
   timeout: 12000,
 };
 
@@ -55,6 +58,7 @@ export const defaultExecutionEngineHttpOpts: ExecutionEngineHttpOpts = {
 export class ExecutionEngineHttp implements IExecutionEngine {
   private readonly rpc: IJsonRpcHttpClient;
   private readonly retryAttempts: number;
+  private readonly retryDelay: number;
 
   constructor(opts: ExecutionEngineHttpOpts, signal: AbortSignal, rpc?: IJsonRpcHttpClient) {
     this.rpc =
@@ -64,7 +68,8 @@ export class ExecutionEngineHttp implements IExecutionEngine {
         timeout: opts.timeout,
         jwtSecret: opts.jwtSecretHex ? fromHex(opts.jwtSecretHex) : undefined,
       });
-    this.retryAttempts = opts.retryAttempts ?? 1;
+    this.retryAttempts = opts.retryAttempts;
+    this.retryDelay = opts.retryDelay;
   }
 
   /**
@@ -110,12 +115,12 @@ export class ExecutionEngineHttp implements IExecutionEngine {
                 return {status: ExecutePayloadStatus.UNAVAILABLE, latestValidHash: null, validationError: e.message};
               }
             }
-            await sleep(Math.pow(2, attempt) * 1000);
             throw e;
           });
       },
       {
         retries: this.retryAttempts,
+        retryDelay: this.retryDelay,
       }
     );
 
@@ -217,13 +222,22 @@ export class ExecutionEngineHttp implements IExecutionEngine {
     const {
       payloadStatus: {status, latestValidHash: _latestValidHash, validationError},
       payloadId,
-    } = await this.rpc.fetch<EngineApiRpcReturnTypes[typeof method], EngineApiRpcParamTypes[typeof method]>({
-      method,
-      params: [
-        {headBlockHash: headBlockHashData, safeBlockHash: headBlockHashData, finalizedBlockHash},
-        apiPayloadAttributes,
-      ],
-    });
+    } = await retry(
+      async (_attempt) => {
+        return await this.rpc.fetch<EngineApiRpcReturnTypes[typeof method], EngineApiRpcParamTypes[typeof method]>({
+          method,
+          params: [
+            {headBlockHash: headBlockHashData, safeBlockHash: headBlockHashData, finalizedBlockHash},
+            apiPayloadAttributes,
+          ],
+        });
+      },
+      {
+        // We only retry the forkchoice updated when there is payload attributes
+        retries: apiPayloadAttributes !== undefined ? this.retryAttempts : 1,
+        retryDelay: this.retryDelay,
+      }
+    );
 
     switch (status) {
       case ExecutePayloadStatus.VALID:
@@ -269,13 +283,18 @@ export class ExecutionEngineHttp implements IExecutionEngine {
    */
   async getPayload(payloadId: PayloadId): Promise<bellatrix.ExecutionPayload> {
     const method = "engine_getPayloadV1";
-    const executionPayloadRpc = await this.rpc.fetch<
-      EngineApiRpcReturnTypes[typeof method],
-      EngineApiRpcParamTypes[typeof method]
-    >({
-      method,
-      params: [payloadId],
-    });
+    const executionPayloadRpc = await retry(
+      async (_attempt) => {
+        return await this.rpc.fetch<EngineApiRpcReturnTypes[typeof method], EngineApiRpcParamTypes[typeof method]>({
+          method,
+          params: [payloadId],
+        });
+      },
+      {
+        retries: this.retryAttempts,
+        retryDelay: this.retryDelay,
+      }
+    );
 
     return parseExecutionPayload(executionPayloadRpc);
   }
