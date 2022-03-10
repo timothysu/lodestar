@@ -53,9 +53,9 @@ export type FilterGetPeers = {
 
 export type SyncingStatus = {
   /** Head slot node is trying to reach */
-  headSlot: Slot;
+  headSlot: string;
   /** How many slots node needs to process to reach head. 0 if synced. */
-  syncDistance: Slot;
+  syncDistance: string;
   /** Set to true if the node is syncing, false if the node is synced. */
   isSyncing: boolean;
 };
