@@ -566,8 +566,15 @@ export class PeerManager {
         const agentVersionBytes = this.libp2p.peerStore.metadataBook.getValue(peerData.peerId, "AgentVersion");
         if (agentVersionBytes) {
           const agentVersion = new TextDecoder().decode(agentVersionBytes) || "N/A";
-          peerData.agentVersion = agentVersion;
-          peerData.agentClient = clientFromAgentVersion(agentVersion);
+          if (agentVersion !== peerData.agentVersion) {
+            this.logger.debug("AgentVersion is updated", {
+              peerId: peerData.peerId.toB58String(),
+              old: peerData.agentVersion,
+              new: agentVersion,
+            });
+            peerData.agentVersion = agentVersion;
+            peerData.agentClient = clientFromAgentVersion(agentVersion);
+          }
         }
       } catch (e) {
         this.logger.error("Error syncing AgentVersion", {peer: peerData.peerId.toB58String()}, e as Error);
