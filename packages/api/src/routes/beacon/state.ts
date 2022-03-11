@@ -29,8 +29,8 @@ export type ValidatorStatus =
   | "withdrawal_done";
 
 export type ValidatorFilters = {
-  indices?: ValidatorId[];
-  statuses?: ValidatorStatus[];
+  id?: ValidatorId[];
+  status?: ValidatorStatus[];
 };
 export type CommitteesFilters = {
   epoch?: Epoch;
@@ -123,7 +123,7 @@ export type Api = {
    * Can be one of: "head" (canonical head in node's view), "genesis", "finalized", "justified", \<slot\>, \<hex encoded stateRoot with 0x prefix\>.
    * @param id Either hex encoded public key (with 0x prefix) or validator index
    */
-  getStateValidatorBalances(stateId: StateId, indices?: ValidatorId[]): Promise<{data: ValidatorBalance[]}>;
+  getStateValidatorBalances(stateId: StateId, id?: ValidatorId[]): Promise<{data: ValidatorBalance[]}>;
 
   /**
    * Get all committees for a state.
@@ -162,8 +162,8 @@ export type ReqTypes = {
   getStateFork: StateIdOnlyReq;
   getStateRoot: StateIdOnlyReq;
   getStateValidator: {params: {stateId: StateId; validatorId: ValidatorId}};
-  getStateValidators: {params: {stateId: StateId}; query: {indices?: ValidatorId[]; statuses?: ValidatorStatus[]}};
-  getStateValidatorBalances: {params: {stateId: StateId}; query: {indices?: ValidatorId[]}};
+  getStateValidators: {params: {stateId: StateId}; query: {id?: ValidatorId[]; status?: ValidatorStatus[]}};
+  getStateValidatorBalances: {params: {stateId: StateId}; query: {id?: ValidatorId[]}};
 };
 
 export function getReqSerializers(): ReqSerializers<Api, ReqTypes> {
@@ -209,16 +209,16 @@ export function getReqSerializers(): ReqSerializers<Api, ReqTypes> {
       parseReq: ({params, query}) => [params.stateId, query],
       schema: {
         params: {stateId: Schema.StringRequired},
-        query: {indices: Schema.UintOrStringArray, statuses: Schema.StringArray},
+        query: {id: Schema.UintOrStringArray, status: Schema.StringArray},
       },
     },
 
     getStateValidatorBalances: {
-      writeReq: (stateId, indices) => ({params: {stateId}, query: {indices}}),
-      parseReq: ({params, query}) => [params.stateId, query.indices],
+      writeReq: (stateId, id) => ({params: {stateId}, query: {id}}),
+      parseReq: ({params, query}) => [params.stateId, query.id],
       schema: {
         params: {stateId: Schema.StringRequired},
-        query: {indices: Schema.UintOrStringArray},
+        query: {id: Schema.UintOrStringArray},
       },
     },
   };

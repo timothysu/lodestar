@@ -50,12 +50,12 @@ export function getBeaconStateApi({chain, config, db}: Pick<ApiModules, "chain" 
       const {pubkey2index} = chain.getHeadState();
 
       const validatorResponses: routes.beacon.ValidatorResponse[] = [];
-      if (filters?.indices) {
-        for (const id of filters.indices) {
+      if (filters?.id) {
+        for (const id of filters.id) {
           const validatorIndex = getStateValidatorIndex(id, state, pubkey2index);
           if (validatorIndex != null) {
             const validator = validators[validatorIndex];
-            if (filters.statuses && !filters.statuses.includes(getValidatorStatus(validator, currentEpoch))) {
+            if (filters.status && !filters.status.includes(getValidatorStatus(validator, currentEpoch))) {
               continue;
             }
             const validatorResponse = toValidatorResponse(
@@ -68,8 +68,8 @@ export function getBeaconStateApi({chain, config, db}: Pick<ApiModules, "chain" 
           }
         }
         return {data: validatorResponses};
-      } else if (filters?.statuses) {
-        const validatorsByStatus = filterStateValidatorsByStatuses(filters.statuses, state, pubkey2index, currentEpoch);
+      } else if (filters?.status) {
+        const validatorsByStatus = filterStateValidatorsByStatuses(filters.status, state, pubkey2index, currentEpoch);
         return {data: validatorsByStatus};
       }
 
